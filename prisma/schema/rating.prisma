@@ -1,0 +1,43 @@
+model DeliveryRating {
+  id         Int             @id @default(autoincrement())
+  userId     Int             @map("customer_id")
+  deliveryId Int             @map("delivery_id")
+  orderId    Int             @map("order_id")
+  rating     Float           @map("rating")
+  comment    String?         @db.Text
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime?       @map("updated_at")
+  deletedAt  DateTime?       @map("deleted_at")
+  Customer   User            @relation(fields: [userId], references: [id], map: "delivery_rating_customer_id_fkey")
+  Delivery   DeliveryDetails @relation(fields: [deliveryId], references: [userId], onDelete: Cascade, map: "delivery_rating_delivery_id_fk")
+  Order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade, map: "delivery_rating_order_id_fkey")
+
+  @@unique([orderId, userId])
+  @@index([userId])
+  @@index([orderId])
+  @@index([deliveryId])
+  @@map("delivery_rating")
+}
+
+model StoreRating {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("customer_id")
+  orderId   Int       @map("order_id")
+  rating    Float     @map("rating")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  branchId  Int       @map("branch_id")
+  storeId   Int?
+  comment   String?   @db.Text
+  Branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  Customer  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  store     Store?    @relation(fields: [storeId], references: [id])
+
+  @@unique([orderId, userId])
+  @@index([branchId], map: "store_rating_branch_id_fkey")
+  @@index([userId], map: "store_rating_customer_id_fkey")
+  @@index([storeId], map: "store_rating_storeId_fkey")
+  @@map("store_rating")
+}

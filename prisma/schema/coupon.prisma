@@ -1,0 +1,75 @@
+model Coupon {
+  id               Int             @id @default(autoincrement())
+  title            Json            @map("title")
+  code             String          @unique
+  type             CouponType
+  discountType     DiscountType    @map("discount_type")
+  discountValue    Int             @map("discount_value")
+  maxUsage         Int             @map("max_usage")
+  usageCount       Int             @map("usage_count")
+  minOrderAmount   Int             @map("min_order_amount")
+  active           Boolean         @default(true)
+  startDate        DateTime        @map("start_date")
+  endDate          DateTime        @map("end_date")
+  minDiscountValue Int             @map("min_discount_value")
+  maxDiscountValue Int             @map("max_discount_value")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  deletedAt        DateTime?       @map("deleted_at")
+  expired          Boolean         @default(false)
+  ArchivedOrders   ArchivedOrder[]
+  CouponZones      CouponZones[]
+  Orders           Order[]
+  StoreCoupons     StoreCoupons[]
+  UserCoupons      UserCoupons[]
+
+  @@map("coupons")
+}
+
+model UserCoupons {
+  id       Int    @id @default(autoincrement())
+  couponId Int    @map("coupon_id")
+  userId   Int    @map("user_id")
+  Coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, userId])
+  @@index([userId], map: "user_coupons_user_id_fkey")
+  @@map("user_coupons")
+}
+
+model StoreCoupons {
+  id       Int    @id @default(autoincrement())
+  couponId Int    @map("coupon_id")
+  storeId  Int    @map("store_id")
+  Coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  Store    Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, storeId])
+  @@index([storeId], map: "store_coupons_store_id_fkey")
+  @@map("store_coupons")
+}
+
+model CouponZones {
+  id       Int    @id @default(autoincrement())
+  couponId Int    @map("coupon_id")
+  zoneId   Int    @map("zone_id")
+  Coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  Zone     Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, zoneId])
+  @@index([zoneId], map: "coupon_zones_zone_id_fkey")
+  @@map("coupon_zones")
+}
+
+enum CouponType {
+  ALL_USERS
+  ALL_STORES
+  FIRST_ORDER
+  USER_WISE
+  STORE_WISE
+}
+
+enum DiscountType {
+  AMOUNT
+  PERCENTAGE
+}

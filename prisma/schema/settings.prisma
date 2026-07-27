@@ -1,0 +1,37 @@
+model Settings {
+  setting    String        @id
+  name       Json?
+  value      String        @db.LongText
+  domain     SettingDomain
+  deletedAt  DateTime?     @map("deleted_at")
+  enumValues Json?         @map("enum_values")
+  dataType   DataType      @map("data_type")
+
+  @@map("settings")
+}
+
+enum SettingDomain {
+  BUSINESS
+  DELIVERY
+  ORDER
+  REFUND
+  STORE
+  CUSTOMER
+  PRIORITY
+  DISBURSEMENT
+}
+
+enum DataType {
+  STRING
+  NUMBER
+  BOOLEAN
+  DATE
+  DATETIME
+  TIME
+  LATITUDE
+  LONGITUDE
+  JSON
+  FILE
+  ENUM
+  TEXTAREA
+}

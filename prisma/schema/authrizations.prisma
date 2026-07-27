@@ -1,0 +1,39 @@
+model Role {
+  id             Int              @id @default(autoincrement())
+  name           Json?
+  roleKey        String           @map("key")
+  default        Boolean          @default(false)
+  storeId        Int?             @map("store_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  deletedAt      DateTime?        @map("deleted_at")
+  RolePermission RolePermission[]
+  Users          User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id             Int              @id @default(autoincrement())
+  name           Json?
+  method         String
+  prefix         String
+  default        Boolean          @default(false)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  deletedAt      DateTime?        @map("deleted_at")
+  RolePermission RolePermission[]
+
+  @@unique([prefix, method])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int        @map("role_id")
+  permissionId Int        @map("permission_id")
+  Permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  Role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId], map: "role_permissions_permission_id_fkey")
+  @@map("role_permissions")
+}

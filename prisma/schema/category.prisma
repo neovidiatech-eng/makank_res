@@ -1,0 +1,20 @@
+model Category {
+  id                 Int                   @id @default(autoincrement())
+  name               Json
+  createdAt          DateTime              @default(now()) @map("created_at")
+  deletedAt          DateTime?             @map("deleted_at")
+  active             Boolean               @default(true)
+  image              String?
+  order              Int                   @default(0)
+  storeId            Int?                  @map("store_id")
+  templateCategoryId Int?                  @map("template_category_id")
+  Banners            Banner[]
+  BundleScopes       BundleScopeCategory[]
+  Store              Store?                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  templateCategory   TemplateCategory?     @relation(fields: [templateCategoryId], references: [id])
+  services           Service[]
+
+  @@index([templateCategoryId], map: "categories_template_category_id_fkey")
+  @@index([storeId], map: "categories_store_id_fkey")
+  @@map("categories")
+}

@@ -1,0 +1,11 @@
+model Language {
+  name      String
+  key       String    @id @unique
+  file      String
+  frontFile String    @map("front_file")
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+  sessions  Session[]
+
+  @@map("languages")
+}

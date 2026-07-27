@@ -1,0 +1,22 @@
+model Zone {
+  id                   Int                   @id @default(autoincrement())
+  name                 Json
+  coordinates          Json
+  createdAt            DateTime              @default(now()) @map("created_at")
+  deletedAt            DateTime?             @map("deleted_at")
+  active               Boolean               @default(true)
+  cityId               Int?                  @map("city_id")
+  deliveryPrice        Float?                @map("delivery_price")
+  Banners              BannerZone[]
+  Branches             BranchZone[]
+  CouponZones          CouponZones[]
+  OnlineSellerProfiles OnlineSellerProfile[]
+  Order                Order[]
+  StoreZonePrices      StoreZonePrice[]
+  OrderStations        OrderStation[]
+  ArchivedOrders       ArchivedOrder[]
+  City                 City?                 @relation(fields: [cityId], references: [id])
+
+  @@index([cityId], map: "zones_city_id_fkey")
+  @@map("zones")
+}

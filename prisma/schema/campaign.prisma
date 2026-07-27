@@ -1,0 +1,46 @@
+model Campaign {
+  id                   Int                   @id @default(autoincrement())
+  type                 CampaignType
+  title                Json
+  description          Json?
+  featureText          Json?                 @map("feature_text")
+  valueText            Json?                 @map("value_text")
+  image                String?
+  targetType           CampaignTargetType    @default(CUSTOMER) @map("target_type")
+  targetUserIds        Json?                 @map("target_user_ids")
+  storeId              Int?                  @map("store_id")
+  serviceId            Int?                  @map("service_id")
+  deliveryId           String?               @map("delivery_id")
+  startAt              DateTime?             @map("start_at")
+  endAt                DateTime?             @map("end_at")
+  displayIntervalHours Int?                  @map("display_interval_hours")
+  manualStatus         CampaignStatus        @default(ACTIVE) @map("manual_status")
+  sentAt               DateTime?             @map("sent_at")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  deletedAt            DateTime?             @map("deleted_at")
+  Views                CampaignView[]
+  Service              Service?              @relation(fields: [serviceId], references: [id])
+  Store                Store?                @relation(fields: [storeId], references: [id])
+
+  @@index([type])
+  @@index([storeId], map: "campaigns_store_id_fkey")
+  @@index([serviceId], map: "campaigns_service_id_fkey")
+  @@map("campaigns")
+}
+
+model CampaignView {
+  id          Int      @id @default(autoincrement())
+  campaignId  Int      @map("campaign_id")
+  userId      Int      @map("user_id")
+  lastShownAt DateTime @default(now()) @map("last_shown_at")
+  viewCount   Int      @default(1) @map("view_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  Campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([userId], map: "campaign_views_user_id_fkey")
+  @@map("campaign_views")
+}

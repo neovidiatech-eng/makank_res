@@ -1,0 +1,109 @@
+enum PaymentStatus {
+  PAID
+  UNPAID
+  FAILED
+}
+
+enum PaymentMethod {
+  CASH
+  WALLET
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY_PICKUP
+  ON_THE_WAY
+  DELIVERED
+  CANCELLED
+  REJECTED
+  PAYMENT_FAILD
+  PENDING_PAYMENT
+}
+
+enum ComplaintStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum OrderType {
+  DELIVERY
+  PICKUP
+  CUSTOM_DELIVERY
+}
+
+enum StationStatus {
+  WAITING
+  GOING
+  REACHED
+}
+
+enum StationType {
+  PICKUP
+  DROPOFF
+}
+
+enum OrderCategory {
+  IMMEDIATE
+  SCHEDULED
+}
+
+enum FortuneWheelRewardType {
+  DISCOUNT
+  FREE_DELIVERY
+  FIXED_AMOUNT
+  CUSTOM
+  NONE
+}
+
+enum FortuneWheelRewardStatus {
+  VALID
+  USED
+  EXPIRED
+}
+
+enum CampaignType {
+  NOTIFICATION
+  OFFER
+}
+
+enum CampaignStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum NotificationTargetType {
+  GENERAL
+  STORE
+  CATEGORY
+  SERVICE
+  ZONE
+  SPECIAL_DRIVER
+  ORDER
+  COUPON
+  EXTERNAL_URL
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
+}
+
+
+enum CustomDeliveryKind {
+  PURCHASE
+  TRANSFER
+  DOCUMENT
+  OTHER
+  RESTAURANT
+  ONLINE
+}
+
+enum TransferType {
+  BANK_TRANSFER
+  VODAFONE_CASH
+  INSTAPAY
+  OTHER
+}

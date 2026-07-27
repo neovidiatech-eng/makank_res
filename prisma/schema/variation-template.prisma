@@ -1,0 +1,18 @@
+model VariationTemplate {
+  id        Int                      @id @default(autoincrement())
+  name      Json
+  createdAt DateTime                 @default(now()) @map("created_at")
+  values    VariationTemplateValue[]
+
+  @@map("variation_templates")
+}
+
+model VariationTemplateValue {
+  id                  Int               @id @default(autoincrement())
+  name                Json
+  variationTemplateId Int               @map("variation_template_id")
+  VariationTemplate   VariationTemplate @relation(fields: [variationTemplateId], references: [id], onDelete: Cascade)
+
+  @@index([variationTemplateId], map: "variation_template_values_template_id_fkey")
+  @@map("variation_template_values")
+}

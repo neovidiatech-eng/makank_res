@@ -1,0 +1,179 @@
+model Store {
+  id                   Int                        @id @default(autoincrement())
+  name                 Json
+  logo                 String
+  cover                String
+  commission           Float                      @default(0)
+  commissionType       CommissionType             @default(FIXED) @map("commission_type")
+  tax                  Float                      @default(0)
+  isStoreAccepted      Boolean                    @default(false)
+  isBlocked            Boolean                    @default(false)
+  minServicePrice      Float?                     @default(0) @map("min_service_price")
+  createdAt            DateTime                   @default(now()) @map("created_at")
+  rating               Float                      @default(0)
+  review               Int                        @default(0)
+  bestRated            Boolean                    @default(false) @map("best_rated")
+  deletedAt            DateTime?                  @map("deleted_at")
+  planId               Int?
+  cityId               Int?
+  freeDelivery         Boolean                    @default(false) @map("free_delivery")
+  isVerified           Boolean                    @default(false) @map("is_verified")
+  walletId             Int?
+  dashboardPeriodStartAt DateTime?                @map("dashboard_period_start_at")
+  zonePricingEnabled   Boolean                    @default(false) @map("zone_pricing_enabled")
+  storeOrder           Int                        @default(0) @map("store_order")
+  // Static estimates shown on the store page — prepTime settable by the
+  // store itself or an admin, delivery range admin-only.
+  prepTimeMinutes        Int?                     @map("prep_time_minutes")
+  deliveryTimeMinMinutes Int?                     @map("delivery_time_min_minutes")
+  deliveryTimeMaxMinutes Int?                     @map("delivery_time_max_minutes")
+  // Minimum order subtotal (items only, before tax/delivery) — null means no
+  // minimum. Settable by the store itself or an admin. Enforced at
+  // OrderService.calculateOrder (shared by both the price-preview and the
+  // actual order-creation path) and applies to every order type.
+  minOrderAmount         Float?                   @map("min_order_amount")
+  // Admin-only switch (see PATCH /stores/:id/managed-by-admin/toggle — never
+  // settable through the generic store self-update). True = this store has no
+  // staff using the store app/dashboard; the admin team runs its order flow
+  // instead, so "new order" notifications route to Admin users too (see
+  // OrderService.notifyStore). False = normal store, staff notified as usual.
+  managedByAdmin       Boolean                    @default(false) @map("managed_by_admin")
+  Specialist           Specialist[]
+  bank_accounts        bank_accounts[]
+  Banner               Banner[]                   @relation("BannerToStore")
+  branches             Branch[]
+  Bundles              Bundle[]
+  Campaigns            Campaign[]
+  SubCategories        Category[]
+  Favorites            FavoriteStore[]
+  Services             Service[]
+  StoreCoupons         StoreCoupons[]
+  storeRatings         StoreRating[]
+  TemplateApplications StoreTemplateApplication[]
+  ZonePrices           StoreZonePrice[]
+  city                 City?                      @relation(fields: [cityId], references: [id])
+  Plan                 Plan?                      @relation(fields: [planId], references: [id])
+  wallet               Wallet?                    @relation(fields: [walletId], references: [id])
+  Transactions         Transaction[]
+  User                 User[]
+
+  @@index([cityId], map: "stores_cityId_fkey")
+  @@index([planId], map: "stores_planId_fkey")
+  @@index([walletId], map: "stores_walletId_fkey")
+  @@map("stores")
+}
+
+model StoreZonePrice {
+  id        Int      @id @default(autoincrement())
+  storeId   Int      @map("store_id")
+  zoneId    Int      @map("zone_id")
+  price     Float    @map("price")
+  createdAt DateTime @default(now()) @map("created_at")
+  Store     Store    @relation(fields: [storeId], references: [id])
+  Zone      Zone     @relation(fields: [zoneId], references: [id])
+
+  @@unique([storeId, zoneId])
+  @@index([zoneId], map: "store_zone_prices_zone_id_fkey")
+  @@map("store_zone_prices")
+}
+
+model Branch {
+  id                Int             @id @default(autoincrement())
+  storeId           Int             @map("store_id")
+  name              Json
+  phone             String?
+  address           String
+  lat               Float
+  lng               Float
+  deletedAt         DateTime?       @map("deleted_at")
+  isActive          Boolean         @default(true)
+  isMainBranch      Boolean         @default(false) @map("is_main_branch")
+  closed            Boolean         @default(false)
+  status            BranchStatus    @default(NORMAL)
+  busyUntil         DateTime?       @map("busy_until")
+  // Free-text reason shown to the customer while status is BUSY/CLOSED
+  // (e.g. "ضغط طلبات", "انقطاع كهرباء", "نفاد خامات") — cleared automatically
+  // once the branch goes back to OPEN/NORMAL.
+  statusReason      String?         @map("status_reason") @db.Text
+  rating            Float           @default(0)
+  review            Int             @default(0)
+  bestRated         Boolean         @default(false) @map("best_rated")
+  temporarilyClosed Boolean         @default(false) @map("temporarily_closed")
+  // Auto-stop cap: once this many orders are simultaneously
+  // PENDING/PENDING_PAYMENT/PREPARING/READY_PICKUP for this branch, new
+  // orders are rejected at checkout until one of those clears (delivered/
+  // picked up/cancelled/rejected). Null means no cap. Settable by the store
+  // itself or an admin via PATCH /branches/:id.
+  maxActiveOrders   Int?            @map("max_active_orders")
+  ArchivedOrders    ArchivedOrder[]
+  bank_accounts     bank_accounts[]
+  BranchZones       BranchZone[]
+  Store             Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  favorites         FavoriteStore[]
+  orders            Order[]
+  storeRating       StoreRating[]
+  storeSchedule     StoreSchedule[]
+  Transactions      Transaction[]
+  User              User[]
+  Wallet            Wallet?
+  Withdraws         Withdraw[]
+
+  @@index([storeId], map: "branches_store_id_fkey")
+  @@map("branches")
+}
+
+model BranchZone {
+  branchId Int    @map("branch_id")
+  zoneId   Int    @map("zone_id")
+  Branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  Zone     Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@id([branchId, zoneId])
+  @@index([branchId])
+  @@index([zoneId], map: "branch_zones_zone_id_fkey")
+  @@map("branch_zones")
+}
+
+model StoreSchedule {
+  id          Int      @id @default(autoincrement())
+  openingTime DateTime @map("opening_time") @db.Time(0)
+  closingTime DateTime @map("closing_time") @db.Time(0)
+  day         Days
+  branchId    Int      @map("branch_id")
+  Branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId])
+  @@map("store_schedule")
+}
+
+model FavoriteStore {
+  customerId Int    @map("customer_id")
+  branchId   Int    @map("branch_id")
+  storeId    Int?
+  branch     Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  Customer   User   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  store      Store? @relation(fields: [storeId], references: [id])
+
+  @@id([branchId, customerId])
+  @@index([branchId, customerId])
+  @@index([customerId], map: "favorite_store_customer_id_fkey")
+  @@index([storeId], map: "favorite_store_storeId_fkey")
+  @@map("favorite_store")
+}
+
+enum BranchStatus {
+  OPEN
+  BUSY
+  CLOSED
+  NORMAL
+}
+
+enum Days {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}

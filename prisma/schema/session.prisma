@@ -1,0 +1,26 @@
+model Session {
+  id            Int         @id @default(autoincrement())
+  jti           String      @unique @default(uuid())
+  ipAddress     String?     @map("ip_address") @db.Text
+  userId        Int?        @map("user_id")
+  fcmToken      String?     @map("fcm_token") @db.VarChar(255)
+  socketId      String?     @map("socket_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  invalidatedAt DateTime?   @map("invalidated_at")
+  type          SessionType @default(ACCESS)
+  languageId    String?     @map("language_id")
+  Language      Language?   @relation(fields: [languageId], references: [key])
+  User          User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "userId")
+  @@index([languageId], map: "sessions_language_id_fkey")
+  @@map("sessions")
+}
+
+enum SessionType {
+  ACCESS
+  REFRESH
+  VERIFY
+  VISITOR
+  PASSWORD_RESET
+}

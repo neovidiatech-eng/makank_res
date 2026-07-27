@@ -1,0 +1,2226 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/stores": {
+      "post": {
+        "operationId": "StoreController_create",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/CreateStoreDTO" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "" } },
+        "tags": ["Stores"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Register a new store. Self-registered stores start pending admin approval (isStoreAccepted=false); stores created by an Admin are approved immediately.",
+        "description": "Register a new store. Self-registered stores start pending admin approval (isStoreAccepted=false); stores created by an Admin are approved immediately."
+      },
+      "get": {
+        "operationId": "StoreController_findAll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "id",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "name",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "required": false,
+            "name": "address",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "required": false,
+            "name": "rating",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "hasOffers",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "isStoreAccepted",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "active",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "minRating",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "freeDelivery",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "isBlocked",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "templateCategoryId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "templateId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "lat",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "lng",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "planId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "cityId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "isVerified",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "closed",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "temporarilyClosed",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "km",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "price",
+            "required": false,
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/PriceRangeDTO" }
+          },
+          {
+            "required": false,
+            "name": "orderBy",
+            "in": "query",
+            "schema": { "type": "array" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "get-all-stores-for-visitors": {
+                    "summary": "Get All Stores For Visitors",
+                    "value": {
+                      "data": [
+                        {
+                          "id": 1,
+                          "name": "John Doe",
+                          "logo": "string",
+                          "cover": "string",
+                          "createdAt": "2025-06-26T18:17:10.000Z",
+                          "freeDelivery": "string",
+                          "isVerified": true,
+                          "isBlocked": "string",
+                          "commission": "string",
+                          "commissionType": "string",
+                          "Services": {
+                            "where": {
+                              "deletedAt": "2025-06-26T18:17:10.000Z",
+                              "status": "2025-06-26T18:17:10.000Z",
+                              "available": "string"
+                            },
+                            "orderBy": { "totalOrders": 1 },
+                            "take": "string",
+                            "id": 1,
+                            "name": "John Doe",
+                            "image": "https://example.com/avatar.png",
+                            "price": 1,
+                            "priceAfterDiscount": 1,
+                            "rating": "2025-06-26T18:17:10.000Z",
+                            "totalOrders": 1
+                          },
+                          "branches": {
+                            "where": { "isActive": true },
+                            "take": "string",
+                            "storeSchedule": "string",
+                            "favorites": "string"
+                          },
+                          "User": {
+                            "id": 1,
+                            "name": "John Doe",
+                            "email": "user@example.com"
+                          },
+                          "StoreCoupons": {
+                            "where": {
+                              "Coupon": { "expired": "string", "active": true }
+                            },
+                            "Coupon": "string"
+                          }
+                        }
+                      ],
+                      "total": 1
+                    }
+                  },
+                  "get-all-stores-for-customers": {
+                    "summary": "Get All Stores For Customers",
+                    "value": {
+                      "data": [
+                        {
+                          "id": 1,
+                          "name": "John Doe",
+                          "logo": "string",
+                          "cover": "string",
+                          "createdAt": "2025-06-26T18:17:10.000Z",
+                          "freeDelivery": "string",
+                          "isVerified": true,
+                          "isBlocked": "string",
+                          "commission": "string",
+                          "commissionType": "string",
+                          "Services": {
+                            "where": {
+                              "deletedAt": "2025-06-26T18:17:10.000Z",
+                              "status": "2025-06-26T18:17:10.000Z",
+                              "available": "string"
+                            },
+                            "orderBy": { "totalOrders": 1 },
+                            "take": "string",
+                            "id": 1,
+                            "name": "John Doe",
+                            "image": "https://example.com/avatar.png",
+                            "price": 1,
+                            "priceAfterDiscount": 1,
+                            "rating": "2025-06-26T18:17:10.000Z",
+                            "totalOrders": 1
+                          },
+                          "branches": {
+                            "where": { "isActive": true },
+                            "take": "string",
+                            "storeSchedule": "string",
+                            "favorites": "string"
+                          },
+                          "User": {
+                            "id": 1,
+                            "name": "John Doe",
+                            "email": "user@example.com"
+                          },
+                          "StoreCoupons": {
+                            "where": {
+                              "Coupon": { "expired": "string", "active": true }
+                            },
+                            "Coupon": "string"
+                          },
+                          "Favorites": ["string"]
+                        }
+                      ],
+                      "total": 1
+                    }
+                  },
+                  "single-store-for-visitors": {
+                    "summary": "Single Store For Visitors",
+                    "value": {
+                      "data": {
+                        "id": 1,
+                        "name": "John Doe",
+                        "logo": "string",
+                        "cover": "string",
+                        "createdAt": "2025-06-26T18:17:10.000Z",
+                        "freeDelivery": "string",
+                        "isVerified": true,
+                        "isBlocked": "string",
+                        "commission": "string",
+                        "commissionType": "string",
+                        "Services": {
+                          "where": {
+                            "deletedAt": "2025-06-26T18:17:10.000Z",
+                            "status": "2025-06-26T18:17:10.000Z",
+                            "available": "string"
+                          },
+                          "orderBy": { "totalOrders": 1 },
+                          "take": "string",
+                          "id": 1,
+                          "name": "John Doe",
+                          "image": "https://example.com/avatar.png",
+                          "price": 1,
+                          "priceAfterDiscount": 1,
+                          "rating": "2025-06-26T18:17:10.000Z",
+                          "totalOrders": 1
+                        },
+                        "branches": {
+                          "where": { "isActive": true },
+                          "take": "string",
+                          "storeSchedule": "string",
+                          "favorites": "string"
+                        },
+                        "User": {
+                          "id": 1,
+                          "name": "John Doe",
+                          "email": "user@example.com"
+                        },
+                        "StoreCoupons": {
+                          "where": {
+                            "Coupon": { "expired": "string", "active": true }
+                          },
+                          "Coupon": "string"
+                        }
+                      }
+                    }
+                  },
+                  "single-store-for-customers": {
+                    "summary": "Single Store For Customers",
+                    "value": {
+                      "data": [
+                        {
+                          "id": 1,
+                          "name": "John Doe",
+                          "logo": "string",
+                          "cover": "string",
+                          "createdAt": "2025-06-26T18:17:10.000Z",
+                          "freeDelivery": "string",
+                          "isVerified": true,
+                          "isBlocked": "string",
+                          "commission": "string",
+                          "commissionType": "string",
+                          "Services": {
+                            "where": {
+                              "deletedAt": "2025-06-26T18:17:10.000Z",
+                              "status": "2025-06-26T18:17:10.000Z",
+                              "available": "string"
+                            },
+                            "orderBy": { "totalOrders": 1 },
+                            "take": "string",
+                            "id": 1,
+                            "name": "John Doe",
+                            "image": "https://example.com/avatar.png",
+                            "price": 1,
+                            "priceAfterDiscount": 1,
+                            "rating": "2025-06-26T18:17:10.000Z",
+                            "totalOrders": 1
+                          },
+                          "branches": {
+                            "where": { "isActive": true },
+                            "take": "string",
+                            "storeSchedule": "string",
+                            "favorites": "string"
+                          },
+                          "User": {
+                            "id": 1,
+                            "name": "John Doe",
+                            "email": "user@example.com"
+                          },
+                          "StoreCoupons": {
+                            "where": {
+                              "Coupon": { "expired": "string", "active": true }
+                            },
+                            "Coupon": "string"
+                          },
+                          "Favorites": ["string"]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": ["Stores"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "List/search stores. Supports ?isStoreAccepted=false to build an admin queue of stores awaiting approval.",
+        "description": "List/search stores. Supports ?isStoreAccepted=false to build an admin queue of stores awaiting approval."
+      }
+    },
+    "/api/stores/{id}": {
+      "patch": {
+        "operationId": "StoreController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/UpdateStoreDTO" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "" } },
+        "tags": ["Stores"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Update store profile fields. isStoreAccepted, isBlocked and isVerified are silently stripped from the body unless the caller is an Admin.",
+        "description": "Update store profile fields. isStoreAccepted, isBlocked and isVerified are silently stripped from the body unless the caller is an Admin."
+      }
+    },
+    "/api/stores/{id}/approval": {
+      "patch": {
+        "operationId": "StoreController_setApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SetStoreApprovalDTO" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "" } },
+        "tags": ["Stores"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin approves or rejects a pending store registration. Sends a push notification to the store owner with the result.",
+        "description": "Admin approves or rejects a pending store registration. Sends a push notification to the store owner with the result."
+      }
+    },
+    "/api/stores/{id}/apply-template/{templateId}": {
+      "delete": {
+        "operationId": "StoreController_removeTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Stores"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Removes a previously-applied admin template from one store only, without affecting the template itself or any other store using it.",
+        "description": "Removes a previously-applied admin template from one store only, without affecting the template itself or any other store using it."
+      }
+    },
+    "/api/statistics": {
+      "get": {
+        "operationId": "StatisticsController_findAll",
+        "parameters": [
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "fromDate",
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "example": "2026-07-07T09:28:47.159Z",
+              "type": "string"
+            }
+          },
+          {
+            "required": false,
+            "name": "toDate",
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "example": "2026-07-07T09:28:47.159Z",
+              "type": "string"
+            }
+          },
+          {
+            "required": false,
+            "name": "storeId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Statistics"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin earnings/orders dashboard summary. Includes a currentPeriod block (since the last manual reset) and a driverFinance block (pending withdrawals, outstanding driver cash).",
+        "description": "Admin earnings/orders dashboard summary. Includes a currentPeriod block (since the last manual reset) and a driverFinance block (pending withdrawals, outstanding driver cash)."
+      }
+    },
+    "/api/statistics/reset-period": {
+      "post": {
+        "operationId": "StatisticsController_resetPeriod",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "201": { "description": "" } },
+        "tags": ["Statistics"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Moves the admin dashboard's \"current period\" checkpoint to now. Never deletes or alters any historical order/transaction data.",
+        "description": "Moves the admin dashboard's \"current period\" checkpoint to now. Never deletes or alters any historical order/transaction data."
+      }
+    },
+    "/api/statistics/store": {
+      "get": {
+        "operationId": "StatisticsController_findStoreStatistics",
+        "parameters": [
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "fromDate",
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "example": "2026-07-07T09:28:47.159Z",
+              "type": "string"
+            }
+          },
+          {
+            "required": false,
+            "name": "toDate",
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "example": "2026-07-07T09:28:47.159Z",
+              "type": "string"
+            }
+          },
+          {
+            "required": false,
+            "name": "storeId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Statistics"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Store-owner earnings dashboard summary, scoped to the caller's own store. Includes the same currentPeriod block.",
+        "description": "Store-owner earnings dashboard summary, scoped to the caller's own store. Includes the same currentPeriod block."
+      }
+    },
+    "/api/statistics/store/reset-period": {
+      "post": {
+        "operationId": "StatisticsController_resetStorePeriod",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "201": { "description": "" } },
+        "tags": ["Statistics"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Moves the calling store's own \"current period\" checkpoint to now.",
+        "description": "Moves the calling store's own \"current period\" checkpoint to now."
+      }
+    },
+    "/api/delivery/me/wallet": {
+      "get": {
+        "operationId": "DeliveryWalletController_getWallet",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Driver's own wallet snapshot: spendable balance, points, COD cash still owed to the platform, amount locked in a pending withdrawal, and lifetime withdrawn total.",
+        "description": "Driver's own wallet snapshot: spendable balance, points, COD cash still owed to the platform, amount locked in a pending withdrawal, and lifetime withdrawn total."
+      }
+    },
+    "/api/delivery/me/withdraw": {
+      "post": {
+        "operationId": "DeliveryWalletController_requestWithdraw",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDriverWithdrawDTO"
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Driver requests a payout of their wallet balance via Vodafone Cash / InstaPay / bank transfer. Only one request can be pending at a time.",
+        "description": "Driver requests a payout of their wallet balance via Vodafone Cash / InstaPay / bank transfer. Only one request can be pending at a time."
+      }
+    },
+    "/api/delivery/me/withdrawals": {
+      "get": {
+        "operationId": "DeliveryWalletController_getMyWithdrawals",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Driver's own withdrawal request history and status.",
+        "description": "Driver's own withdrawal request history and status."
+      }
+    },
+    "/api/delivery/withdrawals": {
+      "get": {
+        "operationId": "DriverWithdrawController_findAll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "id",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "deliveryId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "enum": ["PENDING", "APPROVED", "DENIED"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin: list all drivers' withdrawal requests, filterable by status/driver.",
+        "description": "Admin: list all drivers' withdrawal requests, filterable by status/driver."
+      }
+    },
+    "/api/delivery/withdrawals/{id}": {
+      "get": {
+        "operationId": "DriverWithdrawController_findAll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "id",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "deliveryId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "enum": ["PENDING", "APPROVED", "DENIED"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin: fetch a single driver withdrawal request.",
+        "description": "Admin: fetch a single driver withdrawal request."
+      },
+      "patch": {
+        "operationId": "DriverWithdrawController_resolve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDriverWithdrawDTO"
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin approves or denies a driver's withdrawal request. Approving deducts the wallet and records the payout; denying leaves the wallet untouched.",
+        "description": "Admin approves or denies a driver's withdrawal request. Approving deducts the wallet and records the payout; denying leaves the wallet untouched."
+      }
+    },
+    "/api/delivery/cash-settlements": {
+      "post": {
+        "operationId": "DriverCashSettlementController_create",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCashSettlementDTO"
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin records cash a driver has physically handed over from COD orders. This call is itself the confirmation (no separate approval step) and immediately reduces the driver's outstanding collected-cash balance.",
+        "description": "Admin records cash a driver has physically handed over from COD orders. This call is itself the confirmation (no separate approval step) and immediately reduces the driver's outstanding collected-cash balance."
+      },
+      "get": {
+        "operationId": "DriverCashSettlementController_findAll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "id",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "deliveryId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin: cash settlement history, filterable by driver.",
+        "description": "Admin: cash settlement history, filterable by driver."
+      }
+    },
+    "/api/delivery/cash-settlements/{id}": {
+      "get": {
+        "operationId": "DriverCashSettlementController_findAll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "id",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "deliveryId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Delivery"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin: fetch a single cash settlement record.",
+        "description": "Admin: fetch a single cash settlement record."
+      }
+    },
+    "/api/employees": {
+      "get": {
+        "operationId": "EmployeeController_getAll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "id",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "name",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "required": false,
+            "name": "storeId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "active",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "orderBy",
+            "in": "query",
+            "schema": { "type": "array" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "get-all-employees": {
+                    "summary": "Get All Employees",
+                    "value": {
+                      "data": [
+                        {
+                          "id": 1,
+                          "name": "John Doe",
+                          "image": "https://example.com/avatar.png",
+                          "active": true,
+                          "createdAt": "2025-06-26T18:17:10.000Z"
+                        }
+                      ],
+                      "total": 1
+                    }
+                  },
+                  "get-employee-with-id": {
+                    "summary": "Get Employee with id",
+                    "value": {
+                      "data": {
+                        "id": 1,
+                        "name": "John Doe",
+                        "image": "https://example.com/avatar.png",
+                        "active": true,
+                        "createdAt": "2025-06-26T18:17:10.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": ["Employees"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "List a store's employees.",
+        "description": "List a store's employees."
+      },
+      "post": {
+        "operationId": "EmployeeController_create",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateEmployeeDTO" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "" } },
+        "tags": ["Employees"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Store owner creates an employee account under an existing custom role — the role must already exist via POST /roles first.",
+        "description": "Store owner creates an employee account under an existing custom role — the role must already exist via POST /roles first."
+      }
+    },
+    "/api/employees/{id}": {
+      "get": {
+        "operationId": "EmployeeController_getAll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "id",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "name",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "required": false,
+            "name": "storeId",
+            "in": "query",
+            "schema": { "type": "number" }
+          },
+          {
+            "required": false,
+            "name": "active",
+            "in": "query",
+            "schema": { "example": true, "type": "boolean" }
+          },
+          {
+            "required": false,
+            "name": "orderBy",
+            "in": "query",
+            "schema": { "type": "array" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "get-all-employees": {
+                    "summary": "Get All Employees",
+                    "value": {
+                      "data": [
+                        {
+                          "id": 1,
+                          "name": "John Doe",
+                          "image": "https://example.com/avatar.png",
+                          "active": true,
+                          "createdAt": "2025-06-26T18:17:10.000Z"
+                        }
+                      ],
+                      "total": 1
+                    }
+                  },
+                  "get-employee-with-id": {
+                    "summary": "Get Employee with id",
+                    "value": {
+                      "data": {
+                        "id": 1,
+                        "name": "John Doe",
+                        "image": "https://example.com/avatar.png",
+                        "active": true,
+                        "createdAt": "2025-06-26T18:17:10.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": ["Employees"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Fetch a single employee.",
+        "description": "Fetch a single employee."
+      },
+      "patch": {
+        "operationId": "EmployeeController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateEmployeeDTO" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "" } },
+        "tags": ["Employees"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Update an employee. Enforces that the employee belongs to the caller's own store.",
+        "description": "Update an employee. Enforces that the employee belongs to the caller's own store."
+      },
+      "delete": {
+        "operationId": "EmployeeController_deleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Employees"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Remove an employee. Enforces that the employee belongs to the caller's own store.",
+        "description": "Remove an employee. Enforces that the employee belongs to the caller's own store."
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "operationId": "OrderController_create",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/CreateOrderDTO" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "" } },
+        "tags": ["Orders"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Places a new order. Starts at status PENDING awaiting the store's accept/reject decision; driver-assignment search starts in parallel, not after the store decides.",
+        "description": "Places a new order. Starts at status PENDING awaiting the store's accept/reject decision; driver-assignment search starts in parallel, not after the store decides."
+      }
+    },
+    "/api/orders/{id}/unassign": {
+      "patch": {
+        "operationId": "OrderController_unassign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Orders"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Removes the currently assigned driver from an order and resets its status back to READY_PICKUP so it can be re-offered.",
+        "description": "Removes the currently assigned driver from an order and resets its status back to READY_PICKUP so it can be re-offered."
+      }
+    },
+    "/api/orders/{id}/{status}": {
+      "patch": {
+        "operationId": "OrderController_changeStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "PENDING",
+                "PREPARING",
+                "READY_PICKUP",
+                "ON_THE_WAY",
+                "DELIVERED",
+                "CANCELLED",
+                "REJECTED",
+                "PAYMENT_FAILD",
+                "PENDING_PAYMENT"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeOrderStatusBodyDTO"
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "" } },
+        "tags": ["Orders"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Generic order status transition (store: PREPARING / READY_PICKUP / REJECTED / CANCELLED; driver: ON_THE_WAY / DELIVERED). Driver transitions require lat/lng in the body and are geofence-checked against the store or customer address.",
+        "description": "Generic order status transition (store: PREPARING / READY_PICKUP / REJECTED / CANCELLED; driver: ON_THE_WAY / DELIVERED). Driver transitions require lat/lng in the body and are geofence-checked against the store or customer address."
+      }
+    },
+    "/api/orders/{id}/reject": {
+      "patch": {
+        "operationId": "OrderController_rejectAssignment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Orders"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Driver declines an assignment offer. Benches the driver (AFK break, if enabled) and re-runs assignment for the order — next-nearest driver in AUTO mode, or left unassigned for the admin to pick in MANUAL mode.",
+        "description": "Driver declines an assignment offer. Benches the driver (AFK break, if enabled) and re-runs assignment for the order — next-nearest driver in AUTO mode, or left unassigned for the admin to pick in MANUAL mode."
+      }
+    },
+    "/api/orders/{id}/accept": {
+      "patch": {
+        "operationId": "OrderController_acceptAssignment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": { "type": "number" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Orders"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Driver accepts a pending assignment offer, binding them to the order. Fails if the store has already rejected/cancelled the order in the meantime.",
+        "description": "Driver accepts a pending assignment offer, binding them to the order. Fails if the store has already rejected/cancelled the order in the meantime."
+      }
+    },
+    "/api/orders/assign": {
+      "patch": {
+        "operationId": "OrderController_assign",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AssignOrderDTO" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "" } },
+        "tags": ["Orders"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin manually assigns one or more orders to a specific driver — used in MANUAL assignment mode, or to override AUTO.",
+        "description": "Admin manually assigns one or more orders to a specific driver — used in MANUAL assignment mode, or to override AUTO."
+      }
+    },
+    "/api/search": {
+      "get": {
+        "operationId": "SearchController_search",
+        "parameters": [
+          {
+            "name": "models",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": { "$ref": "#/components/schemas/SearchDTOForModel" }
+            }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Search"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Global search across stores/services/etc. Now requires a logged-in session (previously open to anonymous callers).",
+        "description": "Global search across stores/services/etc. Now requires a logged-in session (previously open to anonymous callers)."
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "operationId": "SettingsController_get",
+        "parameters": [
+          {
+            "required": false,
+            "name": "key",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "generalCopyRightTextAr",
+                "logo",
+                "generalCopyRightTextEn",
+                "conditionsAndProvisionsEn",
+                "conditionsAndProvisionsAr",
+                "privatePolicyAr",
+                "privatePolicyEn",
+                "shippingKMCharge",
+                "deliveryCommission",
+                "businessOrderCommissionRateForAll",
+                "filterByZone",
+                "businessOrderCommissionRate",
+                "businessOrderCommissionType",
+                "StoreTaxForAll",
+                "StoreTaxRate",
+                "storeNearestByKM",
+                "deliveryAcceptanceTimer",
+                "deliveryAssignmentMode",
+                "deliveryAfkBreakMinutes",
+                "deliveryAfkBreakEnabled",
+                "pickupGeofenceRadiusMeters",
+                "deliveryGeofenceRadiusMeters",
+                "customDeliveryExtraStopPrice",
+                "customDeliveryKMCharge",
+                "customDeliveryBaseFee",
+                "customDeliveryCommissionForAll",
+                "customDeliveryCommissionRate",
+                "customDeliveryCommissionType",
+                "adminDashboardPeriodStartAt"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "required": false,
+            "name": "domain",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "BUSINESS",
+                "DELIVERY",
+                "ORDER",
+                "REFUND",
+                "STORE",
+                "CUSTOMER",
+                "PRIORITY",
+                "DISBURSEMENT"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "tags": ["Settings"],
+        "summary": "Fetch app-wide configuration, filterable by domain/key. Public — no auth required.",
+        "description": "Fetch app-wide configuration, filterable by domain/key. Public — no auth required."
+      },
+      "patch": {
+        "operationId": "SettingsController_update",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "settings": {
+                    "type": "string",
+                    "example": "[{\"setting\":\"test answer\",\"value\":\"test answer\",\"name\":{}}]"
+                  },
+                  "settings[0].file": { "type": "string", "format": "binary" },
+                  "settings[1].file": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "" } },
+        "tags": ["Settings"],
+        "security": [{ "ACCESS Token": [] }],
+        "summary": "Admin updates one or more configuration values, including the delivery geofence radii and custom-delivery pricing settings.",
+        "description": "Admin updates one or more configuration values, including the delivery geofence radii and custom-delivery pricing settings."
+      }
+    },
+    "/api/authentication/refresh-token": {
+      "post": {
+        "operationId": "BaseAuthenticationController_refreshToken",
+        "parameters": [
+          {
+            "in": "header",
+            "required": false,
+            "name": "Locale",
+            "schema": { "example": "en" }
+          },
+          {
+            "in": "header",
+            "required": false,
+            "name": "isLocalized",
+            "schema": {
+              "example": false,
+              "type": "boolean",
+              "enum": [true, false]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": { "default": { "value": { "data": null } } }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": ["Authentication"],
+        "security": [{ "REFRESH Token": [] }],
+        "summary": "Exchanges a refresh token for a new access token. Refresh tokens now actually live for their full configured duration (previously capped at 1 day regardless of setting).",
+        "description": "Exchanges a refresh token for a new access token. Refresh tokens now actually live for their full configured duration (previously capped at 1 day regardless of setting)."
+      }
+    }
+  },
+  "info": {
+    "title": "Makanak — New & Fixed Endpoints",
+    "description": "Standalone subset of the full API, containing only the endpoints added or behaviorally changed during this engagement — for isolated testing.",
+    "version": "1.0",
+    "contact": {
+      "name": "Mahmoud Elamrosy",
+      "url": "www.linkedin.com/in/",
+      "email": "melamrosy72@gmail.com"
+    }
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "ACCESS Token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "REFRESH Token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "PASSWORD_RESET Token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "VERIFY Token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "VISITOR Token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "CreateStoreDTO": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "object",
+            "example": "{\"en\": \"John\", \"ar\": \"جون\"}"
+          },
+          "templateId": { "type": "number" },
+          "logo": { "type": "string", "format": "binary" },
+          "cover": { "type": "string", "format": "binary" },
+          "lat": { "type": "number" },
+          "lng": { "type": "number" },
+          "address": { "type": "string" },
+          "storeOrder": { "type": "number" },
+          "User": { "$ref": "#/components/schemas/CreateStoreUserDTO" }
+        },
+        "required": [
+          "name",
+          "templateId",
+          "logo",
+          "cover",
+          "lat",
+          "lng",
+          "address",
+          "storeOrder",
+          "User"
+        ]
+      },
+      "PriceRangeDTO": {
+        "type": "object",
+        "properties": {
+          "min": { "type": "number" },
+          "max": { "type": "number" }
+        },
+        "required": ["min", "max"]
+      },
+      "UpdateStoreDTO": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "object",
+            "example": "{\"en\": \"John\", \"ar\": \"جون\"}"
+          },
+          "logo": { "type": "string", "format": "binary" },
+          "cover": { "type": "string", "format": "binary" },
+          "lat": { "type": "number" },
+          "lng": { "type": "number" },
+          "address": { "type": "string" },
+          "storeOrder": { "type": "number" },
+          "User": { "$ref": "#/components/schemas/CreateStoreUserDTO" },
+          "temporarilyClosed": { "type": "boolean", "example": true },
+          "closed": { "type": "boolean", "example": true },
+          "isVerified": { "type": "boolean", "example": true },
+          "status": {
+            "type": "string",
+            "enum": ["OPEN", "BUSY", "CLOSED", "NORMAL"]
+          },
+          "busyMinutes": { "type": "number" }
+        }
+      },
+      "SetStoreApprovalDTO": {
+        "type": "object",
+        "properties": {
+          "approved": { "type": "boolean", "example": true },
+          "reason": { "type": "string" }
+        },
+        "required": ["approved"]
+      },
+      "CreateDriverWithdrawDTO": {
+        "type": "object",
+        "properties": {
+          "amount": { "type": "number" },
+          "payoutMethod": {
+            "type": "string",
+            "enum": ["VODAFONE_CASH", "INSTAPAY", "BANK"]
+          },
+          "payoutDetails": { "type": "string" }
+        },
+        "required": ["amount", "payoutMethod", "payoutDetails"]
+      },
+      "UpdateDriverWithdrawDTO": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["APPROVED", "DENIED"] },
+          "adminNote": { "type": "string" }
+        },
+        "required": ["status"]
+      },
+      "CreateCashSettlementDTO": {
+        "type": "object",
+        "properties": {
+          "deliveryId": { "type": "number" },
+          "amount": { "type": "number" },
+          "note": { "type": "string" }
+        },
+        "required": ["deliveryId", "amount"]
+      },
+      "CreateEmployeeDTO": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "example": "test@test.com" },
+          "phone": { "type": "string", "example": "+201092725145" },
+          "password": {
+            "type": "string",
+            "example": "Default@123",
+            "description": "Password must be: 8+ characters, 1 uppercase, 1 lowercase, 1 number, 1 special character"
+          },
+          "roleKey": { "type": "string" },
+          "storeId": { "type": "number" }
+        },
+        "required": ["name", "email", "password", "roleKey"]
+      },
+      "UpdateEmployeeDTO": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "example": "test@test.com" },
+          "phone": { "type": "string", "example": "+201092725145" },
+          "roleKey": { "type": "string" },
+          "deviceId": { "type": "string" },
+          "fcm": { "type": "string" },
+          "image": { "type": "string", "format": "binary" },
+          "allowNotification": { "type": "boolean", "example": true },
+          "male": { "type": "boolean", "example": true }
+        }
+      },
+      "CreateOrderDTO": {
+        "type": "object",
+        "properties": {
+          "couponCode": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OrderItemDTO" }
+          },
+          "bundleSelections": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BundleSelectionDTO" }
+          },
+          "addressId": { "type": "number" },
+          "branchId": { "type": "number" },
+          "tip": { "type": "number" },
+          "type": {
+            "type": "string",
+            "enum": ["DELIVERY", "PICKUP", "CUSTOM_DELIVERY"]
+          },
+          "fortuneRewardId": { "type": "number" },
+          "note": { "type": "string" },
+          "paymentMethod": { "type": "string", "enum": ["CASH", "WALLET"] },
+          "paidWithWallet": { "type": "boolean", "example": true },
+          "isGift": { "type": "boolean", "example": true },
+          "category": { "type": "string", "enum": ["IMMEDIATE", "SCHEDULED"] },
+          "scheduledAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-07-07T09:28:46.658Z"
+          },
+          "transferNumber": { "type": "string" },
+          "transferImage": { "type": "string", "format": "binary" }
+        },
+        "required": ["branchId", "paymentMethod"]
+      },
+      "ChangeOrderStatusBodyDTO": {
+        "type": "object",
+        "properties": {
+          "lat": { "type": "number" },
+          "lng": { "type": "number" }
+        }
+      },
+      "AssignOrderDTO": {
+        "type": "object",
+        "properties": {
+          "specialistId": { "type": "number" },
+          "orderIds": {
+            "example": [11111, 22222, 33333],
+            "type": "array",
+            "items": { "type": "number" }
+          }
+        },
+        "required": ["specialistId", "orderIds"]
+      },
+      "SearchDTOForModel": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "number" },
+          "limit": { "type": "number" },
+          "model": { "type": "string" },
+          "fields": { "type": "array", "items": { "type": "array" } },
+          "value": { "type": "string" }
+        },
+        "required": ["model", "fields", "value"]
+      },
+      "CreateStoreUserDTO": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "example": "test@test.com" },
+          "phone": { "type": "string", "example": "+201092725145" },
+          "password": {
+            "type": "string",
+            "example": "Default@123",
+            "description": "Password must be: 8+ characters, 1 uppercase, 1 lowercase, 1 number, 1 special character"
+          }
+        },
+        "required": ["name", "email", "password"]
+      },
+      "OrderItemDTO": {
+        "type": "object",
+        "properties": {
+          "serviceId": { "type": "number" },
+          "sizeId": { "type": "number" },
+          "addonIds": { "type": "array", "items": { "type": "string" } },
+          "quantity": { "type": "number" }
+        },
+        "required": ["serviceId", "quantity"]
+      },
+      "BundleSelectionDTO": {
+        "type": "object",
+        "properties": {
+          "bundleId": { "type": "number" },
+          "paidItems": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BundleLineDTO" }
+          },
+          "freeItems": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BundleLineDTO" }
+          }
+        },
+        "required": ["bundleId", "paidItems", "freeItems"]
+      },
+      "BundleLineDTO": {
+        "type": "object",
+        "properties": {
+          "serviceId": { "type": "number" },
+          "sizeId": { "type": "number" },
+          "addonIds": { "type": "array", "items": { "type": "string" } },
+          "quantity": { "type": "number" }
+        },
+        "required": ["serviceId"]
+      }
+    }
+  }
+}

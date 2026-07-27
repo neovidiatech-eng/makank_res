@@ -1,0 +1,11 @@
+model KeyValue {
+  id        Int       @id @default(autoincrement())
+  key       String
+  value     Json
+  file      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("key_value")
+}

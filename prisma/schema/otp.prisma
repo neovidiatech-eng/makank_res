@@ -1,0 +1,19 @@
+model OTP {
+  id             Int       @id @default(autoincrement())
+  code           String    @db.VarChar(6)
+  token          String?   @db.VarChar(6)
+  type           OTPType   @default(PASSWORD_RESET)
+  userId         Int       @map("user_id")
+  generatedTimes Int       @default(0) @map("generated_times")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime? @updatedAt @map("updated_at")
+  User           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("otps")
+}
+
+enum OTPType {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}

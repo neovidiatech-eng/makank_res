@@ -1,0 +1,22 @@
+# docker-compose.override.yml — LOCAL DEV overrides
+# Auto-merged by docker compose. Not committed with secrets.
+#
+# This exposes MySQL on port 3307 (not 3306 — that's taken by another project)
+# so you can run "npm run start:dev" on the host pointing to Docker's MySQL.
+#
+# LOCAL DEV workflow:
+#   1. docker compose up -d mysql redis phpmyadmin   ← infra only
+#   2. npm run start:dev                             ← run NestJS on host
+#      (requires DATABASE_URL to point to 127.0.0.1:3307)
+#
+# FULL DOCKER workflow:
+#   docker compose up -d                             ← everything in Docker
+
+services:
+  mysql:
+    ports:
+      - "127.0.0.1:3308:3306"   # expose MySQL to host on 3308
+
+  redis:
+    ports:
+      - "127.0.0.1:6384:6379"   # expose Redis to host on 6384

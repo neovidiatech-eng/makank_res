@@ -1,0 +1,89 @@
+model StoreTemplate {
+  id           Int                        @id @default(autoincrement())
+  name         Json
+  description  Json?
+  image        String?
+  moduleType   String?                    @map("module_type")
+  active       Boolean                    @default(true)
+  order        Int                        @default(0)
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  deletedAt    DateTime?                  @map("deleted_at")
+  applications StoreTemplateApplication[]
+  categories   TemplateCategory[]
+
+  @@map("store_templates")
+}
+
+model TemplateCategory {
+  id               Int               @id @default(autoincrement())
+  name             Json
+  image            String?
+  order            Int               @default(0)
+  templateId       Int               @map("template_id")
+  deletedAt        DateTime?         @map("deleted_at")
+  clonedCategories Category[]
+  template         StoreTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  services         TemplateService[]
+
+  @@index([templateId])
+  @@map("template_categories")
+}
+
+model TemplateService {
+  id                 Int                    @id @default(autoincrement())
+  name               Json
+  description        Json
+  image              String
+  durationMinutes    Int                    @map("duration_minutes")
+  price              Float
+  commission         Float?
+  priceAfterDiscount Float?                 @map("price_after_discount")
+  available          Boolean                @default(true)
+  bestRated          Boolean?               @default(false) @map("best_rated")
+  mostSeller         Boolean?               @default(false) @map("most_seller")
+  templateCategoryId Int                    @map("template_category_id")
+  deletedAt          DateTime?              @map("deleted_at")
+  addons             TemplateServiceAddon[]
+  sizes              TemplateServiceSize[]
+  templateCategory   TemplateCategory       @relation(fields: [templateCategoryId], references: [id], onDelete: Cascade)
+
+  @@index([templateCategoryId])
+  @@map("template_services")
+}
+
+model TemplateServiceSize {
+  id                 Int             @id @default(autoincrement())
+  name               Json
+  price              Float
+  priceAfterDiscount Float?          @map("price_after_discount")
+  isDefault          Boolean         @default(false) @map("is_default")
+  templateServiceId  Int             @map("template_service_id")
+  templateService    TemplateService @relation(fields: [templateServiceId], references: [id], onDelete: Cascade)
+
+  @@index([templateServiceId])
+  @@map("template_service_sizes")
+}
+
+model TemplateServiceAddon {
+  id                Int             @id @default(autoincrement())
+  name              Json
+  price             Float
+  templateServiceId Int             @map("template_service_id")
+  templateService   TemplateService @relation(fields: [templateServiceId], references: [id], onDelete: Cascade)
+
+  @@index([templateServiceId])
+  @@map("template_service_addons")
+}
+
+model StoreTemplateApplication {
+  id         Int           @id @default(autoincrement())
+  storeId    Int           @map("store_id")
+  templateId Int           @map("template_id")
+  appliedAt  DateTime      @default(now()) @map("applied_at")
+  store      Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  template   StoreTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, templateId])
+  @@index([templateId])
+  @@map("store_template_applications")
+}

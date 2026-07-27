@@ -1,0 +1,33 @@
+model Complaint {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @map("customer_id")
+  orderId   Int              @map("order_id")
+  reason    String           @db.Text
+  status    ComplaintStatus  @default(PENDING)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime?        @map("updated_at")
+  deletedAt DateTime?        @map("deleted_at")
+  Replies   ComplaintReply[]
+  User      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Order     Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "complaint_customer_id_fkey")
+  @@index([orderId], map: "complaint_order_id_fkey")
+  @@map("complaints")
+}
+
+model ComplaintReply {
+  id          Int       @id @default(autoincrement())
+  complaintId Int       @map("complaint_id")
+  userId      Int       @map("user_id")
+  message     String    @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  Complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  User        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId], map: "complaint_reply_complaint_id_fkey")
+  @@index([userId], map: "complaint_reply_user_id_fkey")
+  @@map("complaint_replies")
+}

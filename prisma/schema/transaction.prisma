@@ -1,0 +1,69 @@
+model Wallet {
+  id                      Int     @id @default(autoincrement())
+  branchId                Int     @unique @map("branch_id")
+  totalEarning            Float   @default(0) @map("total_earning")
+  total                   Float   @default(0)
+  totalWithdrawn          Float   @default(0) @map("total_withdrawn")
+  pendingWithdraw         Float   @default(0) @map("pending_withdraw")
+  collect_cash            Float   @default(0)
+  currentBalance          Float   @default(0) @map("current_balance")
+  totalCommissionDeducted Float   @default(0) @map("total_commission_deducted")
+  stores                  Store[]
+  Branch                  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId])
+  @@map("wallet")
+}
+
+model AdminWallet {
+  id              Int   @id @default(autoincrement())
+  total           Float @default(0)
+  totalEarning    Float @default(0) @map("total_earning")
+  totalWithdrawn  Float @default(0) @map("total_withdrawn")
+  pendingWithdraw Float @default(0) @map("pending_withdraw")
+  collectedCash   Float @default(0) @map("collect_cash")
+  currentBalance  Float @default(0) @map("current_balance")
+
+  @@map("admin_wallet")
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  credit      Float           @default(0)
+  debit       Float           @default(0)
+  balance     Float           @default(0)
+  type        TransactionType
+  userType    UserType
+  referenceId Int
+  deletedAt   DateTime?       @map("deleted_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  customerId  Int?            @map("customer_Id")
+  branchId    Int?            @map("branch_Id")
+  deliveryId  Int?            @map("delivery_Id")
+  storeId     Int?
+  Branch      Branch?         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  Customer    User?           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  Delivery    User?           @relation("DeliveryTransactions", fields: [deliveryId], references: [id], onDelete: Cascade)
+  store       Store?          @relation(fields: [storeId], references: [id])
+
+  @@index([customerId], map: "transactions_customer_Id_fkey")
+  @@index([branchId], map: "transactions_branch_Id_fkey")
+  @@index([deliveryId], map: "transactions_delivery_Id_fkey")
+  @@index([storeId], map: "transactions_storeId_fkey")
+  @@map("transactions")
+}
+
+enum TransactionType {
+  ORDER_REFUND
+  WITHDRAWAL
+  ORDER_CREATED
+  FUND
+  ORDER_COMPLETED
+}
+
+enum UserType {
+  CUSTOMER
+  STORE
+  ADMIN
+  DELIVERY
+}

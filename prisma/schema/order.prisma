@@ -1,0 +1,288 @@
+model Order {
+  id                      Int                       @id @default(autoincrement())
+  price                   Float
+  note                    String?                   @db.Text
+  adminNote               String?                   @map("admin_note") @db.Text
+  couponId                Int?
+  rated                   Boolean                   @default(false)
+  date                    DateTime                  @default(now())
+  createdAt               DateTime                  @default(now())
+  addressId               Int?                      @map("address_id")
+  userId                  Int                       @map("customer_id")
+  specialistId            Int?                      @map("specialist_id")
+  totalPriceAfterDiscount Float                     @default(0) @map("total_price_after_discount")
+  discountAmount          Float                     @default(0) @map("discount_amount")
+  paidWithWallet          Boolean                   @default(false) @map("paid_with_wallet")
+  isGift                  Boolean                   @default(false) @map("is_gift")
+  adminCommission         Float                     @default(0) @map("admin_commission")
+  globalCommission        Float                     @default(0) @map("global_commission")
+  storeCommission         Float                     @default(0) @map("store_commission")
+  shipping                Float                     @default(0)
+  tax                     Float                     @default(0)
+  packagingFee            Float                     @default(0) @map("packaging_fee")
+  paymentStatus           PaymentStatus             @default(UNPAID) @map("payment_status")
+  paymentMethod           PaymentMethod             @default(CASH) @map("payment_method")
+  transferNumber          String?                   @map("transfer_number")
+  transferImage           String?                   @map("transfer_image")
+  transferType            TransferType?             @map("transfer_type")
+  transferAccountNumber   String?                   @map("transfer_account_number")
+  status                  OrderStatus               @default(PENDING)
+  type                    OrderType                 @default(DELIVERY)
+  invoice                 Json
+  tip                     Float                     @default(0)
+  branchId                Int?                      @map("branch_id")
+  category                OrderCategory             @default(IMMEDIATE)
+  scheduledAt             DateTime?                 @map("scheduled_at")
+  pickupLat               Float?                    @map("pickup_lat")
+  pickupLng               Float?                    @map("pickup_lng")
+  deliveryLat             Float?                    @map("delivery_lat")
+  deliveryLng             Float?                    @map("delivery_lng")
+  itemsDescription        String?                   @map("items_description") @db.Text
+  estimatedItemsCost      Float?                    @map("estimated_items_cost")
+  driverInstructions      String?                   @map("driver_instructions") @db.Text
+  deliveryId              Int?                      @map("delivery_id")
+  zoneId                  Int?                      @map("zone_id")
+  assignmentReadyAt       DateTime?                 @map("assignment_ready_at")
+  // Stamped by changeStatus() at the PREPARING / READY_PICKUP transitions —
+  // lets us measure the store's ACTUAL prep time (vs. the static estimate on
+  // Store.prepTimeMinutes) for the performance dashboard.
+  preparingAt             DateTime?                 @map("preparing_at")
+  readyAt                 DateTime?                 @map("ready_at")
+  // Which store employee performed each transition — powers the employee
+  // performance dashboard (orders accepted / rejected / avg prep speed).
+  acceptedByUserId        Int?                      @map("accepted_by_user_id")
+  rejectedByUserId        Int?                      @map("rejected_by_user_id")
+  readyMarkedByUserId     Int?                      @map("ready_marked_by_user_id")
+  customDeliveryKind      CustomDeliveryKind?       @map("custom_delivery_kind")
+  customerSelectedZoneId  Int?                      @map("customer_selected_zone_id")
+  Complaints              Complaint[]
+  DeliveryRating          DeliveryRating[]
+  Address                 Address?                  @relation(fields: [addressId], references: [id])
+  Branch                  Branch?                   @relation(fields: [branchId], references: [id])
+  Coupon                  Coupon?                   @relation(fields: [couponId], references: [id])
+  Customer                User                      @relation("CustomerOrders", fields: [userId], references: [id])
+  Delivery                DeliveryDetails?          @relation(fields: [deliveryId], references: [userId])
+  Specialist              Specialist?               @relation(fields: [specialistId], references: [id])
+  Zone                    Zone?                     @relation(fields: [zoneId], references: [id])
+  OrderBundles            OrderBundle[]
+  Assignments             OrderDeliveryAssignment[]
+  OrderItems              OrderItem[]
+  Stations                OrderStation[]
+  StoreRating             StoreRating[]
+
+  @@index([addressId], map: "order_address_id_fkey")
+  @@index([branchId], map: "order_branch_id_fkey")
+  @@index([couponId], map: "order_couponId_fkey")
+  @@index([userId], map: "order_customer_id_fkey")
+  @@index([specialistId], map: "order_specialist_id_fkey")
+  @@index([zoneId], map: "order_zone_id_fkey")
+  @@index([deliveryId], map: "order_delivery_id_fkey")
+  @@map("order")
+}
+
+model OrderItem {
+  id              Int              @id @default(autoincrement())
+  orderId         Int              @map("order_id")
+  serviceId       Int              @map("service_id")
+  sizeId          Int?             @map("size_id")
+  quantity        Int              @default(1)
+  price           Float
+  isFree          Boolean          @default(false) @map("is_free")
+  orderBundleId   Int?             @map("order_bundle_id")
+  OrderItemAddons OrderItemAddon[]
+  OrderBundle     OrderBundle?     @relation(fields: [orderBundleId], references: [id])
+  Order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  Service         Service          @relation(fields: [serviceId], references: [id])
+  Size            ServiceSize?     @relation(fields: [sizeId], references: [id])
+
+  @@index([orderId], map: "order_item_order_id_fkey")
+  @@index([serviceId], map: "order_item_service_id_fkey")
+  @@index([sizeId], map: "order_item_size_id_fkey")
+  @@index([orderBundleId])
+  @@map("order_items")
+}
+
+model OrderBundle {
+  id                   Int         @id @default(autoincrement())
+  orderId              Int         @map("order_id")
+  bundleId             Int?        @map("bundle_id")
+  title                Json
+  type                 BundleType
+  requiredPaidQuantity Int         @map("required_paid_quantity")
+  freeQuantity         Int         @map("free_quantity")
+  freeDiscountAmount   Float       @default(0) @map("free_discount_amount")
+  snapshot             Json
+  createdAt            DateTime    @default(now()) @map("created_at")
+  Bundle               Bundle?     @relation(fields: [bundleId], references: [id])
+  Order                Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  OrderItems           OrderItem[]
+
+  @@index([orderId])
+  @@index([bundleId])
+  @@map("order_bundles")
+}
+
+model OrderItemAddon {
+  id          Int          @id @default(autoincrement())
+  orderItemId Int          @map("order_item_id")
+  addonId     Int          @map("addon_id")
+  Addon       ServiceAddon @relation(fields: [addonId], references: [id])
+  OrderItem   OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([addonId], map: "order_item_addons_addon_id_fkey")
+  @@index([orderItemId], map: "order_item_addons_order_item_id_fkey")
+  @@map("order_item_addons")
+}
+
+model OrderDeliveryAssignment {
+  id          Int              @id @default(autoincrement())
+  orderId     Int              @map("order_id")
+  deliveryId  Int              @map("delivery_id")
+  status      AssignmentStatus @default(PENDING)
+  assignedAt  DateTime         @default(now()) @map("assigned_at")
+  expiresAt   DateTime         @map("expires_at")
+  respondedAt DateTime?        @map("responded_at")
+  Delivery    DeliveryDetails  @relation(fields: [deliveryId], references: [userId], onDelete: Cascade)
+  Order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([deliveryId])
+  @@map("order_delivery_assignments")
+}
+
+model OrderStation {
+  id            Int                 @id @default(autoincrement())
+  orderId       Int                 @map("order_id")
+  sequence      Int
+  type          StationType         @default(PICKUP)
+  name          String?
+  lat           Float
+  lng           Float
+  purchaseList  String?             @map("purchase_list") @db.Text
+  estimatedCost Float               @default(0) @map("estimated_cost")
+  notes         String?             @db.Text
+  status        StationStatus       @default(WAITING)
+  reachedAt     DateTime?           @map("reached_at")
+  contactPhone  String?             @map("contact_phone")
+  zoneId        Int?                @map("zone_id")
+  collectionAmount   Float?              @map("collection_amount")
+  addressDetails     String?             @map("address_details") @db.Text
+  packagingRequested Boolean             @default(false) @map("packaging_requested")
+  Images        OrderStationImage[]
+  Order         Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  Zone          Zone?               @relation(fields: [zoneId], references: [id])
+
+  @@index([orderId])
+  @@index([zoneId])
+  @@map("order_stations")
+}
+
+model OnlineSellerProfile {
+  userId       Int      @id @map("user_id")
+  senderName   String   @map("sender_name")
+  senderPhone  String   @map("sender_phone")
+  pickupZoneId Int?     @map("pickup_zone_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  PickupZone   Zone?    @relation(fields: [pickupZoneId], references: [id])
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([pickupZoneId])
+  @@map("online_seller_profiles")
+}
+
+model OrderStationImage {
+  id        Int           @id @default(autoincrement())
+  userId    Int           @map("user_id")
+  stationId Int?          @map("station_id")
+  image     String
+  createdAt DateTime      @default(now()) @map("created_at")
+  Station   OrderStation? @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([stationId])
+  @@map("order_station_images")
+}
+
+model ArchivedOrder {
+  id                      Int                 @id @default(autoincrement())
+  price                   Float
+  note                    String?             @db.Text
+  couponId                Int?
+  date                    DateTime            @default(now())
+  createdAt               DateTime            @default(now())
+  addressId               Int?                @map("address_id")
+  userId                  Int                 @map("customer_id")
+  branchId                Int?                @map("branch_id")
+  totalPriceAfterDiscount Float               @default(0) @map("total_price_after_discount")
+  discountAmount          Float               @default(0) @map("discount_amount")
+  paidWithWallet          Boolean             @default(false) @map("paid_with_wallet")
+  isGift                  Boolean             @default(false) @map("is_gift")
+  adminCommission         Float               @default(0) @map("admin_commission")
+  globalCommission        Float               @default(0) @map("global_commission")
+  storeCommission         Float               @default(0) @map("store_commission")
+  shipping                Float               @default(0)
+  tax                     Float               @default(0)
+  packagingFee            Float               @default(0) @map("packaging_fee")
+  paymentMethod           PaymentMethod       @default(CASH) @map("payment_method")
+  transferNumber          String?             @map("transfer_number")
+  transferImage           String?             @map("transfer_image")
+  transferType            TransferType?       @map("transfer_type")
+  transferAccountNumber   String?             @map("transfer_account_number")
+  type                    OrderType           @default(DELIVERY)
+  tip                     Float               @default(0)
+  category                OrderCategory       @default(SCHEDULED)
+  scheduledAt             DateTime?           @map("scheduled_at")
+  zoneId                  Int?                @map("zone_id")
+  customerSelectedZoneId  Int?                @map("customer_selected_zone_id")
+  Address                 Address?            @relation(fields: [addressId], references: [id])
+  Branch                  Branch?             @relation(fields: [branchId], references: [id])
+  Coupon                   Coupon?             @relation(fields: [couponId], references: [id])
+  Customer                User                @relation(fields: [userId], references: [id])
+  Zone                    Zone?               @relation(fields: [zoneId], references: [id])
+  ArchivedOrderItems      ArchivedOrderItem[]
+
+  @@index([addressId], map: "archived_order_address_id_fkey")
+  @@index([branchId], map: "archived_order_branch_id_fkey")
+  @@index([couponId], map: "archived_order_couponId_fkey")
+  @@index([userId], map: "archived_order_customer_id_fkey")
+  @@index([zoneId], map: "archived_order_zone_id_fkey")
+  @@map("archived_order")
+}
+
+model ArchivedOrderItem {
+  id                      Int                      @id @default(autoincrement())
+  archivedOrderId         Int                      @map("archived_order_id")
+  serviceId               Int                      @map("service_id")
+  sizeId                  Int?                     @map("size_id")
+  quantity                Int                      @default(1)
+  price                   Float
+  ArchivedOrderItemAddons ArchivedOrderItemAddon[]
+  ArchivedOrder           ArchivedOrder            @relation(fields: [archivedOrderId], references: [id], onDelete: Cascade)
+  Service                 Service                  @relation(fields: [serviceId], references: [id])
+  Size                    ServiceSize?             @relation(fields: [sizeId], references: [id])
+
+  @@index([archivedOrderId], map: "archived_order_items_archived_order_id_fkey")
+  @@index([serviceId], map: "archived_order_items_service_id_fkey")
+  @@index([sizeId], map: "archived_order_items_size_id_fkey")
+  @@map("archived_order_items")
+}
+
+model ArchivedOrderItemAddon {
+  id                  Int               @id @default(autoincrement())
+  archivedOrderItemId Int               @map("archived_order_item_id")
+  addonId             Int               @map("addon_id")
+  Addon               ServiceAddon      @relation(fields: [addonId], references: [id])
+  ArchivedOrderItem   ArchivedOrderItem @relation(fields: [archivedOrderItemId], references: [id], onDelete: Cascade)
+
+  @@index([addonId], map: "archived_order_item_addons_addon_id_fkey")
+  @@index([archivedOrderItemId], map: "archived_order_item_addons_archived_order_item_id_fkey")
+  @@map("archived_order_item_addons")
+}
+
+enum AssignmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  TIMEOUT
+}

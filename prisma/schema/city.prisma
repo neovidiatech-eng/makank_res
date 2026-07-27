@@ -1,0 +1,9 @@
+model City {
+  id        Int       @id @default(autoincrement())
+  name      Json
+  deletedAt DateTime? @map("deleted_at")
+  Store     Store[]
+  Zone      Zone[]
+
+  @@map("city")
+}

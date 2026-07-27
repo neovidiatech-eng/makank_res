@@ -1,0 +1,11 @@
+model Specialist {
+  id        Int       @id @default(autoincrement())
+  name      String
+  storeId   Int?
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+  Store     Store?    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders    Order[]
+
+  @@index([storeId], map: "Specialist_storeId_fkey")
+}

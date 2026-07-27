@@ -1,0 +1,83 @@
+model bank_accounts {
+  id         Int        @id @default(autoincrement())
+  name       Json
+  bank_id    Int
+  branch_id  Int
+  phone      String?
+  ibn        String
+  deleted_at DateTime?
+  storeId    Int?
+  Withdraw   Withdraw[]
+  banks      banks      @relation(fields: [bank_id], references: [id], onDelete: Cascade)
+  branches   Branch     @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+  stores     Store?     @relation(fields: [storeId], references: [id])
+
+  @@index([bank_id], map: "bank_accounts_bank_id_fkey")
+  @@index([branch_id], map: "bank_accounts_branch_id_fkey")
+  @@index([storeId], map: "bank_accounts_storeId_fkey")
+}
+
+model banks {
+  id            Int             @id @default(autoincrement())
+  name          Json
+  deleted_at    DateTime?
+  bank_accounts bank_accounts[]
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model notifications_leaked_backup_20260625 {
+  id                Int                                                     @default(0)
+  image             String?
+  title             Json
+  body              Json
+  read              Boolean                                                 @default(false)
+  created_at        DateTime                                                @default(now())
+  deleted_at        DateTime?
+  resourceId        Int?
+  user_id           Int?
+  group_key         String?
+  type              notifications_leaked_backup_20260625_type?
+  click_category_id Int?
+  click_coupon_id   Int?
+  click_order_id    Int?
+  click_service_id  Int?
+  click_store_id    Int?
+  click_target_type notifications_leaked_backup_20260625_click_target_type?
+  click_url         String?                                                 @db.Text
+  click_zone_id     Int?
+
+  @@ignore
+}
+
+enum CampaignTargetType {
+  ALL
+  CUSTOMER
+  STORE
+  SERVICE
+  SELECTED_USERS
+  SPECIAL_DRIVER
+
+  @@map("campaigns_target_type")
+}
+
+enum notifications_leaked_backup_20260625_type {
+  NEW_ORDER
+  NEW_SUB_CATEGORY_REQUEST
+  ORDER
+  SHIFT_REMINDER
+  ADMIN
+  STORE
+  COUPON
+}
+
+enum notifications_leaked_backup_20260625_click_target_type {
+  GENERAL
+  STORE
+  CATEGORY
+  SERVICE
+  ZONE
+  SPECIAL_DRIVER
+  ORDER
+  COUPON
+  EXTERNAL_URL
+}

@@ -1,0 +1,134 @@
+/* WebSocket Documentation Styles */
+.swagger-ui .websocket-section {
+  margin: 2em 0;
+  padding: 2em;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.swagger-ui .websocket-section h2 {
+  color: #2d3748;
+  margin-bottom: 1em;
+}
+
+.swagger-ui .websocket-event {
+  margin: 1.5em 0;
+  padding: 1em;
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.swagger-ui .websocket-event h3 {
+  color: #4a5568;
+  margin-bottom: 0.5em;
+}
+
+.swagger-ui .event-description {
+  color: #718096;
+  margin-bottom: 1em;
+}
+
+.swagger-ui .event-payload {
+  background-color: #f7fafc;
+  padding: 1em;
+  border-radius: 4px;
+}
+
+.swagger-ui .event-payload pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* Event Type Labels */
+.swagger-ui .event-type {
+  display: inline-block;
+  padding: 0.25em 0.75em;
+  border-radius: 9999px;
+  font-size: 0.875em;
+  font-weight: 500;
+  margin-right: 0.5em;
+}
+
+.swagger-ui .event-type.emit {
+  background-color: #ebf8ff;
+  color: #2b6cb0;
+}
+
+.swagger-ui .event-type.receive {
+  background-color: #f0fff4;
+  color: #ff0000;
+}
+
+/* Code Examples */
+.swagger-ui .code-example {
+  background-color: #2d3748;
+  color: #f7fafc;
+  padding: 1em;
+  border-radius: 4px;
+  margin: 1em 0;
+}
+
+.swagger-ui .code-example code {
+  color: inherit;
+}
+
+/* Socket.IO Test Console */
+.swagger-ui .socket-console {
+  margin-top: 2em;
+  padding: 1em;
+  background-color: #1a202c;
+  color: #f7fafc;
+  border-radius: 4px;
+}
+
+.swagger-ui .socket-console input {
+  width: 100%;
+  padding: 0.5em;
+  margin: 0.5em 0;
+  background-color: #2d3748;
+  border: 1px solid #4a5568;
+  color: #f7fafc;
+  border-radius: 4px;
+}
+
+.swagger-ui .socket-console button {
+  background-color: #4299e1;
+  color: white;
+  padding: 0.5em 1em;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.swagger-ui .socket-console button:hover {
+  background-color: #3182ce;
+}
+
+/* Response Examples */
+.swagger-ui .response-example {
+  margin-top: 1em;
+  padding: 1em;
+  background-color: #f0fff4;
+  border: 1px solid #c6f6d5;
+  border-radius: 4px;
+}
+
+.swagger-ui .response-example h4 {
+  color: #2f855a;
+  margin-bottom: 0.5em;
+}
+
+/* Error Examples */
+.swagger-ui .error-example {
+  margin-top: 1em;
+  padding: 1em;
+  background-color: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 4px;
+}
+
+.swagger-ui .error-example h4 {
+  color: #c53030;
+  margin-bottom: 0.5em;
+}

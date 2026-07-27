@@ -1,0 +1,84 @@
+model Bundle {
+  id                   Int                   @id @default(autoincrement())
+  storeId              Int                   @map("store_id")
+  title                Json
+  description          Json
+  image                String
+  isActive             Boolean               @default(true) @map("is_active")
+  type                 BundleType            @default(BUY_X_GET_Y_FREE)
+  requiredPaidQuantity Int                   @map("required_paid_quantity")
+  freeQuantity         Int                   @map("free_quantity")
+  paidSizeRule         BundleSizeRule        @default(ANY) @map("paid_size_rule")
+  paidRequiredSizeName String?               @map("paid_required_size_name")
+  freeSizeRule         BundleSizeRule        @default(ANY) @map("free_size_rule")
+  freeRequiredSizeName String?               @map("free_required_size_name")
+  freeValueRule        BundleFreeValueRule   @default(CAP_TO_CHEAPEST_PAID) @map("free_value_rule")
+  maxFreeItemValue     Float?                @map("max_free_item_value")
+  pricingMode          BundlePricingMode     @default(DYNAMIC) @map("pricing_mode")
+  priceBeforeDiscount  Float?                @map("price_before_discount")
+  priceAfterDiscount   Float?                @map("price_after_discount")
+  startDate            DateTime?             @map("start_date")
+  endDate              DateTime?             @map("end_date")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  deletedAt            DateTime?             @map("deleted_at")
+  ScopeCategories      BundleScopeCategory[]
+  ScopeServices        BundleScopeService[]
+  Store                Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  OrderBundles         OrderBundle[]
+
+  @@index([storeId])
+  @@map("bundles")
+}
+
+model BundleScopeService {
+  id        Int             @id @default(autoincrement())
+  bundleId  Int             @map("bundle_id")
+  role      BundleScopeRole
+  serviceId Int             @map("service_id")
+  Bundle    Bundle          @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  Service   Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, role, serviceId])
+  @@index([bundleId])
+  @@index([serviceId])
+  @@map("bundle_scope_services")
+}
+
+model BundleScopeCategory {
+  id         Int             @id @default(autoincrement())
+  bundleId   Int             @map("bundle_id")
+  role       BundleScopeRole
+  categoryId Int             @map("category_id")
+  Bundle     Bundle          @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  Category   Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, role, categoryId])
+  @@index([bundleId])
+  @@index([categoryId])
+  @@map("bundle_scope_categories")
+}
+
+enum BundleType {
+  BUY_X_GET_Y_FREE
+}
+
+enum BundlePricingMode {
+  DYNAMIC
+  FIXED
+}
+
+enum BundleSizeRule {
+  ANY
+  NAME
+}
+
+enum BundleFreeValueRule {
+  NO_CAP
+  CAP_TO_CHEAPEST_PAID
+  MAX_FREE_VALUE
+}
+
+enum BundleScopeRole {
+  PAID
+  FREE
+}

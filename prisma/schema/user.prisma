@@ -1,0 +1,143 @@
+model User {
+  id                   Int                      @id @default(autoincrement())
+  name                 String
+  email                String
+  phone                String?
+  password             String
+  verified             Boolean                  @default(false)
+  active               Boolean                  @default(true)
+  deviceId             String?                  @map("device_id")
+  image                String                   @default("uploads/default.png")
+  allowNotification    Boolean                  @default(true) @map("allow_notification")
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  deletedAt            DateTime?                @map("deleted_at")
+  roleId               Int                      @map("role_id")
+  roleKey              String                   @map("role_key")
+  branchId             Int?
+  storeId              Int?
+  googleId             String?                  @map("google_id")
+  DeliveryDetails      DeliveryDetails?
+  Address              Address[]
+  ArchivedOrders       ArchivedOrder[]
+  CampaignViews        CampaignView[]
+  ComplaintReplies     ComplaintReply[]
+  Complaints           Complaint[]
+  DeliveryRating       DeliveryRating[]
+  Details              Details?
+  FavoriteServices     FavoriteService[]
+  FavoriteStores       FavoriteStore[]
+  FortuneWheelRewards  FortuneWheelUserReward[]
+  FortuneWheelState    FortuneWheelUserState?
+  Fund                 Fund[]
+  Notifications        Notification[]
+  OnlineSellerProfile  OnlineSellerProfile?
+  CustomerOrders       Order[]                  @relation("CustomerOrders")
+  OTPs                 OTP[]
+  Sessions             Session[]
+  StoreRating          StoreRating[]
+  Transactions         Transaction[]
+  DeliveryTransactions Transaction[]            @relation("DeliveryTransactions")
+  UserCoupons          UserCoupons[]
+  Branch               Branch?                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  Role                 Role                     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  Store                Store?                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, roleKey])
+  @@unique([email, roleKey])
+  @@unique([phone, roleKey])
+  @@unique([deviceId, roleId])
+  @@unique([email, roleId])
+  @@unique([phone, roleId])
+  @@index([phone, roleKey])
+  @@index([email, roleKey])
+  @@index([phone, roleId])
+  @@index([email, roleId])
+  @@index([branchId], map: "users_branchId_fkey")
+  @@index([roleId], map: "users_role_id_fkey")
+  @@index([storeId], map: "users_storeId_fkey")
+  @@map("users")
+}
+
+model Details {
+  userId               Int    @id @unique @map("user_id")
+  wallet               Float? @default(0)
+  points               Float? @default(0)
+  collectedCash        Float  @default(0) @map("collected_cash")
+  unsettledCommission  Float  @default(0) @map("unsettled_commission")
+  pendingWithdraw      Float  @default(0) @map("pending_withdraw")
+  totalWithdrawn       Float  @default(0) @map("total_withdrawn")
+  User                 User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("details")
+}
+
+model DeliveryDetails {
+  userId             Int                       @id @unique @map("user_id")
+  rating             Float                     @default(0)
+  review             Int                       @default(0)
+  bestRated          Boolean                   @default(false) @map("best_rated")
+  lat                Float                     @map("lat")
+  lng                Float                     @map("lng")
+  bearing            Float?                    @map("bearing")
+  lastLocationUpdate DateTime?                 @map("last_location_update")
+  availableNow       Boolean                   @default(false) @map("available_now")
+  forceAvailable     Boolean                   @default(false) @map("force_available")
+  User               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Attendance         DeliveryAttendance[]
+  DeliveryRating     DeliveryRating[]
+  Schedule           DeliverySchedule[]
+  CashSettlements    DriverCashSettlement[]
+  Withdraws          DriverWithdraw[]
+  Order              Order[]
+  Assignments        OrderDeliveryAssignment[]
+}
+
+model DeliverySchedule {
+  id             Int                  @id @default(autoincrement())
+  openingTime    DateTime             @map("opening_time") @db.Time(0)
+  closingTime    DateTime             @map("closing_time") @db.Time(0)
+  day            Days
+  deliveryId     Int                  @map("delivery_id")
+  requiredLat    Float?               @map("required_lat")
+  requiredLng    Float?               @map("required_lng")
+  requiredRadius Float?               @default(100) @map("required_radius")
+  Attendance     DeliveryAttendance[]
+  Delivery       DeliveryDetails      @relation(fields: [deliveryId], references: [userId], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@map("delivery_schedule")
+}
+
+model DeliveryAttendance {
+  id          Int              @id @default(autoincrement())
+  deliveryId  Int              @map("delivery_id")
+  scheduleId  Int              @map("schedule_id")
+  checkInTime DateTime         @default(now()) @map("check_in_time")
+  lat         Float
+  lng         Float
+  Delivery    DeliveryDetails  @relation(fields: [deliveryId], references: [userId], onDelete: Cascade)
+  Schedule    DeliverySchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId], map: "delivery_attendance_delivery_id_fkey")
+  @@index([scheduleId], map: "delivery_attendance_schedule_id_fkey")
+  @@map("delivery_attendance")
+}
+
+model Address {
+  id             Int             @id @default(autoincrement())
+  userId         Int             @map("user_id")
+  deletedAt      DateTime?       @map("deleted_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  title          String          @map("title")
+  default        Boolean         @default(false)
+  lat            Float           @map("lat")
+  lng            Float           @map("lng")
+  adress         String?         @map("adress") @db.Text
+  User           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ArchivedOrders ArchivedOrder[]
+  Order          Order[]
+
+  @@index([lat, lng])
+  @@index([userId], map: "addresses_user_id_fkey")
+  @@map("addresses")
+}

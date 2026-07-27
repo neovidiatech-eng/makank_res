@@ -1,0 +1,149 @@
+# ─── Makanak Backend (v2) — Local Dev Compose ──────────────────────────────────
+# Usage:
+#   docker compose up --build -d        # first run (build image)
+#   docker compose up -d                # subsequent runs
+#   docker compose down                 # stop all
+#   docker compose logs -f backend      # follow backend logs
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── MySQL 8.0 ──────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: makanak_v2_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-dev_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-makanak2_dev}
+      MYSQL_USER: ${MYSQL_USER:-makanak}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-dev_password}
+    # Drop ONLY_FULL_GROUP_BY so non-aggregated GROUP BY queries don't error
+    command:
+      - --sql-mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+      - --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_v2_data:/var/lib/mysql
+    networks:
+      - makanak_v2_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G  
+
+  # ── Redis 7 ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: makanak_v2_redis
+    restart: unless-stopped
+    networks:
+      - makanak_v2_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512MB  
+
+  # ── NestJS Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build          # full dev deps + prisma + compiled source inside image
+    container_name: makanak_v2_backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      # Override .env to use in-network hostnames instead of 127.0.0.1
+      DATABASE_URL: "mysql://${MYSQL_USER:-makanak}:${MYSQL_PASSWORD:-dev_password}@mysql:3306/${MYSQL_DATABASE:-makanak2_dev}"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OSRM_URL: http://osrm:5000
+      # Give TypeScript compiler enough heap for this large codebase
+      NODE_OPTIONS: "--max-old-space-size=1536"
+    ports:
+      - "127.0.0.1:3031:3031"   # REST API
+      - "127.0.0.1:1235:1235"   # Socket.IO
+    volumes:
+      - uploads_v2_data:/app/uploads  # persist uploaded files
+    # No bind mounts — image contains all source & node_modules (Alpine/musl)
+    # To apply code changes: docker compose up --build -d backend
+    command: ["npm", "run", "start:dev"]
+    networks:
+      - makanak_v2_net
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  # ── phpMyAdmin ─────────────────────────────────────────────────────────────
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: makanak_v2_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-dev_root_password}
+      UPLOAD_LIMIT: 100M
+    ports:
+      - "127.0.0.1:8081:80"
+    networks:
+      - makanak_v2_net
+    depends_on:
+      mysql:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+  # ── OSRM (Open Source Routing Machine) ──────────────────────────────────────
+  osrm:
+    image: osrm/osrm-backend
+    container_name: makanak_v2_osrm
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - ./osrm-data:/data
+    command: osrm-routed --algorithm mld /data/egypt-latest.osrm
+    networks:
+      - makanak_v2_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  mysql_v2_data:
+  uploads_v2_data:  # persistent uploads directory
+  osrm_v2_data:     # persistent OSRM data
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  makanak_v2_net:
+    driver: bridge

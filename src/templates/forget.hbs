@@ -1,0 +1,41 @@
+<html>
+  <head>
+    <title>Reset Your Password</title>
+    <style>
+      body { font-family: Arial, sans-serif; line-height: 1.6; } .container {
+      max-width: 600px; margin: 0 auto; padding: 20px; } .button { display:
+      inline-block; padding: 12px 24px; background-color: #007bff; color: white;
+      text-decoration: none; border-radius: 4px; margin: 20px 0; } .footer {
+      margin-top: 30px; font-size: 12px; color: #666; border-top: 1px solid
+      #eee; padding-top: 20px; } .note { font-size: 13px; color: #666; }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <h1>Password Reset Request</h1>
+      <p>Hello {{name}},</p>
+      <p>We received a request to reset the password for your account. To reset
+        your password, click the button below:</p>
+
+      <a href='{{resetLink}}' class='button'>Reset Password</a>
+
+      <p class='note'>This link will expire in 24 hours. If you didn't request a
+        password reset, please ignore this email.</p>
+
+      <p>If the button above doesn't work, you can copy and paste this link into
+        your browser:</p>
+      <p style='word-break: break-all;'>
+        <a
+          href='{{resetLink}}'
+          class='button'
+          style='word-break: break-all;'
+        >{{resetLink}}</a>
+      </p>
+      <div class='footer'>
+        <p>This email was sent to {{email}}</p>
+        <p>Please do not reply to this email. If you need assistance, please
+          contact our support team.</p>
+      </div>
+    </div>
+  </body>
+</html>

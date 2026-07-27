@@ -1,0 +1,66 @@
+model FortuneWheelSettings {
+  id                   Int      @id @default(autoincrement())
+  displayIntervalHours Int      @map("display_interval_hours")
+  isEnabled            Boolean  @default(true) @map("is_enabled")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("fortune_wheel_settings")
+}
+
+model FortuneWheelItem {
+  id                Int                      @id @default(autoincrement())
+  displayName       String                   @map("display_name")
+  rewardType        FortuneWheelRewardType   @map("reward_type")
+  rewardValue       Int?                     @map("reward_value")
+  weight            Int                      @default(1) @map("weight")
+  maxDiscount       Int?                     @map("max_discount")
+  minOrderAmount    Int?                     @map("min_order_amount")
+  maxOrderAmount    Int?                     @map("max_order_amount")
+  rewardExpiryHours Int?                     @map("reward_expiry_hours")
+  isActive          Boolean                  @default(true) @map("is_active")
+  sortOrder         Int                      @default(0) @map("sort_order")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+  deletedAt         DateTime?                @map("deleted_at")
+  UserRewards       FortuneWheelUserReward[]
+
+  @@map("fortune_wheel_items")
+}
+
+model FortuneWheelUserState {
+  id             Int       @id @default(autoincrement())
+  userId         Int       @unique @map("user_id")
+  lastShownAt    DateTime? @map("last_shown_at")
+  lastSpunAt     DateTime? @map("last_spun_at")
+  nextEligibleAt DateTime? @map("next_eligible_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  User           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("fortune_wheel_user_states")
+}
+
+model FortuneWheelUserReward {
+  id              Int                      @id @default(autoincrement())
+  userId          Int                      @map("user_id")
+  itemId          Int?                     @map("item_id")
+  rewardType      FortuneWheelRewardType   @map("reward_type")
+  rewardValue     Int?                     @map("reward_value")
+  maxDiscount     Int?                     @map("max_discount")
+  minOrderAmount  Int?                     @map("min_order_amount")
+  maxOrderAmount  Int?                     @map("max_order_amount")
+  status          FortuneWheelRewardStatus @default(VALID) @map("status")
+  expiresAt       DateTime?                @map("expires_at")
+  redeemedAt      DateTime?                @map("redeemed_at")
+  redeemedOrderId Int?                     @map("redeemed_order_id")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+  deletedAt       DateTime?                @map("deleted_at")
+  Item            FortuneWheelItem?        @relation(fields: [itemId], references: [id])
+  User            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([itemId], map: "fortune_wheel_user_rewards_item_id_fkey")
+  @@map("fortune_wheel_user_rewards")
+}

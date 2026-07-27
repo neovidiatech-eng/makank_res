@@ -1,0 +1,47 @@
+model Banner {
+  id         Int              @id @default(autoincrement())
+  name       Json
+  image      String
+  active     Boolean          @default(true)
+  randomSeed Float            @default(0) @map("random_seed")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  deletedAt  DateTime?        @map("deleted_at")
+  storeId    Int?
+  categoryId Int?
+  serviceId  Int?
+  targetType BannerTargetType @default(GENERAL) @map("target_type")
+  clickCount Int              @default(0) @map("click_count")
+  order      Int              @default(0)
+  startDate  DateTime?        @map("start_date")
+  endDate    DateTime?        @map("end_date")
+  Zones      BannerZone[]
+  Category   Category?        @relation(fields: [categoryId], references: [id])
+  Service    Service?         @relation(fields: [serviceId], references: [id])
+  Store      Store?           @relation("BannerToStore", fields: [storeId], references: [id])
+
+  @@index([storeId], map: "banners_storeId_fkey")
+  @@index([categoryId], map: "banners_categoryId_fkey")
+  @@index([serviceId], map: "banners_serviceId_fkey")
+  @@map("banners")
+}
+
+model BannerZone {
+  bannerId Int    @map("banner_id")
+  zoneId   Int    @map("zone_id")
+  Banner   Banner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+  Zone     Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@id([bannerId, zoneId])
+  @@index([bannerId])
+  @@index([zoneId], map: "banner_zones_zone_id_fkey")
+  @@map("banner_zones")
+}
+
+enum BannerTargetType {
+  GENERAL
+  STORE
+  CATEGORY
+  SERVICE
+  ZONE
+  SPECIAL_DRIVER
+}

@@ -1,0 +1,56 @@
+model Withdraw {
+  id               Int            @id @default(autoincrement())
+  amount           Float
+  store_account_id Int?
+  deletedAt        DateTime?      @map("deleted_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  status           WithdrawStatus @default(PENDING)
+  branchId         Int?           @map("branch_id")
+  payoutMethod     PayoutMethod   @default(CASH) @map("payout_method")
+  payoutDetails    String?        @map("payout_details") @db.Text
+  bank_accounts    bank_accounts? @relation(fields: [store_account_id], references: [id])
+  Branch           Branch?        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([store_account_id], map: "Withdraw_store_account_id_fkey")
+  @@index([branchId])
+}
+
+model DriverWithdraw {
+  id            Int             @id @default(autoincrement())
+  deliveryId    Int             @map("delivery_id")
+  amount        Float
+  payoutMethod  PayoutMethod    @map("payout_method")
+  payoutDetails String          @map("payout_details")
+  status        WithdrawStatus  @default(PENDING)
+  adminNote     String?         @map("admin_note") @db.Text
+  createdAt     DateTime        @default(now()) @map("created_at")
+  respondedAt   DateTime?       @map("responded_at")
+  Delivery      DeliveryDetails @relation(fields: [deliveryId], references: [userId], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@map("driver_withdraws")
+}
+
+model DriverCashSettlement {
+  id         Int             @id @default(autoincrement())
+  deliveryId Int             @map("delivery_id")
+  amount     Float
+  note       String?         @db.Text
+  createdAt  DateTime        @default(now()) @map("created_at")
+  Delivery   DeliveryDetails @relation(fields: [deliveryId], references: [userId], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@map("driver_cash_settlements")
+}
+
+enum WithdrawStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum PayoutMethod {
+  CASH
+  VODAFONE_CASH
+  INSTAPAY
+}

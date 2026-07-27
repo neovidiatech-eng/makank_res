@@ -1,0 +1,19 @@
+model Log {
+  id        String   @id @default(uuid())
+  userId    String
+  userName  String
+  userRole  String
+  action    String
+  details   String
+  // Which store this action relates to (product/price edits, order status
+  // changes) — null for actions with no store (e.g. driver AFK_BREAK).
+  // Lets a store's dashboard see only its own audit trail, not the platform's.
+  storeId   Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([storeId])
+  @@map("logs")
+}

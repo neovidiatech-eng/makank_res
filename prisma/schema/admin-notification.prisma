@@ -1,0 +1,22 @@
+model AdminNotification {
+  id              Int                     @id @default(autoincrement())
+  title           Json
+  body            Json
+  image           String?
+  targetType      String                  @map("target_type")
+  targetUserIds   Json?                   @map("target_users_ids")
+  storeId         Int?                    @map("store_id")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  deletedAt       DateTime?               @map("deleted_at")
+  clickCategoryId Int?                    @map("click_category_id")
+  clickCouponId   Int?                    @map("click_coupon_id")
+  clickOrderId    Int?                    @map("click_order_id")
+  clickServiceId  Int?                    @map("click_service_id")
+  clickStoreId    Int?                    @map("click_store_id")
+  clickTargetType NotificationTargetType? @map("click_target_type")
+  clickUrl        String?                 @map("click_url") @db.Text
+  clickZoneId     Int?                    @map("click_zone_id")
+  clickDeliveryId String?                 @map("click_delivery_id")
+
+  @@map("admin_notifications")
+}

@@ -1,0 +1,62 @@
+model Notification {
+  id              Int                     @id @default(autoincrement())
+  image           String?
+  title           Json
+  body            Json
+  read            Boolean                 @default(false)
+  createdAt       DateTime                @default(now()) @map("created_at")
+  deletedAt       DateTime?               @map("deleted_at")
+  resourceId      Int?
+  userId          Int?                    @map("user_id")
+  groupKey        String?                 @map("group_key")
+  type            NotificationType?
+  clickCategoryId Int?                    @map("click_category_id")
+  clickCouponId   Int?                    @map("click_coupon_id")
+  clickOrderId    Int?                    @map("click_order_id")
+  clickServiceId  Int?                    @map("click_service_id")
+  clickStoreId    Int?                    @map("click_store_id")
+  clickTargetType NotificationTargetType? @map("click_target_type")
+  clickUrl        String?                 @map("click_url") @db.Text
+  clickZoneId     Int?                    @map("click_zone_id")
+  clickDeliveryId String?                 @map("click_delivery_id")
+  User            User?                   @relation(fields: [userId], references: [id])
+
+  @@index([groupKey], map: "notifications_group_key_fkey")
+  @@index([userId], map: "notifications_user_id_fkey")
+  @@map("notifications")
+}
+
+model SystemNotification {
+  id           Int                      @id @default(autoincrement())
+  title        Json
+  body         Json
+  email        SystemNotificationStatus @default(ACTIVE)
+  sms          SystemNotificationStatus @default(ACTIVE)
+  notification SystemNotificationStatus @default(ACTIVE)
+  event        String
+  receiverKey  String                   @map("receiver_key")
+  senderKey    String                   @map("sender_key")
+  group        Boolean                  @default(false)
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  deletedAt    DateTime?                @map("deleted_at")
+
+  @@index([receiverKey], map: "system_notifications_receiver_key_fkey")
+  @@index([senderKey], map: "system_notifications_sender_key_fkey")
+  @@map("system_notifications")
+}
+
+enum SystemNotificationStatus {
+  DISABLED
+  ACTIVE
+  IN_ACTIVE
+}
+
+enum NotificationType {
+  NEW_ORDER
+  NEW_SUB_CATEGORY_REQUEST
+  ORDER
+  SHIFT_REMINDER
+  ADMIN
+  STORE
+  COUPON
+}
