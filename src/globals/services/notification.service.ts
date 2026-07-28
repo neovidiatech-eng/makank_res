@@ -217,7 +217,7 @@ export class NotificationService {
     this.logger.log(`[push-image-debug] Incoming raw image: ${image === null ? 'null (explicit)' : image === undefined ? 'undefined' : `"${image}"`}`);
 
     if (imageUrl && !imageUrl.startsWith('http')) {
-      const baseUrl = env('MAIN_URL') || 'https://api.makanak-app.com';
+      const baseUrl = env('MAIN_URL') || 'https://mlk.alzikr-academy.com';
       this.logger.log(`[push-image-debug] Resolving relative path using MAIN_URL / baseUrl: "${baseUrl}"`);
       // Route through the same /api/media?media= endpoint every other client
       // (dashboard, mobile) uses to load uploaded images, instead of a bare

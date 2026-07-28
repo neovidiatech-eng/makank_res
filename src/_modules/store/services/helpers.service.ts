@@ -9,6 +9,10 @@ import { CreateStoreUserDTO } from '../dto/store.dto';
 export class HelpersService {
   constructor(private readonly prisma: PrismaService) {}
   async isUserExist(data: CreateStoreUserDTO) {
+    // Soft-deleted rows are excluded automatically (no __includeDeleted) —
+    // a previously deleted store's owner email/phone must be reusable for a
+    // new store, otherwise store creation is permanently blocked for that
+    // email once a test/old store using it is ever removed.
     const user = await this.prisma.user.findUnique({
       where: {
         email_roleKey: {
@@ -23,7 +27,6 @@ export class HelpersService {
         name: true,
         verified: true,
       },
-      __includeDeleted: true as never,
     });
 
     const user2 = data.phone
@@ -41,12 +44,20 @@ export class HelpersService {
             name: true,
             verified: true,
           },
-          __includeDeleted: true as never,
         })
       : null;
 
-    if (user || user2) throw new ConflictException('user already exists');
-    return user;
+    // A verified, active account is a real conflict — can't silently take it
+    // over. An unverified one (registration never completed) is returned so
+    // createUser() can reuse/refresh it instead of creating a duplicate.
+    if ((user && user.verified) || (user2 && user2.verified)) {
+      throw new ConflictException('user already exists');
+    }
+    if (user2 && user && user2.id !== user.id) {
+      throw new ConflictException('user already exists');
+    }
+
+    return user || user2 || null;
   }
   async createUser(
     data: CreateStoreUserDTO,
@@ -81,8 +92,14 @@ export class HelpersService {
       });
       return existingUser;
     }
+    // default: true is required here — every store's custom employee roles
+    // (created via POST /roles) also carry roleKey: 'Store', just scoped to
+    // that store and default: false. Without this filter, findFirst() could
+    // return an arbitrary employee role instead of the one true full-access
+    // owner role, silently handing the new store owner the wrong permission
+    // set (login succeeds, every permission-gated store endpoint then 401s).
     const role = await tx.role.findFirst({
-      where: { roleKey: RolesKeys.STORE },
+      where: { roleKey: RolesKeys.STORE, default: true },
     });
     const response =
       existingUser && !existingUser.verified

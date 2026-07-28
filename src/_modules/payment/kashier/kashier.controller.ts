@@ -52,7 +52,9 @@ export class KashierController implements OnModuleInit {
         orderId,
         merchantRedirectUrl:
           body.merchantRedirectUrl ||
-          'https://api-v1.makanak-app.com/api/kashier/callback',
+          (env('MAIN_URL')
+            ? `${env('MAIN_URL').replace(/\/$/, '')}/api/kashier/callback`
+            : 'https://api-v1.makanak-app.com/api/kashier/callback'),
       });
       console.log(paymentUrl);
       return res.status(HttpStatus.OK).json({ paymentUrl, orderId });

@@ -51,15 +51,21 @@ export class BaseAuthenticationService {
     if (!isLocaleFound) {
       throw new NotFoundException('Locale not found');
     }
-    // Drivers log in regardless of email/OTP verification status — "verified"
-    // for them is now an admin-only gate on order-assignment eligibility
-    // (AssignmentService), not a login precondition. Every other role keeps
-    // the existing OTP-verification-required-to-login behavior. RoleInterceptor
-    // sets dto.roleKey from the URL param before this runs.
+    // Drivers and stores log in regardless of email/OTP verification status —
+    // requiring a restaurant to click an email OTP link before they can even
+    // open the store dashboard added friction with no product value, same
+    // reasoning as the pre-existing driver exemption below. "verified" is
+    // still tracked for both roles (e.g. AssignmentService gates order
+    // assignment on a driver's verified flag), it's just no longer a login
+    // precondition. Every other role keeps the existing OTP-required-to-login
+    // behavior. RoleInterceptor sets dto.roleKey from the URL param before
+    // this runs.
     const user = await this.userHelper.userExist({
       ...dto,
       message: 'invalid credentials',
-      checkVerified: dto.roleKey !== RolesKeys.DELIVERY,
+      checkVerified: ![RolesKeys.DELIVERY, RolesKeys.STORE].includes(
+        dto.roleKey,
+      ),
     });
     const data = await this.userService.getProfile(user.id);
     const AccessToken = await this.tokenService.generateToken(

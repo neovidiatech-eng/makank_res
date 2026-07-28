@@ -82,11 +82,38 @@ export class CreateStoreDTO {
   @ValidateObject(CreateStoreUserDTO)
   User: CreateStoreUserDTO;
 }
+// Every field optional, unlike CreateStoreUserDTO — PartialType(CreateStoreDTO)
+// only makes the `User` property itself optional, it does NOT deep-partial the
+// nested CreateStoreUserDTO's own required fields. Without this, an admin
+// sending just { email, password } to change a store's login would get a 400
+// ("name should not be empty") since `name`/`email`/`password` still validated
+// as required on the nested object.
+export class UpdateStoreUserDTO {
+  @Optional()
+  @ValidateString()
+  name?: string;
+
+  @Optional()
+  @ValidateEmail()
+  email?: string;
+
+  @Optional()
+  @ValidatePhone()
+  phone?: string;
+
+  @Optional()
+  @ValidatePassword()
+  password?: string;
+}
 // templateId is intentionally excluded: template application only happens via
 // POST /stores/:id/apply-template, never silently through a store update.
 export class UpdateStoreDTO extends OmitType(PartialType(CreateStoreDTO), [
   'templateId',
 ]) {
+  @Optional()
+  @ValidateObject(UpdateStoreUserDTO)
+  User?: UpdateStoreUserDTO;
+
   @Optional()
   @ValidateBoolean()
   temporarilyClosed: boolean;

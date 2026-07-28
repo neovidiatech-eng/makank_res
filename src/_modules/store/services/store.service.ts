@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { NotificationType } from '@prisma/client';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { NotificationType, Prisma } from '@prisma/client';
 import { NotificationService } from 'src/globals/services/notification.service';
 import { PrismaService } from 'src/globals/services/prisma.service';
 
@@ -8,6 +8,7 @@ import {
   CreateStoreDTO,
   FilterStoreDTO,
   UpdateStoreDTO,
+  UpdateStoreUserDTO,
 } from '../dto/store.dto';
 
 import { BadRequestException } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { ServiceModuleHelper } from 'src/_modules/serviceModule/services/service
 import { StoreTemplateService } from 'src/_modules/store-template/store-template.service';
 import { ZoneService } from 'src/_modules/zone/zone.service';
 import { calculateDistance } from 'src/globals/helpers/calculateDistance.helper';
+import { hashPassword } from 'src/globals/helpers/password.helpers';
 import { MapService } from 'src/globals/services/map.service';
 import { PrivateSettingService } from 'src/globals/services/settings.service';
 import { LanguagesService } from '../../languages/languages.service';
@@ -172,6 +174,73 @@ export class StoreService {
           });
         }
       }
+
+      if (User && Object.keys(User).length > 0) {
+        await this.updateOwnerCredentials(tx, id, User);
+      }
+    });
+  }
+
+  // Applies admin edits to the store owner's actual login row (name/email/
+  // phone/password) — previously this whole `User` field was destructured out
+  // of the body and never used anywhere, so editing a store's credentials
+  // from the admin dashboard silently did nothing to the real login.
+  //
+  // Also re-pins roleId to the one true default Store role: a store created
+  // while the role-lookup bug in HelpersService.createUser was live could
+  // have had its owner wired to an arbitrary employee role instead of the
+  // full-access owner role (still logs in fine, but then 401s on every
+  // permission-gated store endpoint) — touching User here self-heals that.
+  private async updateOwnerCredentials(
+    tx: Prisma.TransactionClient,
+    storeId: Id,
+    User: UpdateStoreUserDTO,
+  ) {
+    // Identified by earliest id, not by its current Role, on purpose: the
+    // owner is always the first Store-role user created for a store (before
+    // any employee can exist), which still holds even if its Role was
+    // mis-wired by the bug this method self-heals below.
+    const owner = await tx.user.findFirst({
+      where: { storeId, roleKey: RolesKeys.STORE },
+      orderBy: { id: 'asc' },
+    });
+    if (!owner) {
+      throw new NotFoundException('Store owner account not found');
+    }
+
+    if (User.email || User.phone) {
+      const conflict = await tx.user.findFirst({
+        where: {
+          id: { not: owner.id },
+          roleKey: RolesKeys.STORE,
+          OR: [
+            ...(User.email ? [{ email: User.email }] : []),
+            ...(User.phone ? [{ phone: User.phone }] : []),
+          ],
+        },
+      });
+      if (conflict) {
+        throw new ConflictException(
+          'Email or phone already used by another store account',
+        );
+      }
+    }
+
+    const defaultRole = await tx.role.findFirst({
+      where: { roleKey: RolesKeys.STORE, default: true },
+    });
+
+    await tx.user.update({
+      where: { id: owner.id },
+      data: {
+        ...(User.name !== undefined && { name: User.name }),
+        ...(User.email !== undefined && { email: User.email }),
+        ...(User.phone !== undefined && { phone: User.phone }),
+        ...(User.password !== undefined && {
+          password: hashPassword(User.password),
+        }),
+        ...(defaultRole && { roleId: defaultRole.id }),
+      },
     });
   }
 
