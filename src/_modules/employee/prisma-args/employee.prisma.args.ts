@@ -31,20 +31,23 @@ export const getEmployeeArgs = (
 };
 
 export const selectEmployeeOBJ = () => {
+  // email/phone/branchId/Role were previously missing entirely — a management
+  // screen can't tell employees apart or show what they can do without them.
   const selectArgs: Prisma.UserSelect = {
     id: true,
     name: true,
+    email: true,
+    phone: true,
     image: true,
     active: true,
+    branchId: true,
     createdAt: true,
-    // Store: {
-    //   select: {
-    //     id: true,
-    //     name: true,
-    //     logo: true,
-    //     cover: true,
-    //   },
-    // },
+    Role: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
   };
   return selectArgs;
 };
