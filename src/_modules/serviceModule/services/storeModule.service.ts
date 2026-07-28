@@ -306,6 +306,10 @@ export class ServiceModuleService {
             row.priceAfterDiscount < row.price && {
               priceAfterDiscount: row.priceAfterDiscount,
             }),
+          // Bulk-uploaded rows bypass the controller entirely, so they never
+          // got the same "goes live immediately" treatment regular create()
+          // calls now get — left to the Prisma column default (PENDING).
+          status: ServiceStatus.ACTIVE,
           available: row.available,
           storeId,
           categoryId,

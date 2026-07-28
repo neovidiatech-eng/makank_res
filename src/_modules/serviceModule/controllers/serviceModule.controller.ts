@@ -111,11 +111,11 @@ export class ServiceModuleController {
     @Body() body: CreateServiceDTO,
     @CurrentUser('Role') role: CurrentUser['Role'],
   ) {
-    // Moderation gate: only an Admin may set the initial status. Anyone else
-    // (store owners) has it forced to PENDING so new services await approval —
-    // the DTO field is optional and the DB defaults to PENDING regardless.
+    // Product moderation removed per product decision — a store's own product
+    // goes live immediately, no admin review queue. Admin can still set an
+    // explicit status on create if they want; every other caller gets ACTIVE.
     if (role?.roleKey !== RolesKeys.ADMIN) {
-      body.status = ServiceStatus.PENDING;
+      body.status = ServiceStatus.ACTIVE;
     }
     await this.service.create(body);
     return this.response.created(res, 'service created successfully');
