@@ -107,8 +107,12 @@ export class UpdateStoreUserDTO {
 }
 // templateId is intentionally excluded: template application only happens via
 // POST /stores/:id/apply-template, never silently through a store update.
+// User is also excluded from the inherited shape (re-declared below with its
+// own partial DTO) — TS won't let a subclass narrow an inherited property's
+// type to one with optional fields where the base had required ones.
 export class UpdateStoreDTO extends OmitType(PartialType(CreateStoreDTO), [
   'templateId',
+  'User',
 ]) {
   @Optional()
   @ValidateObject(UpdateStoreUserDTO)
