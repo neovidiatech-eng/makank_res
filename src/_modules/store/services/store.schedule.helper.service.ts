@@ -40,10 +40,23 @@ export class ScheduleHelpersService {
 
     // Check status priority first
     let currentStatus = branch.status || 'OPEN';
-    if (currentStatus === 'BUSY' && branch.busyUntil) {
-      if (new Date() > new Date(branch.busyUntil)) {
-        currentStatus = 'OPEN';
-      }
+    if (
+      currentStatus === 'BUSY' &&
+      branch.busyUntil &&
+      new Date() > new Date(branch.busyUntil)
+    ) {
+      // Busy window elapsed — hand control back to the weekly schedule, same
+      // as the once-daily 4am job already does for OPEN/CLOSED overrides.
+      // Previously this only reassigned the local variable (to fix up
+      // `closed` for this one check) — the branch's `status` column itself
+      // stayed stuck on "BUSY" forever afterward (and the old statusReason
+      // kept showing to customers), since neither this per-minute sync nor
+      // the 4am reset (which only covers OPEN/CLOSED) ever wrote it back.
+      currentStatus = 'NORMAL';
+      await this.prisma.branch.update({
+        where: { id: branchId },
+        data: { status: 'NORMAL', busyUntil: null, statusReason: null },
+      });
     }
 
     if (currentStatus === 'CLOSED') {
