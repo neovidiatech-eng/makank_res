@@ -95,6 +95,11 @@ export class CategoryController {
     ]),
   )
   @Auth({ prefix, visitor: true })
+  // Without this, a Store-role caller hitting plain GET /categories (no
+  // ?storeId=) got back every store's categories instead of just their own —
+  // same class of leak as GET /services. AttachStoreId's GET branch
+  // force-sets filters.storeId from the JWT only for Role.roleKey === STORE.
+  @AttachStoreId()
   @ApiQuery({ type: PartialType(FilterCategoryDTO) })
   @ApiOptionalIdParam('id')
   async findAll(

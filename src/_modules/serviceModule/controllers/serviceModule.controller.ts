@@ -80,6 +80,13 @@ export class ServiceModuleController {
     ]),
   )
   @UseInterceptors(AuthServiceInterceptor)
+  // Without this, a Store-role caller hitting plain GET /services (no
+  // ?storeId=) got back services from every store on the platform instead of
+  // just their own — the menu screen showed random other stores' products on
+  // a brand-new store that hadn't added anything yet. AttachStoreId's GET
+  // branch force-sets filters.storeId from the JWT for Role.roleKey === STORE
+  // only; visitor/customer/admin callers are unaffected.
+  @AttachStoreId()
   @ApiQuery({ type: PartialType(FilterServiceDTO) })
   @ApiOptionalIdParam('id')
   async findAll(
