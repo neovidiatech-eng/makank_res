@@ -191,10 +191,15 @@ export const selectStoreOBJ = (includeBundles = false) => {
       },
     },
     User: {
+      // phone included so the admin dashboard's edit form can pre-fill it —
+      // without it, editing anything on an existing store (e.g. just the
+      // password) required re-typing a phone number the form had no way to
+      // show, since a required field with nothing to prefill blocks submit.
       select: {
         id: true,
         name: true,
         email: true,
+        phone: true,
       },
     },
     StoreCoupons: {
