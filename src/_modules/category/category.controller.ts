@@ -21,7 +21,6 @@ import { ResponseService } from 'src/globals/services/response.service';
 
 import { AttachStoreId } from 'src/decorators/api/attachStoreIdInterceptor.decorator';
 import { CanUserAccessModelRowId } from 'src/decorators/api/CanUserAccessModelRowId.decorator';
-import { StripFieldsIfNoPermission } from 'src/decorators/api/permissionStripInterceptor.decorator';
 import { UploadFile } from 'src/decorators/api/upload-file.decorator';
 import { isOne } from 'src/globals/helpers/first-or-many';
 import { buildExamples } from 'src/globals/helpers/generate-example.helper';
@@ -64,11 +63,6 @@ export class CategoryController {
     modelName: 'category',
     ownerCurrentUserField: 'storeId',
     ownerFieldName: 'storeId',
-  })
-  @StripFieldsIfNoPermission({
-    prefix,
-    restrictedFields: ['active'],
-    method: 'manage',
   })
   @UploadFile('image', 'image')
   async update(
