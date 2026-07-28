@@ -21,6 +21,17 @@ export class BundleService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(bundleInput: CreateBundleDTO) {
+    // `image` is a required, non-nullable column, but @RequiredFile() on the
+    // DTO doesn't actually enforce presence (it's IsOptional() under the
+    // hood — the multipart file interceptor is what's supposed to fill it
+    // in) and the singular @UploadFile() decorator used here never wires up
+    // the required-file check that @UploadMultipleFiles() has. A JSON-only
+    // request with no image (or one that omits it) reached Prisma with
+    // `image: undefined` and crashed as an unhandled 500 instead of a clean
+    // 400. A real client hit exactly this creating a bundle without an image.
+    if (!bundleInput.image) {
+      throw new BadRequestException('image is required');
+    }
     await assertStoreAccepted(this.prisma, bundleInput.storeId);
     this.validateRules(bundleInput);
     await this.validateScopeOwnership(bundleInput.storeId, bundleInput);
