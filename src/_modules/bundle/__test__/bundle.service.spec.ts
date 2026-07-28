@@ -9,15 +9,12 @@ describe('BundleService ownership-scoped CRUD', () => {
     requiredPaidQuantity: 2,
     freeQuantity: 1,
     paidServiceIds: [10],
-    paidCategoryIds: [],
-    freeServiceIds: [],
-    freeCategoryIds: [20],
+    freeServiceIds: [20],
   };
 
-  const buildService = (serviceCount = 1, categoryCount = 1) => {
+  const buildService = (serviceCount = 2) => {
     const prisma = {
       service: { count: jest.fn().mockResolvedValue(serviceCount) },
-      category: { count: jest.fn().mockResolvedValue(categoryCount) },
       store: {
         findUnique: jest.fn().mockResolvedValue({ isStoreAccepted: true }),
       },
@@ -47,7 +44,7 @@ describe('BundleService ownership-scoped CRUD', () => {
   });
 
   it('rejects cross-store scoped services before creating a bundle', async () => {
-    const { service, prisma } = buildService(0, 1);
+    const { service, prisma } = buildService(1);
     await expect(service.create(bundleInput)).rejects.toThrow(
       'Every scoped service',
     );

@@ -127,37 +127,19 @@ export class CreateBundleDTO {
   @ValidateDate()
   endDate?: Date;
 
-  @Optional({
-    description:
-      'At least one paid scope required: paidServiceIds or paidCategoryIds.',
+  @Required({
+    description: 'Which products count as "paid" pieces in this offer.',
   })
   @ValidateNumberArray({ allowNegative: false })
   @ValidateExist<'service'>({ model: 'service', isArray: true })
   paidServiceIds: Id[];
 
-  @Optional({
-    description:
-      'At least one paid scope required: paidServiceIds or paidCategoryIds.',
-  })
-  @ValidateNumberArray({ allowNegative: false })
-  @ValidateExist<'category'>({ model: 'category', isArray: true })
-  paidCategoryIds: Id[];
-
-  @Optional({
-    description:
-      'At least one free scope required: freeServiceIds or freeCategoryIds.',
+  @Required({
+    description: 'Which products count as the "free" piece in this offer.',
   })
   @ValidateNumberArray({ allowNegative: false })
   @ValidateExist<'service'>({ model: 'service', isArray: true })
   freeServiceIds: Id[];
-
-  @Optional({
-    description:
-      'At least one free scope required: freeServiceIds or freeCategoryIds.',
-  })
-  @ValidateNumberArray({ allowNegative: false })
-  @ValidateExist<'category'>({ model: 'category', isArray: true })
-  freeCategoryIds: Id[];
 }
 
 export class UpdateBundleDTO extends PartialType(CreateBundleDTO) {}

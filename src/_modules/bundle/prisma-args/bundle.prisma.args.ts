@@ -45,13 +45,6 @@ export const selectBundleOBJ = (): Prisma.BundleSelect => ({
       Service: { select: selectServiceOBJById() },
     },
   },
-  ScopeCategories: {
-    select: {
-      role: true,
-      categoryId: true,
-      Category: { select: { id: true, name: true } },
-    },
-  },
 });
 
 export const getBundleArgs = (

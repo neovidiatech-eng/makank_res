@@ -127,24 +127,16 @@ export class BundleService {
   }
 
   private hasScopeUpdate(bundleInput: UpdateBundleDTO) {
-    return [
-      'paidServiceIds',
-      'paidCategoryIds',
-      'freeServiceIds',
-      'freeCategoryIds',
-    ].some((scopeKey) => bundleInput[scopeKey] !== undefined);
+    return ['paidServiceIds', 'freeServiceIds'].some(
+      (scopeKey) => bundleInput[scopeKey] !== undefined,
+    );
   }
 
   private assertCompleteScopeUpdate(bundleInput: UpdateBundleDTO) {
-    const scopeKeys = [
-      'paidServiceIds',
-      'paidCategoryIds',
-      'freeServiceIds',
-      'freeCategoryIds',
-    ];
+    const scopeKeys = ['paidServiceIds', 'freeServiceIds'];
     if (scopeKeys.some((scopeKey) => bundleInput[scopeKey] === undefined))
       throw new BadRequestException(
-        'Scope updates must include every paid and free scope array',
+        'Scope updates must include both paidServiceIds and freeServiceIds',
       );
   }
 
@@ -153,20 +145,14 @@ export class BundleService {
     bundleInput: Partial<CreateBundleDTO>,
   ) {
     const paidServiceIds = bundleInput.paidServiceIds ?? [];
-    const paidCategoryIds = bundleInput.paidCategoryIds ?? [];
     const freeServiceIds = bundleInput.freeServiceIds ?? [];
-    const freeCategoryIds = bundleInput.freeCategoryIds ?? [];
-    if (!paidServiceIds.length && !paidCategoryIds.length)
-      throw new BadRequestException('At least one paid scope is required');
-    if (!freeServiceIds.length && !freeCategoryIds.length)
-      throw new BadRequestException('At least one free scope is required');
+    if (!paidServiceIds.length)
+      throw new BadRequestException('At least one paid service is required');
+    if (!freeServiceIds.length)
+      throw new BadRequestException('At least one free service is required');
     await this.assertServicesBelongToStore(storeId, [
       ...paidServiceIds,
       ...freeServiceIds,
-    ]);
-    await this.assertCategoriesBelongToStore(storeId, [
-      ...paidCategoryIds,
-      ...freeCategoryIds,
     ]);
   }
 
@@ -181,36 +167,12 @@ export class BundleService {
       );
   }
 
-  private async assertCategoriesBelongToStore(storeId: Id, categoryIds: Id[]) {
-    if (!categoryIds.length) return;
-    const ownedCount = await this.prisma.category.count({
-      where: { id: { in: categoryIds }, storeId, deletedAt: null },
-    });
-    if (ownedCount !== new Set(categoryIds).size)
-      throw new BadRequestException(
-        'Every scoped category must belong to the bundle store',
-      );
-  }
-
   private createData(bundleInput: CreateBundleDTO): Prisma.BundleCreateInput {
-    const {
-      paidServiceIds,
-      paidCategoryIds,
-      freeServiceIds,
-      freeCategoryIds,
-      storeId,
-      ...bundle
-    } = bundleInput;
+    const { paidServiceIds, freeServiceIds, storeId, ...bundle } = bundleInput;
     return {
       ...bundle,
       Store: { connect: { id: storeId } },
-      ...this.scopesData(
-        paidServiceIds ?? [],
-        paidCategoryIds ?? [],
-        freeServiceIds ?? [],
-        freeCategoryIds ?? [],
-        false,
-      ),
+      ...this.scopesData(paidServiceIds ?? [], freeServiceIds ?? [], false),
     };
   }
 
@@ -218,33 +180,22 @@ export class BundleService {
     bundleInput: UpdateBundleDTO,
     replaceScopes: boolean,
   ): Prisma.BundleUpdateInput {
-    const {
-      paidServiceIds,
-      paidCategoryIds,
-      freeServiceIds,
-      freeCategoryIds,
-      storeId,
-      ...bundle
-    } = bundleInput;
+    const { paidServiceIds, freeServiceIds, storeId, ...bundle } = bundleInput;
     return {
       ...bundle,
       ...(replaceScopes
-        ? this.scopesData(
-            paidServiceIds ?? [],
-            paidCategoryIds ?? [],
-            freeServiceIds ?? [],
-            freeCategoryIds ?? [],
-            true,
-          )
+        ? this.scopesData(paidServiceIds ?? [], freeServiceIds ?? [], true)
         : {}),
     };
   }
 
+  // Category-based scoping (paidCategoryIds/freeCategoryIds) was removed per
+  // product decision — never used by any client. ScopeCategories rows from
+  // before this change (if any) are simply never written to again; the table
+  // itself is untouched (no schema change here).
   private scopesData(
     paidServiceIds: Id[],
-    paidCategoryIds: Id[],
     freeServiceIds: Id[],
-    freeCategoryIds: Id[],
     isUpdate: boolean,
   ) {
     const serviceRecords = [
@@ -257,24 +208,10 @@ export class BundleService {
         Service: { connect: { id: serviceId } },
       })),
     ];
-    const categoryRecords = [
-      ...paidCategoryIds.map((categoryId) => ({
-        role: BundleScopeRole.PAID,
-        Category: { connect: { id: categoryId } },
-      })),
-      ...freeCategoryIds.map((categoryId) => ({
-        role: BundleScopeRole.FREE,
-        Category: { connect: { id: categoryId } },
-      })),
-    ];
     return {
       ScopeServices: {
         ...(isUpdate ? { deleteMany: {} } : {}),
         create: serviceRecords,
-      },
-      ScopeCategories: {
-        ...(isUpdate ? { deleteMany: {} } : {}),
-        create: categoryRecords,
       },
     };
   }
