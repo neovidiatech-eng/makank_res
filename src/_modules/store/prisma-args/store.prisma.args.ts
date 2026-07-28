@@ -191,6 +191,16 @@ export const selectStoreOBJ = (includeBundles = false) => {
       },
     },
     User: {
+      // `Store.User` is a list (owner + any employees can share a storeId) —
+      // there's no dedicated "owner" flag, so the dashboard's edit form reads
+      // User[0] as the owner. orderBy is required here so that's always the
+      // earliest-created row, deterministically matching the exact same
+      // "lowest id" heuristic StoreService.updateOwnerCredentials() uses to
+      // pick who actually gets updated — without it, a store with employees
+      // could show/edit a different account than the one whose password
+      // change actually takes effect (a real DB-order dependent bug, not
+      // just theoretical: Prisma/MySQL give no ordering guarantee here).
+      orderBy: { id: 'asc' as const },
       // phone included so the admin dashboard's edit form can pre-fill it —
       // without it, editing anything on an existing store (e.g. just the
       // password) required re-typing a phone number the form had no way to
