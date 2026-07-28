@@ -1,4 +1,5 @@
 import { Prisma, User } from '@prisma/client';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { paginateOrNot } from 'src/globals/helpers/pagination-params';
 import { filterKey } from 'src/globals/helpers/prisma-filters';
 import { FilterEmployeeDTO } from '../dto/employee.dto';
@@ -11,7 +12,7 @@ export const getEmployeeArgs = (
   const searchArray = [
     filterKey<User>(filter, 'id'),
     filterKey(filter, 'name'),
-    // filterKey<User>(filter, 'storeId'),
+    filterKey<User>(filter, 'storeId'),
     filterKey<User>(filter, 'active'),
   ].filter(Boolean) as Prisma.UserWhereInput[];
 
@@ -24,7 +25,7 @@ export const getEmployeeArgs = (
     ...paginateOrNot({ limit, page }, query?.id),
     orderBy: orderArray,
     where: {
-      AND: searchArray,
+      AND: [{ roleKey: RolesKeys.STORE }, ...searchArray],
     },
   } as Prisma.UserFindManyArgs;
 };
