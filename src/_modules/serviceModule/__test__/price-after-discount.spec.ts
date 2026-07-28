@@ -152,6 +152,25 @@ describe('Service price-after-discount', () => {
       expect(res.hasDiscount).toBe(false);
     });
 
+    it('effectivePrice/hasDiscount/priceAfterDiscount follow the default size too, not just price (regression: was contradicting price:0 with effectivePrice:120)', () => {
+      const res = mapService(
+        {
+          price: 120, // base price, would leak through as a stale effectivePrice
+          priceAfterDiscount: null,
+          Sizes: [{ price: 0, priceAfterDiscount: null, isDefault: false }],
+        },
+        pctStore(0),
+      );
+      // Only size present (even though not flagged isDefault) becomes the default —
+      // price, effectivePrice, priceAfterDiscount, hasDiscount must all agree at 0/null,
+      // never mixing the size's price with the base service's effectivePrice.
+      expect(res.price).toBe(0);
+      expect(res.effectivePrice).toBe(0);
+      expect(res.priceAfterDiscount).toBeNull();
+      expect(res.hasDiscount).toBe(false);
+      expect(res.priceWithDefaultOptions).toBe(0);
+    });
+
     it('commission applied EXACTLY ONCE (no double-commission on discount)', () => {
       // FIXED store +5: effective = (120 + 5) = 125, not (120 + 5 + 5)
       const res = mapService(

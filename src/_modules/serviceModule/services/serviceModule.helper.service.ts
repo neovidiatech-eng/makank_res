@@ -209,10 +209,27 @@ export class ServiceModuleHelper {
     // When the service has sizes and no base discount, set top-level `price` to
     // the default size's list price so mobile apps comparing `price` vs
     // `priceWithDefaultOptions` don't display fake discount badges.
-    const finalClientPrice =
-      sizesDTO.length > 0 && !baseHasDiscount && defaultSize
-        ? defaultSize.price
-        : clientFacingPrice;
+    const useDefaultSizeForTopLevel =
+      sizesDTO.length > 0 && !baseHasDiscount && defaultSize;
+    const finalClientPrice = useDefaultSizeForTopLevel
+      ? defaultSize.price
+      : clientFacingPrice;
+    // Previously only `price` followed the default size here — `effectivePrice`/
+    // `hasDiscount`/`priceAfterDiscount` still fell back to the base service's own
+    // (discount-free, by definition of this branch) values, which could show a
+    // contradictory response like `price: 0, effectivePrice: 120` for a product
+    // whose only/default size was priced at 0. Only applies when the base has no
+    // discount of its own — the other branch (base has a real headline discount)
+    // is intentionally left alone, see the "list headline" test.
+    const finalEffectivePrice = useDefaultSizeForTopLevel
+      ? defaultSize.effectivePrice
+      : baseEffectivePrice;
+    const finalHasDiscount = useDefaultSizeForTopLevel
+      ? defaultSize.hasDiscount
+      : baseHasDiscount;
+    const finalPriceAfterDiscount = useDefaultSizeForTopLevel
+      ? defaultSize.priceAfterDiscount
+      : basePriceAfterDiscount;
 
     return {
       id: service.id ?? 0,
@@ -221,9 +238,9 @@ export class ServiceModuleHelper {
       image: service.image ?? '',
       durationMinutes: service.durationMinutes ?? 0,
       price: finalClientPrice,
-      priceAfterDiscount: basePriceAfterDiscount,
-      effectivePrice: baseEffectivePrice,
-      hasDiscount: baseHasDiscount,
+      priceAfterDiscount: finalPriceAfterDiscount,
+      effectivePrice: finalEffectivePrice,
+      hasDiscount: finalHasDiscount,
       commission: store.commission ?? 0,
       commissionType: store.commissionType ?? CommissionType.FIXED,
       status: service.status ?? 'PENDING',
