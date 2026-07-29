@@ -79,7 +79,11 @@ export class StatisticsController {
     @Res() res: Response,
     @Filter({ dto: FilterStatisticsDTO }) filters: FilterStatisticsDTO,
   ) {
-    const data = await this.service.getSalesAnalytics(filters.storeId);
+    const data = await this.service.getSalesAnalytics(
+      filters.storeId,
+      filters.fromDate,
+      filters.toDate,
+    );
     return this.response.success(
       res,
       'Store sales analytics fetched successfully',
@@ -87,7 +91,8 @@ export class StatisticsController {
     );
   }
 
-  // Rolling 30-day window, same as /store.
+  // Rolling 30-day window by default, same as /store — pass fromDate/toDate
+  // to override the window.
   @Get('/store/employee-performance')
   @Auth({ prefix: `${prefix}/store` })
   @AttachStoreId()
@@ -96,7 +101,11 @@ export class StatisticsController {
     @Res() res: Response,
     @Filter({ dto: FilterStatisticsDTO }) filters: FilterStatisticsDTO,
   ) {
-    const data = await this.service.getEmployeePerformance(filters.storeId);
+    const data = await this.service.getEmployeePerformance(
+      filters.storeId,
+      filters.fromDate,
+      filters.toDate,
+    );
     return this.response.success(
       res,
       'Store employee performance fetched successfully',

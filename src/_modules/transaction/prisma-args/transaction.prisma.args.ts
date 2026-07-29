@@ -10,6 +10,7 @@ export const getTransactionArgs = (query: FilterTransactionDTO) => {
   const searchArray = [
     filterKey<Transaction>(filter, 'branchId'),
     filterKey<Transaction>(filter, 'customerId'),
+    filterKey<Transaction>(filter, 'storeId'),
 
     filter.transactionDateFrom
       ? {

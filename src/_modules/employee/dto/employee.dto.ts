@@ -58,6 +58,13 @@ export class UpdateEmployeeDTO extends OmitType(
   PartialType(CreateEmployeeDTO),
   ['password', 'storeId'],
 ) {
+  // Re-declared (not just inherited from CreateEmployeeDTO) so it's properly
+  // optional — there was previously no way at all to reset an employee's
+  // password after creation.
+  @Optional()
+  @ValidatePassword()
+  password?: string;
+
   @Optional()
   @ValidateString()
   deviceId: string;

@@ -73,7 +73,14 @@ export class EmployeeService {
         dto.branchId,
       );
     }
-    await this.prisma.user.update({ where: { id }, data: { ...dto } });
+    const { password, ...rest } = dto;
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(password !== undefined && { password: hashPassword(password) }),
+      },
+    });
   }
   async delete(id: number, user: CurrentUser) {
     await this.helpers.canUserAccessEmployee(user, id);

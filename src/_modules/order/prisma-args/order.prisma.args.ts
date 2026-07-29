@@ -35,6 +35,17 @@ export const getOrderArgs = (query: FilterOrderDTO, languages: Language[]) => {
         cityId: query?.cityId,
       },
     },
+    // Single search box: order id (exact, when numeric) OR customer name/phone
+    // (substring — MySQL's default collation is already case-insensitive;
+    // unlike Postgres/Mongo, Prisma's `mode: 'insensitive'` isn't valid here
+    // and would throw at runtime).
+    query.search && {
+      OR: [
+        !isNaN(Number(query.search)) && { id: Number(query.search) },
+        { Customer: { name: { contains: query.search } } },
+        { Customer: { phone: { contains: query.search } } },
+      ].filter(Boolean) as Prisma.OrderWhereInput[],
+    },
   ].filter(Boolean) as Prisma.OrderWhereInput[];
 
   const orderArray = [orderKey('id', 'id', orderBy)].filter(

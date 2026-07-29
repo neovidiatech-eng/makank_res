@@ -463,11 +463,16 @@ export class StatisticsService {
     return { acceptanceRate, cancellationRate, avgPrepMinutes };
   }
 
-  // All-time historical facts (not a rolling window like getStorePerformance)
-  // — "busiest hour ever" / "best day ever" are records, not a recent trend.
-  async getSalesAnalytics(storeId: number) {
+  // All-time historical facts by default (not a rolling window like
+  // getStorePerformance) — "busiest hour ever" / "best day ever" are records,
+  // not a recent trend — unless the caller narrows it with fromDate/toDate.
+  async getSalesAnalytics(storeId: number, fromDate?: Date, toDate?: Date) {
+    const dateFilter =
+      fromDate || toDate
+        ? { date: { ...(fromDate && { gte: fromDate }), ...(toDate && { lte: toDate }) } }
+        : {};
     const orders = await this.prisma.order.findMany({
-      where: { Branch: { storeId } },
+      where: { Branch: { storeId }, ...dateFilter },
       select: { date: true, totalPriceAfterDiscount: true },
     });
 
@@ -493,7 +498,10 @@ export class StatisticsService {
     const deliveredItems = await this.prisma.orderItem.findMany({
       where: {
         Service: { storeId },
-        Order: { status: OrderStatus.DELIVERED },
+        Order: {
+          status: OrderStatus.DELIVERED,
+          ...(fromDate || toDate ? dateFilter : {}),
+        },
       },
       select: { serviceId: true, price: true, quantity: true },
     });
@@ -548,14 +556,18 @@ export class StatisticsService {
     };
   }
 
-  // Rolling 30-day window, same as getStorePerformance — this is about
-  // recent staff performance, not an all-time record.
-  async getEmployeePerformance(storeId: number) {
-    const windowStart = new Date();
-    windowStart.setDate(windowStart.getDate() - 30);
+  // Rolling 30-day window by default, same as getStorePerformance — this is
+  // about recent staff performance, not an all-time record — but the caller
+  // can override with an explicit fromDate/toDate range.
+  async getEmployeePerformance(storeId: number, fromDate?: Date, toDate?: Date) {
+    const windowStart = fromDate ?? new Date();
+    if (!fromDate) windowStart.setDate(windowStart.getDate() - 30);
 
     const orders = await this.prisma.order.findMany({
-      where: { Branch: { storeId }, date: { gte: windowStart } },
+      where: {
+        Branch: { storeId },
+        date: { gte: windowStart, ...(toDate && { lte: toDate }) },
+      },
       select: {
         acceptedByUserId: true,
         rejectedByUserId: true,

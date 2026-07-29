@@ -221,6 +221,12 @@ export class FilterOrderDTO extends PaginationParamsDTO {
   @Optional()
   @ValidateNumber()
   userId: Id;
+  // Matches the order id (exact, when the term is numeric) OR the customer's
+  // name/phone (substring, case-insensitive) — one field for the store
+  // dashboard/app's single order-search box.
+  @Optional()
+  @ValidateString()
+  search?: string;
   @Optional()
   orderBy?: SortOrderDTO[];
   @Optional()
