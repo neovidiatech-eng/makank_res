@@ -1,4 +1,8 @@
 // jest.setup.ts
+jest.setTimeout(30000);
+jest.mock('uuid', () => ({
+  v4: () => 'test-uuid-v4',
+}));
 global.env = jest.fn().mockImplementation((key: string) => {
   const envs = {
     PROJECT_CONTACT_NAME: 'Mahmoud Elamrosy',
@@ -16,6 +20,8 @@ global.env = jest.fn().mockImplementation((key: string) => {
     COOKIE_SECRET: 'awk3m890rdefjc89xzxe3',
     ACCESS_TOKEN_SECRET: 'asdfawefcwewedsc',
     ACCESS_TOKEN_EXPIRE_TIME: 300000,
+    REFRESH_TOKEN_SECRET: 'asdfawefcwewedsc_refresh',
+    REFRESH_TOKEN_EXPIRE_TIME: 604800,
     RESET_PASSWORD_TOKEN_SECRET: 'lklkdshjdhssdsds',
     FORGET_PASSWORD_TOKEN_EXPIRE_TIME: 300000,
     VERIFY_TOKEN_SECRET: 'asdfawefcwewedsx',

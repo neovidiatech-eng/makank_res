@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
+import { PrismaService } from 'src/globals/services/prisma.service';
 import { MediaModule } from '../media.module';
 
 describe('Media', () => {
@@ -9,6 +10,14 @@ describe('Media', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [MediaModule],
+      providers: [
+        {
+          provide: PrismaService,
+          useValue: {
+            user: { findMany: jest.fn().mockResolvedValue([]) },
+          },
+        },
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();

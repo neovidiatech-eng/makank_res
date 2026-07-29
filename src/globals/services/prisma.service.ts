@@ -21,9 +21,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       this.$use(sortMiddleware());
       this.$use(ExistMiddleware(prisma));
     } catch (error) {
-      catchHandler(error);
+      // `catchHandler` was called here but never defined anywhere — if
+      // $connect() ever actually failed, this catch block itself threw a
+      // second, unrelated ReferenceError instead of reporting the real
+      // connection failure.
       // eslint-disable-next-line no-console
-      console.error('Error connecting to database');
+      console.error('Error connecting to database', error);
     }
   }
 }
