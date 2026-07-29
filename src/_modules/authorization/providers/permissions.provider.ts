@@ -265,7 +265,7 @@ export const permissions = [
     name: { en: 'Rating', ar: 'التقييم' },
     prefix: 'rating',
     default: false,
-    methods: ['get', 'patch'],
+    methods: ['get', 'patch', 'delete'],
   },
   {
     name: { en: 'Variation Templates', ar: 'قوالب المتغيرات' },

@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
+import { calculateDeletedAverageRating } from 'src/globals/helpers/calculateAverageRating.helper';
 import { PrismaService } from 'src/globals/services/prisma.service';
 import { FilterRatingDTO } from '../dto/rating.dto';
 import {
@@ -94,6 +95,39 @@ export class RatingService {
     await this.prisma.storeRating.update({
       where: { id },
       data: { reply, repliedAt: new Date() },
+    });
+  }
+
+  // Store (or admin) can delete a customer's review outright — but never
+  // edit its rating/comment (see reply() above, the only mutation allowed
+  // is the reply text). Keeps the branch's average rating/review count
+  // consistent by reversing this rating's contribution.
+  async delete(id: Id, user: CurrentUser) {
+    const rating = await this.prisma.storeRating.findUnique({
+      where: { id },
+      include: { Branch: true },
+    });
+    if (!rating) throw new NotFoundException('Rating not found');
+
+    if (
+      user.Role?.roleKey !== RolesKeys.ADMIN &&
+      rating.storeId !== user.storeId
+    ) {
+      throw new ForbiddenException('You do not have access to this rating');
+    }
+
+    const newAverage = calculateDeletedAverageRating(
+      rating.Branch.rating,
+      rating.Branch.review,
+      rating.rating,
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.storeRating.delete({ where: { id } });
+      await tx.branch.update({
+        where: { id: rating.branchId },
+        data: { rating: newAverage, review: { decrement: 1 } },
+      });
     });
   }
 }

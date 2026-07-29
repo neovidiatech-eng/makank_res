@@ -81,13 +81,29 @@ export class VariationTemplateService {
     });
   }
 
-  async findOne(id: number) {
-    return this.prisma.variationTemplate.findUnique({
+  // A Store-role caller can only read a global preset or their own — guessing
+  // another store's private template id must not leak its contents, even
+  // though this is read-only.
+  async findOne(id: number, user?: CurrentUser) {
+    const template = await this.prisma.variationTemplate.findUnique({
       where: { id },
       include: {
         values: true,
       },
     });
+    if (!template) throw new NotFoundException('Variation template not found');
+
+    if (
+      user?.Role?.roleKey === RolesKeys.STORE &&
+      template.storeId !== null &&
+      template.storeId !== user.storeId
+    ) {
+      throw new ForbiddenException(
+        'You do not have access to this variation template',
+      );
+    }
+
+    return template;
   }
 
   // Never lets a store delete a global (admin-defined) preset or another

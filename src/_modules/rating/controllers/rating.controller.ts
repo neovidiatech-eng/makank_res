@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Res } from '@nestjs/common';
 import { ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
@@ -50,5 +50,18 @@ export class RatingController {
   ) {
     await this.ratingService.reply(id, body.reply, user);
     return this.response.success(res, 'Reply submitted successfully');
+  }
+
+  // Store (or admin) can remove a review outright — never edit its
+  // rating/comment, that's intentionally not exposed anywhere.
+  @Delete('/:id')
+  @ApiRequiredIdParam()
+  async delete(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    await this.ratingService.delete(id, user);
+    return this.response.success(res, 'Rating deleted successfully');
   }
 }

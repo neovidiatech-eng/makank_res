@@ -62,11 +62,17 @@ export class VariationTemplateController {
     );
   }
 
+  // Same visibility rule as the list: a Store-role caller can read a global
+  // preset or their own, never another store's private one by guessing its id.
   @Get('/:id')
   @ApiRequiredIdParam()
   @Auth({ prefix, visitor: true })
-  async findOne(@Res() res: Response, @Param() { id }: RequiredIdParam) {
-    const data = await this.service.findOne(id);
+  async findOne(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    const data = await this.service.findOne(id, user);
     return this.response.success(
       res,
       'variation template fetched successfully',

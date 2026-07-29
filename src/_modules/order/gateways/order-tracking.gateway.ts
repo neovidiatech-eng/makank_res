@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UseGuards } from '@nestjs/common';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -7,6 +7,9 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
+import { PrismaService } from 'src/globals/services/prisma.service';
+import { WsJwtGuard } from '../../authentication/guards/ws.guard';
 
 @Injectable()
 @WebSocketGateway({
@@ -16,6 +19,8 @@ import { Server, Socket } from 'socket.io';
 export class OrderTrackingGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
+  constructor(private readonly prisma: PrismaService) {}
+
   @WebSocketServer()
   server: Server;
 
@@ -57,8 +62,25 @@ export class OrderTrackingGateway
   // once on login/app-open (not per-order, unlike joinOrderTracking above)
   // and gets `newOrder`/`orderStatusChanged` events pushed for every order
   // belonging to that store, without polling.
+  //
+  // Guarded (unlike joinOrderTracking above, which predates this change and
+  // is left as-is to avoid breaking whatever already relies on its current
+  // unauthenticated behavior): this room carries a store's live business
+  // data (every new order), so a client must present a valid access token
+  // AND actually belong to the store it's asking to join — otherwise any
+  // client could listen in on another restaurant's orders just by guessing
+  // a storeId.
+  @UseGuards(WsJwtGuard)
   @SubscribeMessage('joinStoreOrders')
-  handleJoinStoreOrders(client: Socket, payload: { storeId: number }) {
+  async handleJoinStoreOrders(client: Socket, payload: { storeId: number }) {
+    const authorized = await this.canAccessStoreRoom(client, payload.storeId);
+    if (!authorized) {
+      client.emit('joinStoreOrdersError', {
+        message: 'You do not have access to this store',
+        storeId: payload.storeId,
+      });
+      return;
+    }
     const roomName = this.getStoreRoomName(payload.storeId);
     client.join(roomName);
     client.emit('joinedStoreOrders', {
@@ -67,6 +89,7 @@ export class OrderTrackingGateway
     });
   }
 
+  @UseGuards(WsJwtGuard)
   @SubscribeMessage('leaveStoreOrders')
   handleLeaveStoreOrders(client: Socket, payload: { storeId: number }) {
     const roomName = this.getStoreRoomName(payload.storeId);
@@ -75,6 +98,20 @@ export class OrderTrackingGateway
       room: roomName,
       storeId: payload.storeId,
     });
+  }
+
+  // WsJwtGuard only attaches the raw Session row (client.user.userId) — look
+  // up the actual account to check it's an Admin, or a Store belonging to
+  // this exact store.
+  private async canAccessStoreRoom(client: Socket, storeId: number) {
+    const userId = (client as any).user?.userId;
+    if (!userId) return false;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { storeId: true, roleKey: true },
+    });
+    if (!user) return false;
+    return user.roleKey === RolesKeys.ADMIN || user.storeId === storeId;
   }
 
   broadcastNewOrder(storeId: number, order: { id: number; status: string; type: string; total?: number }) {

@@ -22,7 +22,7 @@ const storePermissions: PermissionMap = {
   orders: ['post', 'get', 'patch', 'delete'],
 
   cities: ['get'],
-  rating: ['get', 'patch'],
+  rating: ['get', 'patch', 'delete'],
   servicerating: ['get'],
   storerating: ['get', 'patch'],
   'variation-templates': ['post', 'get', 'delete'],
