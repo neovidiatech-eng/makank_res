@@ -22,8 +22,10 @@ const storePermissions: PermissionMap = {
   orders: ['post', 'get', 'patch', 'delete'],
 
   cities: ['get'],
+  rating: ['get', 'patch'],
   servicerating: ['get'],
-  storerating: ['get'],
+  storerating: ['get', 'patch'],
+  'variation-templates': ['post', 'get', 'delete'],
   notification: ['get'],
   'orders/statistics': ['get'],
   'statistics/store': ['get', 'post'],

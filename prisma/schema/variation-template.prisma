@@ -1,9 +1,14 @@
 model VariationTemplate {
   id        Int                      @id @default(autoincrement())
   name      Json
+  // null = global preset defined by an admin, visible to every store.
+  // set = a store's own private preset, visible/manageable by that store only.
+  storeId   Int?                     @map("store_id")
   createdAt DateTime                 @default(now()) @map("created_at")
   values    VariationTemplateValue[]
+  Store     Store?                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  @@index([storeId])
   @@map("variation_templates")
 }
 

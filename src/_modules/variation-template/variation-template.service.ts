@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { PrismaService } from 'src/globals/services/prisma.service';
 import {
   CreateVariationTemplateDTO,
@@ -55,6 +56,7 @@ export class VariationTemplateService {
     return this.prisma.variationTemplate.create({
       data: {
         name: data.name,
+        storeId: data.storeId ?? null,
         values: {
           create: formattedValues,
         },
@@ -62,8 +64,17 @@ export class VariationTemplateService {
     });
   }
 
-  async findAll(filters: FilterVariationTemplateDTO) {
+  // A Store-role caller sees every global (storeId: null) preset plus their
+  // own — never another store's. Admin/visitor see everything, or one
+  // store's if ?storeId= is explicitly given.
+  async findAll(filters: FilterVariationTemplateDTO, user?: CurrentUser) {
+    const isStore = user?.Role?.roleKey === RolesKeys.STORE;
     return this.prisma.variationTemplate.findMany({
+      where: isStore
+        ? { OR: [{ storeId: null }, { storeId: user.storeId }] }
+        : filters.storeId
+          ? { storeId: filters.storeId }
+          : undefined,
       include: {
         values: true,
       },
@@ -79,7 +90,24 @@ export class VariationTemplateService {
     });
   }
 
-  async delete(id: number) {
+  // Never lets a store delete a global (admin-defined) preset or another
+  // store's — only its own.
+  async delete(id: number, user: CurrentUser) {
+    const template = await this.prisma.variationTemplate.findUnique({
+      where: { id },
+      select: { storeId: true },
+    });
+    if (!template) throw new NotFoundException('Variation template not found');
+
+    if (
+      user.Role?.roleKey !== RolesKeys.ADMIN &&
+      template.storeId !== user.storeId
+    ) {
+      throw new ForbiddenException(
+        'You do not have access to this variation template',
+      );
+    }
+
     return this.prisma.variationTemplate.delete({
       where: { id },
     });

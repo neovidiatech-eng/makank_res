@@ -10,10 +10,16 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
+import { CurrentUser } from 'src/_modules/authentication/decorators/current-user.decorator';
+import { AttachStoreId } from 'src/decorators/api/attachStoreIdInterceptor.decorator';
 import { ApiRequiredIdParam } from 'src/decorators/api/id-params.decorator';
+import { Filter } from 'src/decorators/param/filter.decorator';
 import { RequiredIdParam } from 'src/dtos/params/id-param.dto';
 import { ResponseService } from 'src/globals/services/response.service';
-import { CreateVariationTemplateDTO } from './dto/variation-template.dto';
+import {
+  CreateVariationTemplateDTO,
+  FilterVariationTemplateDTO,
+} from './dto/variation-template.dto';
 import { VariationTemplateService } from './variation-template.service';
 
 const prefix = 'variation-templates';
@@ -28,6 +34,7 @@ export class VariationTemplateController {
 
   @Post('/')
   @Auth({ prefix })
+  @AttachStoreId({ storeIdOptionalForManagementUser: true })
   async create(@Res() res: Response, @Body() body: CreateVariationTemplateDTO) {
     const data = await this.service.create(body);
     return this.response.created(
@@ -37,10 +44,17 @@ export class VariationTemplateController {
     );
   }
 
+  // Visible to a Store-role caller: every global (admin-defined) preset PLUS
+  // their own private ones — never another store's private presets.
   @Get('/')
   @Auth({ prefix, visitor: true })
-  async findAll(@Res() res: Response) {
-    const data = await this.service.findAll({});
+  @AttachStoreId()
+  async findAll(
+    @Res() res: Response,
+    @Filter({ dto: FilterVariationTemplateDTO }) filters: FilterVariationTemplateDTO,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    const data = await this.service.findAll(filters, user);
     return this.response.success(
       res,
       'variation templates fetched successfully',
@@ -60,11 +74,17 @@ export class VariationTemplateController {
     );
   }
 
+  // A store may only delete its own private presets — never a global
+  // (admin-defined) one, and never another store's.
   @Delete('/:id')
   @ApiRequiredIdParam()
   @Auth({ prefix })
-  async delete(@Res() res: Response, @Param() { id }: RequiredIdParam) {
-    await this.service.delete(id);
+  async delete(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    await this.service.delete(id, user);
     return this.response.success(
       res,
       'variation template deleted successfully',
