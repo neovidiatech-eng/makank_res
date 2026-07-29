@@ -42,6 +42,8 @@ export const selectStoreRatingOBJ = (): Prisma.StoreRatingSelect => ({
   id: true,
   rating: true,
   comment: true,
+  reply: true,
+  repliedAt: true,
   branchId: true,
   storeId: true,
   userId: true,

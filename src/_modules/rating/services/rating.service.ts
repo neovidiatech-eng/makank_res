@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { PrismaService } from 'src/globals/services/prisma.service';
 import { FilterRatingDTO } from '../dto/rating.dto';
 import {
@@ -77,5 +78,22 @@ export class RatingService {
     }
 
     return total;
+  }
+
+  async reply(id: Id, reply: string, user: CurrentUser) {
+    const rating = await this.prisma.storeRating.findUnique({ where: { id } });
+    if (!rating) throw new NotFoundException('Rating not found');
+
+    if (
+      user.Role?.roleKey !== RolesKeys.ADMIN &&
+      rating.storeId !== user.storeId
+    ) {
+      throw new ForbiddenException('You do not have access to this rating');
+    }
+
+    await this.prisma.storeRating.update({
+      where: { id },
+      data: { reply, repliedAt: new Date() },
+    });
   }
 }

@@ -1,12 +1,14 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Res } from '@nestjs/common';
 import { ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
-import { ApiOptionalIdParam } from 'src/decorators/api/id-params.decorator';
+import { CurrentUser } from 'src/_modules/authentication/decorators/current-user.decorator';
+import { ApiOptionalIdParam, ApiRequiredIdParam } from 'src/decorators/api/id-params.decorator';
 import { Filter } from 'src/decorators/param/filter.decorator';
+import { RequiredIdParam } from 'src/dtos/params/id-param.dto';
 import { isOne } from 'src/globals/helpers/first-or-many';
 import { ResponseService } from 'src/globals/services/response.service';
-import { FilterRatingDTO } from '../dto/rating.dto';
+import { FilterRatingDTO, ReplyRatingDTO } from '../dto/rating.dto';
 import { RatingService } from '../services/rating.service';
 
 @ApiTags('Rating')
@@ -33,5 +35,20 @@ export class RatingController {
     return this.response.success(res, 'Rating fetched successfully', data, {
       total,
     });
+  }
+
+  // Store owner (or admin) replies to a customer's store review. Only ever
+  // on the store's own reviews — see RatingService.reply for the ownership
+  // check.
+  @Patch('/:id/reply')
+  @ApiRequiredIdParam()
+  async reply(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() body: ReplyRatingDTO,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    await this.ratingService.reply(id, body.reply, user);
+    return this.response.success(res, 'Reply submitted successfully');
   }
 }

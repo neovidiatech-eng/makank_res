@@ -30,6 +30,8 @@ model StoreRating {
   branchId  Int       @map("branch_id")
   storeId   Int?
   comment   String?   @db.Text
+  reply     String?   @db.Text @map("reply")
+  repliedAt DateTime? @map("replied_at")
   Branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
   Customer  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   Order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
