@@ -61,6 +61,7 @@ describe('OrderService.rateOrder — customer rating (store + driver)', () => {
       null as any, // zoneService
       null as any, // afkBreakService
       null as any, // logsService
+      { broadcastNewOrder: jest.fn(), broadcastOrderStatusChanged: jest.fn() } as any, // orderTrackingGateway
     );
     // Silence the fire-and-forget "best rated" recomputes (they hit prisma tables
     // not stubbed here and run detached after the transaction).
@@ -256,6 +257,7 @@ describe('OrderService.buildRatingEligibility — server-authoritative flags', (
       null as any,
       null as any,
       null as any,
+      null as any, // orderTrackingGateway
     );
 
   const eligibility = (order: any) =>

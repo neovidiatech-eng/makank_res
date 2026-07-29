@@ -78,6 +78,7 @@ import {
 } from './prisma-args/order.prisma.args';
 import { getOrderStatisticsArgs } from './prisma-args/orderStatistics.prisma.args';
 import { getOrderStatusCountFilterArgs } from './prisma-args/orderStatusCountFilter.prisma.args';
+import { OrderTrackingGateway } from './gateways/order-tracking.gateway';
 import { AssignmentService } from './services/assignment.service';
 import { HelpersService } from './services/helpers.service';
 
@@ -101,6 +102,7 @@ export class OrderService {
     private readonly zoneService: ZoneService,
     private readonly afkBreakService: AfkBreakService,
     private readonly logsService: LogsService,
+    private readonly orderTrackingGateway: OrderTrackingGateway,
   ) {}
 
   // Admin-only bulk cleanup. Order has no deletedAt column, so tx.order.delete()
@@ -997,9 +999,20 @@ export class OrderService {
         }),
         this.prisma.branch.findUnique({
           where: { id: order.branchId },
-          select: { Store: { select: { managedByAdmin: true } } },
+          select: { storeId: true, Store: { select: { managedByAdmin: true } } },
         }),
       ]);
+
+      // Live push to any store dashboard/app connected to the WebSocket
+      // gateway — lets the UI show a new order instantly without polling,
+      // on top of (not instead of) the FCM push below.
+      if (branch?.storeId != null) {
+        this.orderTrackingGateway.broadcastNewOrder(branch.storeId, {
+          id: order.id,
+          status: order.status,
+          type: order.type,
+        });
+      }
 
       const notifyUserIds = new Set(storeUsers.map((user) => user.id));
 
@@ -1754,6 +1767,18 @@ export class OrderService {
         );
       }
     });
+
+    // Live push to any store dashboard/app connected to the WebSocket gateway
+    // — instant status update without polling, alongside the FCM/in-app
+    // notifications below.
+    const broadcastStoreId = (order as any).OrderItems?.[0]?.Service?.storeId;
+    if (broadcastStoreId != null) {
+      this.orderTrackingGateway.broadcastOrderStatusChanged(
+        broadcastStoreId,
+        id,
+        updatedStatus,
+      );
+    }
 
     // Audit trail + employee-performance data source — only store-employee
     // actions on these three transitions (accept/reject/ready) are logged

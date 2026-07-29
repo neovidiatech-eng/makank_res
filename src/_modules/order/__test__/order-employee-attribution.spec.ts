@@ -23,6 +23,7 @@ const buildService = (d: { prisma: any; helpers: any; logsService: any }) =>
     undefined as any,
     undefined as any,
     d.logsService as any,
+    { broadcastNewOrder: jest.fn(), broadcastOrderStatusChanged: jest.fn() } as any, // orderTrackingGateway
   );
 
 const OWNER_ID = 5;

@@ -11,6 +11,7 @@ import { UserService } from '../user/services/user.service';
 import { WalletService } from '../wallet/wallet.service';
 import { OrderController } from './controllers/order.controller';
 import { OrderStatisticsController } from './controllers/order.statistics.controller';
+import { OrderTrackingGateway } from './gateways/order-tracking.gateway';
 import { OrderService } from './order.service';
 import { HelpersService } from './services/helpers.service';
 
@@ -47,12 +48,14 @@ import { ZoneModule } from '../zone/zone.module';
     MapService,
     AssignmentService,
     AssignmentTimerService,
+    OrderTrackingGateway,
   ],
   exports: [
     OrderService,
     HelpersService,
     AssignmentService,
     AssignmentTimerService,
+    OrderTrackingGateway,
   ],
 })
 export class OrderModule {}

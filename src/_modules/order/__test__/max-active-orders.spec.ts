@@ -49,6 +49,7 @@ const buildService = (prisma: any, helpers: any) =>
     undefined as any, // zoneService
     undefined as any, // afkBreakService
     undefined as any, // logsService
+    undefined as any, // orderTrackingGateway
   );
 
 const baseData = {

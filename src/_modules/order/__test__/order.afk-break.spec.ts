@@ -39,6 +39,7 @@ const buildService = (d: Deps = {}): OrderService =>
     undefined as any, // zoneService
     d.afkBreakService as any, // afkBreakService
     (d.logsService ?? { createLog: jest.fn() }) as any, // logsService
+    { broadcastNewOrder: jest.fn(), broadcastOrderStatusChanged: jest.fn() } as any, // orderTrackingGateway
   );
 
 const buildAfkStub = (over: Partial<Record<string, any>> = {}) => ({

@@ -45,7 +45,6 @@ import { ServiceModule } from '../serviceModule/serviceModule.module';
     WalletService,
     UserService,
     HelperService,
-    OrderTrackingGateway,
     NotificationService,
     DeliveryScheduleHelpersService,
     DeliveryScheduleCronService,

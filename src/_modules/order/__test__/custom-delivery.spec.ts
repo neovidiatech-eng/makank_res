@@ -73,6 +73,7 @@ const buildService = (d: Deps = {}): OrderService =>
     }) as any, // zoneService
     undefined as any, // afkBreakService
     undefined as any, // logsService
+    { broadcastNewOrder: jest.fn(), broadcastOrderStatusChanged: jest.fn() } as any, // orderTrackingGateway
   );
 
 const buildPrisma = (order: any) => {

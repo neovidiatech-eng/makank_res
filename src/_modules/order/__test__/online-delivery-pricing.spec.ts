@@ -37,6 +37,7 @@ const buildService = (overrides: Partial<any> = {}) =>
     }) as any, // zoneService
     undefined as any, // afkBreakService
     undefined as any, // logsService
+    undefined as any, // orderTrackingGateway
   );
 
 describe('calculateOnlineDeliveryOrder — extra-stop fee charged exactly once', () => {

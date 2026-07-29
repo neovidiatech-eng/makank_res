@@ -53,6 +53,48 @@ export class OrderTrackingGateway
     });
   }
 
+  // Store-side live feed — a store dashboard/app joins its own store's room
+  // once on login/app-open (not per-order, unlike joinOrderTracking above)
+  // and gets `newOrder`/`orderStatusChanged` events pushed for every order
+  // belonging to that store, without polling.
+  @SubscribeMessage('joinStoreOrders')
+  handleJoinStoreOrders(client: Socket, payload: { storeId: number }) {
+    const roomName = this.getStoreRoomName(payload.storeId);
+    client.join(roomName);
+    client.emit('joinedStoreOrders', {
+      room: roomName,
+      storeId: payload.storeId,
+    });
+  }
+
+  @SubscribeMessage('leaveStoreOrders')
+  handleLeaveStoreOrders(client: Socket, payload: { storeId: number }) {
+    const roomName = this.getStoreRoomName(payload.storeId);
+    client.leave(roomName);
+    client.emit('leftStoreOrders', {
+      room: roomName,
+      storeId: payload.storeId,
+    });
+  }
+
+  broadcastNewOrder(storeId: number, order: { id: number; status: string; type: string; total?: number }) {
+    const roomName = this.getStoreRoomName(storeId);
+    this.server.to(roomName).emit('newOrder', { storeId, order });
+  }
+
+  broadcastOrderStatusChanged(storeId: number, orderId: number, status: string) {
+    const roomName = this.getStoreRoomName(storeId);
+    this.server.to(roomName).emit('orderStatusChanged', {
+      storeId,
+      orderId,
+      status,
+    });
+  }
+
+  getStoreRoomName(storeId: number) {
+    return `store_${storeId}_orders_room`;
+  }
+
   broadcastLocationUpdate(
     orderId: number,
     data: {

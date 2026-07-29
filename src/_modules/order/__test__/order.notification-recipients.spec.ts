@@ -45,6 +45,7 @@ const buildService = (
     undefined as any, // zoneService
     undefined as any, // afkBreakService
     undefined as any, // logsService
+    { broadcastNewOrder: jest.fn(), broadcastOrderStatusChanged: jest.fn() } as any, // orderTrackingGateway
   );
 
 const buildHelpers = (order: any) => ({
