@@ -266,7 +266,19 @@ export class HelpersService {
           'Some addons were not found for this service',
         );
       }
-      addonsPrice = addons.reduce((sum, addon) => sum + addon.price, 0);
+      // Was summing addon.price unconditionally — a store-configured
+      // priceAfterDiscount on an addon had zero effect on what the customer
+      // actually got charged. Same raw-discount guard as the size/base price
+      // above, just never commission-adjusted (add-ons don't get commission).
+      addonsPrice = addons.reduce(
+        (sum, addon) =>
+          sum +
+          this.serviceHelper.effectiveRawPrice(
+            addon.price,
+            addon.priceAfterDiscount,
+          ),
+        0,
+      );
     }
 
     return {

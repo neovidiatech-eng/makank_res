@@ -25,7 +25,7 @@ describe('Checkout — price after discount', () => {
    * Build a HelpersService with a prisma stub that serves one service + one size.
    * Only validateSizeAndAddons is exercised, so just those two reads are stubbed.
    */
-  const buildHelpers = (service: any, size: any) => {
+  const buildHelpers = (service: any, size: any, addons: any[] = []) => {
     const prisma = {
       service: {
         findUnique: jest.fn().mockResolvedValue(service),
@@ -34,7 +34,7 @@ describe('Checkout — price after discount', () => {
         findFirst: jest.fn().mockResolvedValue(size),
       },
       serviceAddon: {
-        findMany: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn().mockResolvedValue(addons),
       },
     };
     return new HelpersService(
@@ -71,6 +71,24 @@ describe('Checkout — price after discount', () => {
     const selected = await helpers.validateSizeAndAddons(1, 10, []);
     expect(selected.basePrice).toBe(150);
     expect(selected.totalPrice).toBe(150);
+  });
+
+  it('regression: a discounted addon actually reduces addonsPrice, not just the display', async () => {
+    const helpers = buildHelpers(
+      { price: 100, priceAfterDiscount: null },
+      null,
+      [
+        { id: 1, price: 20, priceAfterDiscount: 15 }, // on sale
+        { id: 2, price: 10, priceAfterDiscount: null }, // not on sale
+      ],
+    );
+    const selected = await helpers.validateSizeAndAddons(1, undefined as any, [
+      1, 2,
+    ]);
+    // Previously this summed raw addon.price (20 + 10 = 30) regardless of any
+    // discount — the customer was charged full price even when the store had
+    // configured a discounted addon price.
+    expect(selected.addonsPrice).toBe(25); // 15 (discounted) + 10 (full)
   });
 
   it('no size: falls back to service-level discounted price', async () => {

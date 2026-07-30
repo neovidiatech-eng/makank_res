@@ -20,7 +20,13 @@ export class ServiceSizeDTO {
 export class ServiceAddonDTO {
   id: number;
   name: string | Json;
+  // Same discount shape as ServiceSizeDTO, but add-ons never receive store
+  // commission (see OrderHelpersService.validateSizeAndAddons) — these are
+  // raw values, not commission-inclusive.
   price: number;
+  priceAfterDiscount: number | null;
+  effectivePrice: number;
+  hasDiscount: boolean;
 }
 export class StoreDTO {
   id: number;

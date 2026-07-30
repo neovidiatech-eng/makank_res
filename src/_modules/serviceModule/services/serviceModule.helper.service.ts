@@ -177,12 +177,26 @@ export class ServiceModuleHelper {
       }
     }
 
+    // Add-ons never receive store commission (see OrderHelpersService.
+    // validateSizeAndAddons) — raw price/discount only, no applyStoreCommission
+    // layer. This previously dropped priceAfterDiscount/effectivePrice/
+    // hasDiscount entirely: a store could set a discounted addon price and it
+    // would never show anywhere, on top of checkout also never honoring it
+    // (fixed separately in validateSizeAndAddons).
     const addonsDTO: ServiceAddonDTO[] = Array.isArray(service.Addons)
-      ? service.Addons.map((a: any) => ({
-          id: a.id ?? 0,
-          name: a.name ?? '',
-          price: a.price ?? 0,
-        }))
+      ? service.Addons.map((a: any) => {
+          const rawPrice = a.price ?? 0;
+          const rawPad = a.priceAfterDiscount;
+          const hasDiscount = this.hasValidDiscount(rawPrice, rawPad);
+          return {
+            id: a.id ?? 0,
+            name: a.name ?? '',
+            price: rawPrice,
+            priceAfterDiscount: hasDiscount ? rawPad : null,
+            effectivePrice: hasDiscount ? rawPad : rawPrice,
+            hasDiscount,
+          };
+        })
       : [];
 
     const defaultSize = sizesDTO.find((s) => s.isDefault) || sizesDTO[0];
