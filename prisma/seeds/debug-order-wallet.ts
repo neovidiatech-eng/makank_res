@@ -67,7 +67,7 @@ async function main() {
     const wallet = await prisma.wallet.findUnique({
       where: { branchId: order.branchId },
     });
-    console.log('\nBranch Wallet:', wallet);
+    console.log('\nBranch Wallet (current state):', wallet);
 
     // What distributeEarnings() would have added for this order, for reference.
     const branchEarning =
@@ -76,6 +76,22 @@ async function main() {
       (order.shipping ?? 0);
     console.log(
       `\nExpected branch earning from this order if DELIVERED: ${branchEarning}`,
+    );
+
+    // The authoritative proof: changeStatus() logs an ORDER_COMPLETED
+    // transaction in the SAME db transaction as distributeEarnings() the
+    // moment status flips to DELIVERED. If this row exists, the credit
+    // definitely fired for this exact order — comparing wallet totals alone
+    // can't prove that on its own (other orders contribute to the same
+    // running total).
+    const ledgerEntry = await (prisma as any).transaction.findFirst({
+      where: { referenceId: orderId, type: 'ORDER_COMPLETED', branchId: order.branchId },
+    });
+    console.log('\nORDER_COMPLETED ledger entry for this exact order:', ledgerEntry);
+    console.log(
+      ledgerEntry
+        ? '\n✅ The credit DID fire for this order (ledger entry exists).'
+        : '\n❌ NO ledger entry found — distributeEarnings() never ran for this order.',
     );
   } else {
     console.log('\nThis order has no branchId at all (custom-delivery order?).');
