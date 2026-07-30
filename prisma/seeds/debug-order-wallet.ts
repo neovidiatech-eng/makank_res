@@ -64,6 +64,20 @@ async function main() {
   }
 
   if (order.branchId) {
+    const branch = await prisma.branch.findUnique({
+      where: { id: order.branchId },
+      select: { id: true, storeId: true, Store: { select: { id: true, name: true } } },
+    });
+    console.log('\nBranch → Store this order actually belongs to:', branch);
+    console.log(
+      '(Compare this storeId against whichever store account is logged into',
+    );
+    console.log(
+      ' the mobile app when checking the wallet — GET /users/me → storeId.',
+    );
+    console.log(' A mismatch here, not a backend bug, is the likely cause if the');
+    console.log(' backend-confirmed credit above still shows an empty wallet in the app.)');
+
     const wallet = await prisma.wallet.findUnique({
       where: { branchId: order.branchId },
     });
