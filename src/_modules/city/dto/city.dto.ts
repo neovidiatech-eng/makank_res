@@ -10,6 +10,22 @@ export class CreateCityDTO {
   @Required()
   @ValidateName()
   name: Json;
+
+  @Optional()
+  @ValidateNumber()
+  lat?: number;
+
+  @Optional()
+  @ValidateNumber()
+  lng?: number;
+
+  @Optional()
+  @ValidateNumber()
+  radius?: number;
+
+  @Optional()
+  @ValidateNumber()
+  toleranceRadius?: number;
 }
 export class UpdateCityDTO extends PartialType(CreateCityDTO) {}
 

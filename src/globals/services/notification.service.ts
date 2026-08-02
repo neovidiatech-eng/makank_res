@@ -275,7 +275,7 @@ export class NotificationService {
       notification: {
         title: localizedTitle,
         body: localizedBody,
-        ...(imageUrl ? { imageUrl } : {}),
+        ...(imageUrl ? { image: imageUrl, imageUrl } : {}),
       },
       data: pushData,
       tokens,
@@ -283,7 +283,7 @@ export class NotificationService {
         notification: {
           sound: 'notification_sound',
           channelId: 'makank_orders_v2',
-          ...(imageUrl ? { imageUrl } : {}),
+          ...(imageUrl ? { image: imageUrl, imageUrl } : {}),
         },
       },
       apns: {

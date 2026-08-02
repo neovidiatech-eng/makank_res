@@ -24,6 +24,10 @@ export const selectCityOBJ = () => {
   const selectArgs: Prisma.CitySelect = {
     id: true,
     name: true,
+    lat: true,
+    lng: true,
+    radius: true,
+    toleranceRadius: true,
   };
   return selectArgs;
 };

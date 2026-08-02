@@ -294,6 +294,24 @@ export class OrderService {
         'Bundles cannot be combined with other discounts',
       );
 
+    if (
+      data.type !== OrderType.PICKUP &&
+      data.addressId &&
+      this.prisma.address?.findUnique
+    ) {
+      const address = await this.prisma.address.findUnique({
+        where: { id: data.addressId },
+        select: { lat: true, lng: true },
+      });
+      if (address && this.helpers?.validateBranchCityCoverage) {
+        await this.helpers.validateBranchCityCoverage(
+          branchId,
+          address.lat,
+          address.lng,
+        );
+      }
+    }
+
     // Auto-stop cap: once maxActiveOrders orders are simultaneously "in the
     // kitchen" for this branch (not yet handed off to a driver), new orders
     // are rejected until one clears — shared by both the price-preview and
@@ -2233,6 +2251,18 @@ export class OrderService {
 
     const stops = await this.resolveStopCoordinates(data.stops);
     const { estimatedItemsCost } = data;
+
+    if (data.cityId) {
+      for (const stop of stops) {
+        if (stop.lat != null && stop.lng != null) {
+          await this.helpers.validateCityCoverage(
+            data.cityId,
+            stop.lat,
+            stop.lng,
+          );
+        }
+      }
+    }
 
     const outsideIndex =
       await this.zoneService.firstPointOutsideActiveZones(stops);

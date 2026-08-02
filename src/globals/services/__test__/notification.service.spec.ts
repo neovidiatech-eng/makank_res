@@ -57,6 +57,9 @@ describe('NotificationService.sendLocalizedNotification — image URL resolution
     expect(sentMessage.notification.imageUrl).toBe(
       'https://api.makanak-app.com/api/media?media=uploads/campaign/offer.png',
     );
+    expect(sentMessage.android.notification.image).toBe(
+      'https://api.makanak-app.com/api/media?media=uploads/campaign/offer.png',
+    );
     // The already-published mobile build reads the foreground/custom-banner
     // image from data.imageUrl specifically — both keys must be present.
     expect(sentMessage.data.image).toBe(

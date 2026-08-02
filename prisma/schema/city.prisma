@@ -1,9 +1,13 @@
 model City {
-  id        Int       @id @default(autoincrement())
-  name      Json
-  deletedAt DateTime? @map("deleted_at")
-  Store     Store[]
-  Zone      Zone[]
+  id              Int       @id @default(autoincrement())
+  name            Json
+  lat             Float?    @map("lat")
+  lng             Float?    @map("lng")
+  radius          Float?    @default(15) @map("radius")
+  toleranceRadius Float?    @default(5) @map("tolerance_radius")
+  deletedAt       DateTime? @map("deleted_at")
+  Store           Store[]
+  Zone            Zone[]
 
   @@map("city")
 }

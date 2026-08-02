@@ -636,6 +636,71 @@ export class HelpersService {
     // Calculate price
     return distance * shippingKMCharge + deliveryCommission;
   }
+
+  /**
+   * Validates whether a delivery location (destLat, destLng) is within the city's coverage area,
+   * including the core city radius plus the 5 km (or configured) grace tolerance buffer.
+   */
+  async validateCityCoverage(
+    cityId: number | null | undefined,
+    destLat: number,
+    destLng: number,
+  ) {
+    if (!cityId) return;
+
+    const city = await this.prisma.city.findUnique({
+      where: { id: cityId },
+      select: {
+        id: true,
+        name: true,
+        lat: true,
+        lng: true,
+        radius: true,
+        toleranceRadius: true,
+      },
+    });
+
+    if (!city || city.lat == null || city.lng == null) {
+      return;
+    }
+
+    const baseRadius = city.radius ?? 15;
+    const graceBuffer = city.toleranceRadius ?? 5;
+    const maxAllowedKm = baseRadius + graceBuffer;
+
+    const distMeters = calculateDistance(city.lat, city.lng, destLat, destLng);
+    const distKm = distMeters / 1000;
+
+    if (distKm > maxAllowedKm) {
+      throw new BadRequestException(
+        `العنوان المحدد يقع خارج نطاق خدمة المدينة وسماح الـ ${graceBuffer} كم (المسافة: ${distKm.toFixed(1)} كم / الحد الأقصى: ${maxAllowedKm} كم)`,
+      );
+    }
+  }
+
+  /**
+   * Validates city coverage for a branch order given the branchId and target address coordinates.
+   */
+  async validateBranchCityCoverage(
+    branchId: number,
+    destLat: number,
+    destLng: number,
+  ) {
+    const branch = await this.prisma.branch.findUnique({
+      where: { id: branchId },
+      select: {
+        storeId: true,
+        Store: {
+          select: {
+            cityId: true,
+          },
+        },
+      },
+    });
+    if (!branch?.Store?.cityId) return;
+    await this.validateCityCoverage(branch.Store.cityId, destLat, destLng);
+  }
+
   async getTax(price: number, storeTaxPercent: number) {
     const StoreTaxForAll = await this.prisma.settings.findUnique({
       where: {
