@@ -564,7 +564,7 @@ export class OrderService {
       throw new BadRequestException(
         'Bundles are not supported for scheduled orders',
       );
-    if (data.paymentMethod === PaymentMethod.WALLET) {
+    if (data.paymentMethod === PaymentMethod.WALLET && !data.paidWithWallet) {
       if (!data.transferImage) {
         throw new BadRequestException('صورة إيصال التحويل مطلوبة لإتمام الطلب');
       }
@@ -719,7 +719,7 @@ export class OrderService {
           // (-> PREPARING), see changeStatus()'s PREPARING branch — never in
           // parallel with the store's decision.
           status:
-            data.paymentMethod === PaymentMethod.WALLET
+            data.paymentMethod === PaymentMethod.WALLET && !data.paidWithWallet
               ? OrderStatus.PENDING_PAYMENT
               : OrderStatus.PENDING,
           category: data.category || OrderCategory.IMMEDIATE,
@@ -905,7 +905,7 @@ export class OrderService {
     });
     // WALLET (transfer + proof) orders stay quiet until the proof is reviewed —
     // see verifyPayment(), which calls notifyStore() itself once approved.
-    if (data.paymentMethod !== PaymentMethod.WALLET) {
+    if (data.paymentMethod !== PaymentMethod.WALLET || data.paidWithWallet) {
       await this.notifyStore(order);
     }
 
@@ -2445,7 +2445,7 @@ export class OrderService {
       throw new BadRequestException('خدمة المندوب الخاص مغلقة حالياً');
     }
 
-    if (data.paymentMethod === PaymentMethod.WALLET) {
+    if (data.paymentMethod === PaymentMethod.WALLET && !data.paidWithWallet) {
       if (!data.transferImage) {
         throw new BadRequestException('صورة إيصال التحويل مطلوبة لإتمام الطلب');
       }
