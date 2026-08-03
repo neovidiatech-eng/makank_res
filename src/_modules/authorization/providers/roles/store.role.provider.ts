@@ -17,7 +17,7 @@ const storePermissions: PermissionMap = {
   fund: ['post', 'get'],
   coupons: ['get'],
   bundles: ['get', 'post', 'patch', 'delete'],
-  schedule: ['post', 'get', 'patch', 'delete'],
+  schedule: ['post', 'get', 'patch', 'delete', 'put'],
   transactions: ['get'],
   orders: ['post', 'get', 'patch', 'delete'],
 
