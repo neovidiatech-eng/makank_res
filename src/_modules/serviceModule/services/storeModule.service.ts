@@ -79,9 +79,20 @@ export class ServiceModuleService {
     });
   }
 
-  async create(body: CreateServiceDTO) {
+  async create(
+    body: CreateServiceDTO,
+    // Both checks are cheap alone, but bulk-upload calls create() once per
+    // Excel row — re-running them per row turned a 150-row menu into ~300
+    // extra, entirely redundant round trips. Bulk-upload does its own
+    // upfront-once assertStoreAccepted() and a single updateStoreMinPrice()
+    // after the whole batch instead; the normal POST /services path (no
+    // options passed) is completely unaffected.
+    options?: { skipStoreAcceptedCheck?: boolean; skipMinPriceUpdate?: boolean },
+  ) {
     const { Sizes, Addons, ...data } = body;
-    await assertStoreAccepted(this.prisma, data.storeId);
+    if (!options?.skipStoreAcceptedCheck) {
+      await assertStoreAccepted(this.prisma, data.storeId);
+    }
 
     await this.prisma.$transaction(async (tx) => {
       const service = await tx.service.create({
@@ -108,8 +119,10 @@ export class ServiceModuleService {
         });
       }
 
-      // Update store's minimum service price
-      await this.updateStoreMinPrice(data.storeId, tx);
+      if (!options?.skipMinPriceUpdate) {
+        // Update store's minimum service price
+        await this.updateStoreMinPrice(data.storeId, tx);
+      }
     });
   }
 
@@ -276,6 +289,17 @@ export class ServiceModuleService {
     const rows = await parseBulkUploadWorkbook(buffer);
     const results: BulkUploadRowResult[] = [];
 
+    // Checked once for the whole batch instead of once per row — the result
+    // can't change mid-upload, and re-checking per row turned "store isn't
+    // approved yet" into e.g. 150 identical failures instead of one clear
+    // upfront rejection.
+    await assertStoreAccepted(this.prisma, storeId);
+
+    // Category name -> id, resolved at most once per unique name per upload
+    // instead of once per row — a normal menu reuses the same handful of
+    // category names across many rows.
+    const categoryCache = new Map<string, number>();
+
     for (const row of rows) {
       try {
         if (!row.categoryAr) {
@@ -287,56 +311,74 @@ export class ServiceModuleService {
         if (row.price == null || row.price <= 0) {
           throw new Error('السعر مطلوب ولازم يكون رقم أكبر من صفر');
         }
+        if (row.durationMinutes != null && row.durationMinutes <= 0) {
+          throw new Error('مدة التحضير لازم تكون رقم أكبر من صفر لو اتكتبت');
+        }
         if (row.variantErrors.length) {
           throw new Error(row.variantErrors.join('؛ '));
         }
+        // Reported as a row error instead of silently dropped, same rigor as
+        // the sizes/addons discount checks above (previously a discount >=
+        // price, or negative, just vanished with the product created at full
+        // price and no indication anything was wrong).
+        if (
+          row.priceAfterDiscount != null &&
+          !this.helper.hasValidDiscount(row.price, row.priceAfterDiscount)
+        ) {
+          throw new Error(
+            'السعر بعد الخصم لازم يكون رقم صفر أو أكبر وأقل من السعر الأصلي',
+          );
+        }
 
-        const categoryId = await this.resolveOrCreateCategory(
-          storeId,
-          row.categoryAr,
-        );
+        const categoryKey = row.categoryAr.trim();
+        let categoryId = categoryCache.get(categoryKey);
+        if (categoryId === undefined) {
+          categoryId = await this.resolveOrCreateCategory(storeId, row.categoryAr);
+          categoryCache.set(categoryKey, categoryId);
+        }
 
-        await this.create({
-          name: { ar: row.nameAr, en: row.nameEn || row.nameAr },
-          description: {
-            ar: row.descriptionAr || row.nameAr,
-            en: row.descriptionEn || row.nameEn || row.nameAr,
-          },
-          image: 'uploads/default.png',
-          durationMinutes: row.durationMinutes ?? 15,
-          price: row.price,
-          ...(row.priceAfterDiscount != null &&
-            row.priceAfterDiscount >= 0 &&
-            row.priceAfterDiscount < row.price && {
+        await this.create(
+          {
+            name: { ar: row.nameAr, en: row.nameEn || row.nameAr },
+            description: {
+              ar: row.descriptionAr || row.nameAr,
+              en: row.descriptionEn || row.nameEn || row.nameAr,
+            },
+            image: 'uploads/default.png',
+            durationMinutes: row.durationMinutes ?? 15,
+            price: row.price,
+            ...(row.priceAfterDiscount != null && {
               priceAfterDiscount: row.priceAfterDiscount,
             }),
-          // Bulk-uploaded rows bypass the controller entirely, so they never
-          // got the same "goes live immediately" treatment regular create()
-          // calls now get — left to the Prisma column default (PENDING).
-          status: ServiceStatus.ACTIVE,
-          available: row.available,
-          storeId,
-          categoryId,
-          ...(row.sizes.length && {
-            Sizes: row.sizes.map((size, index) => ({
-              name: { ar: size.name, en: size.name },
-              price: size.price,
-              ...(size.priceAfterDiscount !== undefined && {
-                priceAfterDiscount: size.priceAfterDiscount,
-              }),
-              isDefault: index === 0,
-            })),
-          }),
-          ...(row.addons.length && {
-            Addons: row.addons.map((addon) => ({
-              name: { ar: addon.name, en: addon.name },
-              price: addon.price,
-              ...(addon.priceAfterDiscount !== undefined && {
-                priceAfterDiscount: addon.priceAfterDiscount,
-              }),
-            })),
-          }),
-        } as unknown as CreateServiceDTO);
+            // Matches the "goes live immediately" behavior POST /services
+            // now has (moderation gate removed) — bulk-uploaded rows get
+            // the same treatment, not the Prisma column default.
+            status: ServiceStatus.ACTIVE,
+            available: row.available,
+            storeId,
+            categoryId,
+            ...(row.sizes.length && {
+              Sizes: row.sizes.map((size, index) => ({
+                name: { ar: size.name, en: size.name },
+                price: size.price,
+                ...(size.priceAfterDiscount !== undefined && {
+                  priceAfterDiscount: size.priceAfterDiscount,
+                }),
+                isDefault: index === 0,
+              })),
+            }),
+            ...(row.addons.length && {
+              Addons: row.addons.map((addon) => ({
+                name: { ar: addon.name, en: addon.name },
+                price: addon.price,
+                ...(addon.priceAfterDiscount !== undefined && {
+                  priceAfterDiscount: addon.priceAfterDiscount,
+                }),
+              })),
+            }),
+          } as unknown as CreateServiceDTO,
+          { skipStoreAcceptedCheck: true, skipMinPriceUpdate: true },
+        );
 
         results.push({
           row: row.rowNumber,
@@ -355,6 +397,11 @@ export class ServiceModuleService {
 
     const createdCount = results.filter((r) => r.status === 'created').length;
     const failedCount = results.length - createdCount;
+
+    // Recomputed once for the whole batch instead of after every row.
+    if (createdCount > 0) {
+      await this.updateStoreMinPrice(storeId);
+    }
 
     if (user) {
       const actingUser = await this.prisma.user.findUnique({

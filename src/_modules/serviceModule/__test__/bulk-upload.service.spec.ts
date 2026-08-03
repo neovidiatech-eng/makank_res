@@ -36,12 +36,22 @@ const buildService = (
       create: jest.fn().mockResolvedValue({ id: 999 }),
     },
     user: { findUnique: jest.fn().mockResolvedValue({ name: 'Ahmed' }) },
+    store: {
+      findUnique: jest.fn().mockResolvedValue({ isStoreAccepted: true }),
+      update: jest.fn(),
+    },
+    serviceSize: { aggregate: jest.fn().mockResolvedValue({ _min: { price: null } }) },
+    service: { aggregate: jest.fn().mockResolvedValue({ _min: { price: null } }) },
   };
   const logsService = { createLog: jest.fn() };
+  const helper = {
+    hasValidDiscount: (price: number, discount?: number | null) =>
+      discount != null && discount >= 0 && discount < price,
+  };
   const service = new ServiceModuleService(
     prisma as any,
     undefined as any,
-    undefined as any,
+    helper as any,
     undefined as any,
     logsService as any,
   );
@@ -107,6 +117,7 @@ describe('ServiceModuleService.bulkUploadFromExcel', () => {
     expect(prisma.category.create).not.toHaveBeenCalled();
     expect(service.create).toHaveBeenCalledWith(
       expect.objectContaining({ categoryId: 700 }),
+      expect.anything(),
     );
   });
 
@@ -128,6 +139,7 @@ describe('ServiceModuleService.bulkUploadFromExcel', () => {
     );
     expect(service.create).toHaveBeenCalledWith(
       expect.objectContaining({ categoryId: 999 }),
+      expect.anything(),
     );
   });
 
@@ -175,6 +187,7 @@ describe('ServiceModuleService.bulkUploadFromExcel', () => {
         ],
         Addons: [{ name: { ar: 'جبنة إضافية', en: 'جبنة إضافية' }, price: 10 }],
       }),
+      expect.anything(),
     );
   });
 
@@ -189,6 +202,61 @@ describe('ServiceModuleService.bulkUploadFromExcel', () => {
     expect(summary.failedCount).toBe(1);
     expect(summary.results[0]).toMatchObject({ status: 'failed' });
     expect(summary.results[0].reason).toEqual(expect.stringContaining('صغير'));
+    expect(service.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects the whole batch upfront with one clear error when the store is not yet approved', async () => {
+    const { service, prisma } = buildService({ existingCategory: { id: 700 } });
+    prisma.store.findUnique.mockResolvedValue({ isStoreAccepted: false });
+    const buffer = await buildWorkbookBuffer([
+      ['مشروبات', 'عصير', '', '', '', 10, '', '', ''],
+    ]);
+
+    await expect(service.bulkUploadFromExcel(9, buffer, storeUser)).rejects.toThrow(
+      'Your store is still pending admin review',
+    );
+    expect(service.create).not.toHaveBeenCalled();
+  });
+
+  it('resolves a repeated category name only once across the whole upload', async () => {
+    const { service, prisma } = buildService({ existingCategory: null });
+    const buffer = await buildWorkbookBuffer([
+      ['مشروبات', 'عصير مانجو', '', '', '', 30, '', '', ''],
+      ['مشروبات', 'عصير برتقال', '', '', '', 25, '', '', ''],
+      ['مشروبات', 'عصير ليمون', '', '', '', 20, '', '', ''],
+    ]);
+
+    const summary = await service.bulkUploadFromExcel(9, buffer, storeUser);
+
+    expect(summary.createdCount).toBe(3);
+    expect(prisma.category.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.category.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('recomputes the store min price once after the whole batch, not per row', async () => {
+    const { service, prisma } = buildService({ existingCategory: { id: 700 } });
+    const buffer = await buildWorkbookBuffer([
+      ['مشروبات', 'عصير مانجو', '', '', '', 30, '', '', ''],
+      ['مشروبات', 'عصير برتقال', '', '', '', 25, '', '', ''],
+    ]);
+
+    await service.bulkUploadFromExcel(9, buffer, storeUser);
+
+    expect(prisma.store.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails a row instead of silently dropping an invalid whole-product discount', async () => {
+    const { service } = buildService({ existingCategory: { id: 700 } });
+    const buffer = await buildWorkbookBuffer([
+      ['مشروبات', 'عصير', '', '', '', 30, 30, '', ''], // discount == price
+    ]);
+
+    const summary = await service.bulkUploadFromExcel(9, buffer, storeUser);
+
+    expect(summary.failedCount).toBe(1);
+    expect(summary.results[0].reason).toEqual(
+      expect.stringContaining('السعر بعد الخصم'),
+    );
     expect(service.create).not.toHaveBeenCalled();
   });
 });
