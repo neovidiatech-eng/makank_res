@@ -41,6 +41,7 @@ model Store {
   Specialist           Specialist[]
   bank_accounts        bank_accounts[]
   Banner               Banner[]                   @relation("BannerToStore")
+  SpecialDeliveryBanner SpecialDeliveryBanner[]    @relation("SpecialDeliveryBannerToStore")
   branches             Branch[]
   Bundles              Bundle[]
   Campaigns            Campaign[]

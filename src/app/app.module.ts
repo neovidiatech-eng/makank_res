@@ -30,6 +30,7 @@ import { RatingModule } from 'src/_modules/rating/rating.module';
 import { ServiceModule } from 'src/_modules/serviceModule/serviceModule.module';
 import { SettingsModule } from 'src/_modules/settings/settings.module';
 import { SocialMediaModule } from 'src/_modules/social-media/social-media.module';
+import { SpecialDeliveryBannerModule } from 'src/_modules/special-delivery-banner/special-delivery-banner.module';
 import { StatisticsModule } from 'src/_modules/statistics/statistics.module';
 import { StoreModule } from 'src/_modules/store/store.module';
 import { SystemNotificationModule } from 'src/_modules/system-notification/system-notification.module';
@@ -101,6 +102,7 @@ const I18N_DIR = path.join(process.cwd(), './i18n');
     NotificationQueueModule,
     CouponModule,
     BannerModule,
+    SpecialDeliveryBannerModule,
     CategoryModule,
     StoreModule,
     BranchModule,

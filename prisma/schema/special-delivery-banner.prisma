@@ -1,0 +1,42 @@
+// A second, independent banner carousel — same mechanics as Banner (targeting,
+// scheduling window, click tracking, random-seed rotation), shown in a
+// different screen of the customer app (the special-delivery services page)
+// with its own design, managed as a separate section in the dashboard.
+model SpecialDeliveryBanner {
+  id         Int              @id @default(autoincrement())
+  name       Json
+  image      String
+  active     Boolean          @default(true)
+  randomSeed Float            @default(0) @map("random_seed")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  deletedAt  DateTime?        @map("deleted_at")
+  storeId    Int?
+  categoryId Int?
+  serviceId  Int?
+  targetType BannerTargetType @default(GENERAL) @map("target_type")
+  clickCount Int              @default(0) @map("click_count")
+  order      Int              @default(0)
+  startDate  DateTime?        @map("start_date")
+  endDate    DateTime?        @map("end_date")
+  Zones      SpecialDeliveryBannerZone[]
+  Category   Category?        @relation(fields: [categoryId], references: [id])
+  Service    Service?         @relation(fields: [serviceId], references: [id])
+  Store      Store?           @relation("SpecialDeliveryBannerToStore", fields: [storeId], references: [id])
+
+  @@index([storeId], map: "special_delivery_banners_storeId_fkey")
+  @@index([categoryId], map: "special_delivery_banners_categoryId_fkey")
+  @@index([serviceId], map: "special_delivery_banners_serviceId_fkey")
+  @@map("special_delivery_banners")
+}
+
+model SpecialDeliveryBannerZone {
+  bannerId Int                   @map("banner_id")
+  zoneId   Int                   @map("zone_id")
+  Banner   SpecialDeliveryBanner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+  Zone     Zone                  @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@id([bannerId, zoneId])
+  @@index([bannerId])
+  @@index([zoneId], map: "special_delivery_banner_zones_zone_id_fkey")
+  @@map("special_delivery_banner_zones")
+}

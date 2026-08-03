@@ -6,6 +6,7 @@ const deliveryPermissions: PermissionMap = {
   profile: ['post', 'get', 'delete', 'patch'],
   addresses: ['post', 'get', 'patch', 'delete'],
   banners: ['get'],
+  'special-delivery-banners': ['get'],
   categories: ['get'],
   stores: ['get'],
   'stores/favourite': ['get', 'patch'],

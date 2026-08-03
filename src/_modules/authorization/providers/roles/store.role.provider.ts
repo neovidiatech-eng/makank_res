@@ -9,6 +9,7 @@ const storePermissions: PermissionMap = {
   permissions: ['get'],
   customers: ['get'],
   banners: ['get'],
+  'special-delivery-banners': ['get'],
   categories: ['get', 'post', 'patch', 'delete'],
   stores: ['get', 'patch'],
   services: ['post', 'get', 'patch', 'delete'],

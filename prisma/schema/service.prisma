@@ -21,6 +21,7 @@ model Service {
   categoryId         Int                  @map("category_id")
   ArchivedOrderItems ArchivedOrderItem[]
   Banners            Banner[]
+  SpecialDeliveryBanners SpecialDeliveryBanner[]
   BundleScopes       BundleScopeService[]
   Campaigns          Campaign[]
   Favorites          FavoriteService[]

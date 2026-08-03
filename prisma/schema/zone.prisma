@@ -8,6 +8,7 @@ model Zone {
   cityId               Int?                  @map("city_id")
   deliveryPrice        Float?                @map("delivery_price")
   Banners              BannerZone[]
+  SpecialDeliveryBanners SpecialDeliveryBannerZone[]
   Branches             BranchZone[]
   CouponZones          CouponZones[]
   OnlineSellerProfiles OnlineSellerProfile[]

@@ -9,6 +9,7 @@ model Category {
   storeId            Int?                  @map("store_id")
   templateCategoryId Int?                  @map("template_category_id")
   Banners            Banner[]
+  SpecialDeliveryBanners SpecialDeliveryBanner[]
   BundleScopes       BundleScopeCategory[]
   Store              Store?                @relation(fields: [storeId], references: [id], onDelete: Cascade)
   templateCategory   TemplateCategory?     @relation(fields: [templateCategoryId], references: [id])

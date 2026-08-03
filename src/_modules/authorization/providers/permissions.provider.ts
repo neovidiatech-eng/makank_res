@@ -49,6 +49,12 @@ export const permissions = [
     methods: ['post', 'get', 'patch', 'delete'],
   },
   {
+    name: { en: 'Special Delivery Banners', ar: 'بانرات التوصيل الخاص' },
+    prefix: 'special-delivery-banners',
+    default: false,
+    methods: ['post', 'get', 'patch', 'delete'],
+  },
+  {
     name: { en: 'Categories', ar: 'الفئات' },
     prefix: 'categories',
     default: false,

@@ -9,6 +9,7 @@ const adminPermissions: PermissionMap = {
   permissions: ['get', 'patch'],
   customers: ['get', 'delete', 'patch'],
   banners: ['post', 'get', 'patch', 'delete'],
+  'special-delivery-banners': ['post', 'get', 'patch', 'delete'],
   branches: ['post', 'get', 'patch', 'delete'],
   categories: ['post', 'get', 'patch', 'delete', 'manage'],
   stores: ['post', 'get', 'patch', 'delete'],
