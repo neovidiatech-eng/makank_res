@@ -1,6 +1,7 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { BannerTargetType } from '@prisma/client';
 import {
+  IsUrl,
   registerDecorator,
   ValidationArguments,
   ValidationOptions,
@@ -105,10 +106,20 @@ export class CreateBannerDTO {
   zoneIds?: Id[];
 
   // Explicit placement/routing type. SPECIAL_DRIVER routes the customer to the
-  // special-driver (مندوب خاص) flow. Defaults to GENERAL at the DB level.
+  // special-driver (مندوب خاص) flow. EXTERNAL_URL opens clickUrl in an
+  // external browser/webview instead of navigating in-app. Defaults to
+  // GENERAL at the DB level.
   @Optional()
   @ValidateEnum(BannerTargetType)
   targetType?: BannerTargetType;
+
+  // Required when targetType is EXTERNAL_URL, forbidden otherwise — validated
+  // in BannerService (mirrors AdminNotificationService.validateClickUrl).
+  @Optional({
+    description: 'Required when targetType is EXTERNAL_URL. Must be http(s).',
+  })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  clickUrl?: string;
 
   // Display order (ascending). Lower shows first. Defaults to 0 at the DB level.
   @Optional({ example: 1 })

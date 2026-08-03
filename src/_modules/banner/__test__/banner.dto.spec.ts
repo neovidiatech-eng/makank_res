@@ -135,3 +135,34 @@ describe('CreateBannerDTO — enum + array validation', () => {
     expect(messages).not.toContain(']*');
   });
 });
+
+describe('CreateBannerDTO — clickUrl (EXTERNAL_URL click action)', () => {
+  it('accepts a well-formed https clickUrl', async () => {
+    const { errors } = await run({
+      ...GENERAL_BASE,
+      targetType: 'EXTERNAL_URL',
+      clickUrl: 'https://example.com/offer',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects a clickUrl with no protocol', async () => {
+    const { errors } = await run({
+      ...GENERAL_BASE,
+      targetType: 'EXTERNAL_URL',
+      clickUrl: 'example.com/offer',
+    });
+    const props = errors.map((e) => e.property);
+    expect(props).toContain('clickUrl');
+  });
+
+  it('rejects a non-http(s) clickUrl', async () => {
+    const { errors } = await run({
+      ...GENERAL_BASE,
+      targetType: 'EXTERNAL_URL',
+      clickUrl: 'javascript:alert(1)',
+    });
+    const props = errors.map((e) => e.property);
+    expect(props).toContain('clickUrl');
+  });
+});

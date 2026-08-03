@@ -84,6 +84,7 @@ export const selectBannerOBJ = (userId?: Id) => {
     order: true,
     startDate: true,
     endDate: true,
+    clickUrl: true,
     // Explicit Store select (never a broad `include`) so we control exactly
     // which store fields ship to clients. The favorite relation is attached
     // ONLY for a real customer userId; it is collapsed to an `isFavorite`

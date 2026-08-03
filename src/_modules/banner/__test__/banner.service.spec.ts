@@ -294,6 +294,105 @@ describe('BannerService — special-driver banner', () => {
   });
 });
 
+describe('BannerService — EXTERNAL_URL click action', () => {
+  it('creates an EXTERNAL_URL banner with a clickUrl and no other targeting', async () => {
+    const prisma = buildPrisma();
+    await buildService(prisma).create({
+      name: { ar: 'عرض خارجي', en: 'External offer' },
+      image: 'x.jpg',
+      targetType: 'EXTERNAL_URL',
+      clickUrl: 'https://example.com/offer',
+    } as any);
+
+    expect(prisma.banner.create).toHaveBeenCalledTimes(1);
+    const arg = (prisma.banner.create as AnyFn).mock.calls[0][0];
+    expect(arg.data.targetType).toBe('EXTERNAL_URL');
+    expect(arg.data.clickUrl).toBe('https://example.com/offer');
+  });
+
+  it('rejects EXTERNAL_URL without a clickUrl', async () => {
+    const prisma = buildPrisma();
+    await expect(
+      buildService(prisma).create({
+        name: { en: 'B' },
+        image: 'x.jpg',
+        targetType: 'EXTERNAL_URL',
+      } as any),
+    ).rejects.toThrow('EXTERNAL_URL banners require a clickUrl');
+  });
+
+  it('rejects EXTERNAL_URL combined with store targeting', async () => {
+    const prisma = buildPrisma();
+    await expect(
+      buildService(prisma).create({
+        name: { en: 'B' },
+        image: 'x.jpg',
+        targetType: 'EXTERNAL_URL',
+        clickUrl: 'https://example.com',
+        storeId: 1,
+      } as any),
+    ).rejects.toThrow(/EXTERNAL_URL banners must not include/);
+  });
+
+  it('rejects a clickUrl sent without targetType EXTERNAL_URL', async () => {
+    const prisma = buildPrisma();
+    await expect(
+      buildService(prisma).create({
+        name: { en: 'B' },
+        image: 'x.jpg',
+        clickUrl: 'https://example.com',
+      } as any),
+    ).rejects.toThrow('clickUrl is only allowed when targetType is EXTERNAL_URL');
+  });
+
+  it('rejects a non-http(s) clickUrl at the service layer (defense in depth)', async () => {
+    const prisma = buildPrisma();
+    await expect(
+      buildService(prisma).create({
+        name: { en: 'B' },
+        image: 'x.jpg',
+        targetType: 'EXTERNAL_URL',
+        clickUrl: 'javascript:alert(1)',
+      } as any),
+    ).rejects.toThrow(/clickUrl must be/);
+  });
+
+  it('update() re-validates clickUrl against the effective (existing) targetType', async () => {
+    const prisma = buildPrisma();
+    (prisma.banner.findFirst as AnyFn).mockResolvedValue({
+      id: 1,
+      storeId: null,
+      categoryId: null,
+      serviceId: null,
+      targetType: 'GENERAL',
+      clickUrl: null,
+      _count: { Zones: 0 },
+    });
+
+    await expect(
+      buildService(prisma).update(1, {
+        clickUrl: 'https://example.com',
+      } as any),
+    ).rejects.toThrow('clickUrl is only allowed when targetType is EXTERNAL_URL');
+  });
+
+  it('exposes clickUrl in the mapped response', async () => {
+    const prisma = buildPrisma();
+    (prisma.banner.findFirst as AnyFn).mockResolvedValue({
+      id: 9,
+      name: { en: 'External' },
+      image: 'x.jpg',
+      active: true,
+      targetType: 'EXTERNAL_URL',
+      clickUrl: 'https://example.com/offer',
+      Zones: [],
+    });
+
+    const res: any = await buildService(prisma).findAll({ id: 9 } as any, false);
+    expect(res.clickUrl).toBe('https://example.com/offer');
+  });
+});
+
 describe('BannerService — click tracking + statistics', () => {
   it('increments clickCount atomically', async () => {
     const prisma = buildPrisma();

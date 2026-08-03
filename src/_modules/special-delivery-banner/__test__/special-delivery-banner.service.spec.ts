@@ -139,6 +139,57 @@ describe('SpecialDeliveryBannerService.create — targeting validation', () => {
   });
 });
 
+describe('SpecialDeliveryBannerService — EXTERNAL_URL click action', () => {
+  it('creates an EXTERNAL_URL banner with a clickUrl and no other targeting', async () => {
+    const prisma = buildPrisma();
+    await buildService(prisma).create({
+      name: { ar: 'عرض خارجي', en: 'External offer' },
+      image: 'x.jpg',
+      targetType: 'EXTERNAL_URL',
+      clickUrl: 'https://example.com/offer',
+    } as any);
+
+    expect(prisma.specialDeliveryBanner.create).toHaveBeenCalledTimes(1);
+    const arg = (prisma.specialDeliveryBanner.create as AnyFn).mock.calls[0][0];
+    expect(arg.data.targetType).toBe('EXTERNAL_URL');
+    expect(arg.data.clickUrl).toBe('https://example.com/offer');
+  });
+
+  it('rejects EXTERNAL_URL without a clickUrl', async () => {
+    const prisma = buildPrisma();
+    await expect(
+      buildService(prisma).create({
+        name: { en: 'B' },
+        image: 'x.jpg',
+        targetType: 'EXTERNAL_URL',
+      } as any),
+    ).rejects.toThrow('EXTERNAL_URL banners require a clickUrl');
+  });
+
+  it('rejects a clickUrl sent without targetType EXTERNAL_URL', async () => {
+    const prisma = buildPrisma();
+    await expect(
+      buildService(prisma).create({
+        name: { en: 'B' },
+        image: 'x.jpg',
+        clickUrl: 'https://example.com',
+      } as any),
+    ).rejects.toThrow('clickUrl is only allowed when targetType is EXTERNAL_URL');
+  });
+
+  it('rejects a non-http(s) clickUrl at the service layer', async () => {
+    const prisma = buildPrisma();
+    await expect(
+      buildService(prisma).create({
+        name: { en: 'B' },
+        image: 'x.jpg',
+        targetType: 'EXTERNAL_URL',
+        clickUrl: 'javascript:alert(1)',
+      } as any),
+    ).rejects.toThrow(/clickUrl must be/);
+  });
+});
+
 describe('SpecialDeliveryBannerService.update', () => {
   it('validates against the existing storeId when only zoneIds are sent', async () => {
     const prisma = buildPrisma();

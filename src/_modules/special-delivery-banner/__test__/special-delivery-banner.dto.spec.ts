@@ -95,3 +95,24 @@ describe('CreateSpecialDeliveryBannerDTO — enum + array validation', () => {
     expect(props).toContain('zoneIds');
   });
 });
+
+describe('CreateSpecialDeliveryBannerDTO — clickUrl (EXTERNAL_URL click action)', () => {
+  it('accepts a well-formed https clickUrl', async () => {
+    const { errors } = await run({
+      ...GENERAL_BASE,
+      targetType: 'EXTERNAL_URL',
+      clickUrl: 'https://example.com/offer',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects a non-http(s) clickUrl', async () => {
+    const { errors } = await run({
+      ...GENERAL_BASE,
+      targetType: 'EXTERNAL_URL',
+      clickUrl: 'javascript:alert(1)',
+    });
+    const props = errors.map((e) => e.property);
+    expect(props).toContain('clickUrl');
+  });
+});

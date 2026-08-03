@@ -33,6 +33,7 @@ export class SpecialDeliveryBannerService {
       categoryId: data.categoryId,
       serviceId: data.serviceId,
       hasZones: !!data.zoneIds?.length,
+      clickUrl: data.clickUrl,
     });
 
     const zoneIds = await this.validateTargeting({
@@ -52,6 +53,7 @@ export class SpecialDeliveryBannerService {
       order: data.order,
       startDate: data.startDate,
       endDate: data.endDate,
+      clickUrl: data.clickUrl,
       ...(zoneIds?.length
         ? { Zones: { create: zoneIds.map((zoneId) => ({ zoneId })) } }
         : {}),
@@ -69,6 +71,7 @@ export class SpecialDeliveryBannerService {
         categoryId: true,
         serviceId: true,
         targetType: true,
+        clickUrl: true,
         _count: { select: { Zones: true } },
       },
     });
@@ -90,12 +93,15 @@ export class SpecialDeliveryBannerService {
       body.zoneIds !== undefined
         ? body.zoneIds.length > 0
         : existing._count.Zones > 0;
+    const effectiveClickUrl =
+      body.clickUrl !== undefined ? body.clickUrl : existing.clickUrl;
 
     this.assertTargetTypeConsistency(effectiveTargetType, {
       storeId: effectiveStoreId,
       categoryId: effectiveCategoryId,
       serviceId: effectiveServiceId,
       hasZones: effectiveHasZones,
+      clickUrl: effectiveClickUrl,
     });
 
     const normalizedZoneIds = await this.validateTargeting({
@@ -286,9 +292,12 @@ export class SpecialDeliveryBannerService {
   }
 
   // Enforces that the declared targetType matches the targeting fields, so the
-  // client can route purely off targetType. Only runs when targetType is
-  // explicitly provided — an omitted targetType keeps the legacy behaviour
-  // (defaults to GENERAL at the DB level) for backward compatibility.
+  // client can route purely off targetType. The clickUrl<->EXTERNAL_URL check
+  // always runs (even with no targetType sent) since an unrouted clickUrl
+  // would otherwise be silently accepted and ignored. Everything else here
+  // only runs when targetType is explicitly provided — an omitted targetType
+  // keeps the legacy behaviour (defaults to GENERAL at the DB level) for
+  // backward compatibility.
   private assertTargetTypeConsistency(
     targetType: BannerTargetType | null | undefined,
     fields: {
@@ -296,11 +305,19 @@ export class SpecialDeliveryBannerService {
       categoryId?: Id | null;
       serviceId?: Id | null;
       hasZones: boolean;
+      clickUrl?: string | null;
     },
   ): void {
+    const { storeId, categoryId, serviceId, hasZones, clickUrl } = fields;
+
+    if (clickUrl && targetType !== BannerTargetType.EXTERNAL_URL) {
+      throw new BadRequestException(
+        'clickUrl is only allowed when targetType is EXTERNAL_URL',
+      );
+    }
+
     if (targetType == null) return;
 
-    const { storeId, categoryId, serviceId, hasZones } = fields;
     const hasAnyTargeting =
       storeId != null || categoryId != null || serviceId != null || hasZones;
 
@@ -345,6 +362,33 @@ export class SpecialDeliveryBannerService {
           );
         }
         break;
+      case BannerTargetType.EXTERNAL_URL:
+        if (hasAnyTargeting) {
+          throw new BadRequestException(
+            'EXTERNAL_URL banners must not include store/category/service/zone targeting',
+          );
+        }
+        if (!clickUrl) {
+          throw new BadRequestException(
+            'EXTERNAL_URL banners require a clickUrl',
+          );
+        }
+        this.validateClickUrl(clickUrl);
+        break;
+    }
+  }
+
+  // Defense-in-depth re-check alongside the DTO's @IsUrl — mirrors
+  // AdminNotificationService.validateClickUrl exactly.
+  private validateClickUrl(url: string): void {
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new BadRequestException('clickUrl must be http or https');
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException('clickUrl must be a valid URL');
     }
   }
 

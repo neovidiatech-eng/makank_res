@@ -14,6 +14,7 @@ model Banner {
   order      Int              @default(0)
   startDate  DateTime?        @map("start_date")
   endDate    DateTime?        @map("end_date")
+  clickUrl   String?          @map("click_url") @db.Text
   Zones      BannerZone[]
   Category   Category?        @relation(fields: [categoryId], references: [id])
   Service    Service?         @relation(fields: [serviceId], references: [id])
@@ -44,4 +45,5 @@ enum BannerTargetType {
   SERVICE
   ZONE
   SPECIAL_DRIVER
+  EXTERNAL_URL
 }
