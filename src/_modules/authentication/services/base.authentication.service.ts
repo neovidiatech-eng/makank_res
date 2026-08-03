@@ -61,7 +61,9 @@ export class BaseAuthenticationService {
     // behavior. RoleInterceptor sets dto.roleKey from the URL param before
     // this runs.
     const user = await this.userHelper.userExist({
-      ...dto,
+      email: dto.email,
+      password: dto.password,
+      roleKey: dto.roleKey,
       message: 'invalid credentials',
       checkVerified: ![RolesKeys.DELIVERY, RolesKeys.STORE].includes(
         dto.roleKey,
