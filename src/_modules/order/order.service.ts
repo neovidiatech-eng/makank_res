@@ -2257,6 +2257,32 @@ export class OrderService {
       balance: (order as any).totalPriceAfterDiscount,
     });
 
+    if (order.type === OrderType.CUSTOM_DELIVERY) {
+      try {
+        await this.assignmentService.handleOrderAssignment(orderId);
+      } catch (err) {
+        this.logger.error(`Failed to assign custom delivery driver for order ${orderId}: ${err.message}`);
+      }
+    } else {
+      await this.notifyStore(updatedOrder);
+    }
+
+    try {
+      await this.notificationService.sendLocalizedNotification(
+        order.userId,
+        { ar: 'تم تأكيد الدفع', en: 'Payment confirmed' },
+        {
+          ar: 'تم دفع قيمة طلبك بنجاح، جاري تجهيز الطلب',
+          en: 'Your payment was successful — your order is being processed',
+        },
+        { resourceId: `${orderId}` },
+        NotificationType.ORDER,
+        orderId,
+      );
+    } catch (err) {
+      this.logger.error(`Failed to send kashier success notification to user ${order.userId}: ${err.message}`);
+    }
+
     return updatedOrder;
   }
 
