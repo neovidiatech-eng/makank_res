@@ -27,7 +27,8 @@ export const getEmployeeArgs = (
     where: {
       AND: [{ roleKey: RolesKeys.STORE }, ...searchArray],
     },
-  } as Prisma.UserFindManyArgs;
+    select: selectEmployeeOBJ(),
+  } as unknown as Prisma.UserFindManyArgs;
 };
 
 export const selectEmployeeOBJ = () => {
