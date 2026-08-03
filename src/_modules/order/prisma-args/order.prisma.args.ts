@@ -106,6 +106,8 @@ export const selectOrderOBJ = (filters: FilterOrderDTO, userId?: Id) => {
     deliveryId: true,
     transferNumber: true,
     transferImage: true,
+    transferType: true,
+    transferAccountNumber: true,
     deliveryLat: true,
     deliveryLng: true,
     // Custom-delivery fields
