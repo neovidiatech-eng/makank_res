@@ -7,12 +7,14 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
 import { CurrentUser } from 'src/_modules/authentication/decorators/current-user.decorator';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { CanUserAccessModelRowId } from 'src/decorators/api/CanUserAccessModelRowId.decorator';
 import { ApiRequiredIdParam } from 'src/decorators/api/id-params.decorator';
 import { RequiredIdParam } from 'src/dtos/params/id-param.dto';
@@ -106,14 +108,26 @@ export class StoreScheduleController {
 
   @Put('bulk')
   @ApiOperation({ summary: 'Update multiple store schedules' })
+  @ApiQuery({ name: 'branchId', required: false, type: Number })
   async updateMulti(
     @Res() res: Response,
     @Body() body: UpdateStoreScheduleDTO,
     @CurrentUser() user: CurrentUser,
+    @Query('branchId') queryBranchId?: string,
   ) {
-    if (!user?.branchId) throw new BadRequestException('Branch ID is required');
+    let targetBranchId = user.branchId;
 
-    await this.service.updateSchedules(user.branchId, body);
+    if (user.Role.roleKey === RolesKeys.ADMIN) {
+      const parsedQueryId = queryBranchId ? parseInt(queryBranchId, 10) : undefined;
+      const bodyBranchId = body.schedules?.[0]?.branchId;
+      targetBranchId = parsedQueryId || bodyBranchId || (body as any).branchId;
+    }
+
+    if (!targetBranchId) {
+      throw new BadRequestException('Branch ID is required');
+    }
+
+    await this.service.updateSchedules(targetBranchId, body);
     return this.response.success(res, 'Store schedules updated successfully');
   }
 }
