@@ -903,11 +903,7 @@ export class OrderService {
         },
       },
     });
-    // WALLET (transfer + proof) orders stay quiet until the proof is reviewed —
-    // see verifyPayment(), which calls notifyStore() itself once approved.
-    if (data.paymentMethod !== PaymentMethod.WALLET || data.paidWithWallet) {
-      await this.notifyStore(order);
-    }
+    await this.notifyStore(order);
 
     return order;
   }
@@ -1048,6 +1044,7 @@ export class OrderService {
         where: { id: order.id },
         select: {
           id: true,
+          status: true,
           totalPriceAfterDiscount: true,
           paymentMethod: true,
           paidWithWallet: true,
@@ -1059,6 +1056,8 @@ export class OrderService {
           },
         },
       });
+
+      const isPendingPayment = orderDetails.status === OrderStatus.PENDING_PAYMENT;
 
       const paymentStrAr = orderDetails.paidWithWallet
         ? 'محفظة التطبيق'
@@ -1075,13 +1074,21 @@ export class OrderService {
       const typeStrEn = orderDetails.type === OrderType.PICKUP ? 'Store Pickup' : 'Home Delivery';
 
       const customTitle = {
-        ar: `طلب جديد رقم #${orderDetails.id}`,
-        en: `New Order #${orderDetails.id}`,
+        ar: isPendingPayment
+          ? `طلب معلق في انتظار تأكيد الدفع #${orderDetails.id}`
+          : `طلب جديد رقم #${orderDetails.id}`,
+        en: isPendingPayment
+          ? `Pending Payment Order #${orderDetails.id}`
+          : `New Order #${orderDetails.id}`,
       };
 
       const customBody = {
-        ar: `طلب جديد من العميل (${orderDetails.Customer?.name || ''}). القيمة: ${orderDetails.totalPriceAfterDiscount} ج.م. الدفع: ${paymentStrAr} (${typeStrAr}).`,
-        en: `New order from client (${orderDetails.Customer?.name || ''}). Total: EGP ${orderDetails.totalPriceAfterDiscount}. Payment: ${paymentStrEn} (${typeStrEn}).`,
+        ar: isPendingPayment
+          ? `طلب جديد معلق من العميل (${orderDetails.Customer?.name || ''}) بانتظار مراجعة إيصال الدفع. القيمة: ${orderDetails.totalPriceAfterDiscount} ج.م.`
+          : `طلب جديد من العميل (${orderDetails.Customer?.name || ''}). القيمة: ${orderDetails.totalPriceAfterDiscount} ج.م. الدفع: ${paymentStrAr} (${typeStrAr}).`,
+        en: isPendingPayment
+          ? `Pending payment order from client (${orderDetails.Customer?.name || ''}) awaiting transfer proof review. Total: EGP ${orderDetails.totalPriceAfterDiscount}.`
+          : `New order from client (${orderDetails.Customer?.name || ''}). Total: EGP ${orderDetails.totalPriceAfterDiscount}. Payment: ${paymentStrEn} (${typeStrEn}).`,
       };
 
       for (const userId of notifyUserIds) {
