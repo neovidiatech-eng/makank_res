@@ -52,4 +52,20 @@ describe('HelpersService.validateServiceAvailability', () => {
       BadRequestException,
     );
   });
+
+  it('names the specific product in the rejection message, not a generic error', async () => {
+    const { helpers } = buildHelpers({
+      ...baseService,
+      available: false,
+      name: { ar: 'برجر لحم', en: 'Beef Burger' },
+    });
+    await expect(helpers.validateServiceAvailability(1, 10)).rejects.toThrow(
+      'برجر لحم',
+    );
+  });
+
+  it('falls back to the service id when no name is present', async () => {
+    const { helpers } = buildHelpers({ ...baseService, available: false });
+    await expect(helpers.validateServiceAvailability(1, 10)).rejects.toThrow('#1');
+  });
 });

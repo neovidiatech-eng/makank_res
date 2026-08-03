@@ -195,14 +195,20 @@ export class HelpersService {
     // The previous code used `include` for relations but scalar fields of Service come included.
 
     if (!service) throw new BadRequestException('Service not found');
+    // Named explicitly so a "reorder"/checkout failure tells the customer
+    // WHICH product is the problem, not just a generic rejection — this
+    // matters most for reorder, where one stale item out of several would
+    // otherwise fail the whole request with no way to tell which one.
+    const serviceName =
+      (service.name as any)?.ar || (service.name as any)?.en || `#${service.id}`;
     if (service.status !== ServiceStatus.ACTIVE)
-      throw new BadRequestException('Service is not active');
+      throw new BadRequestException(`المنتج "${serviceName}" غير متاح حاليًا`);
     // `available` is the store's own "temporarily unavailable" toggle
     // (distinct from `status`, the admin moderation gate) — it already hid
     // the item from the customer-facing listing, but order creation never
     // actually checked it, so a cached/stale menu could still order it.
     if (!service.available)
-      throw new BadRequestException('Service is currently unavailable');
+      throw new BadRequestException(`المنتج "${serviceName}" غير متاح حاليًا`);
 
     const branch = service.Store.branches[0];
     if (!branch)
