@@ -3,6 +3,7 @@ import { ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
 import { CurrentUser } from 'src/_modules/authentication/decorators/current-user.decorator';
+import { AttachStoreId } from 'src/decorators/api/attachStoreIdInterceptor.decorator';
 import { ApiOptionalIdParam, ApiRequiredIdParam } from 'src/decorators/api/id-params.decorator';
 import { Filter } from 'src/decorators/param/filter.decorator';
 import { RequiredIdParam } from 'src/dtos/params/id-param.dto';
@@ -21,6 +22,7 @@ export class RatingController {
   ) {}
 
   @Get(['/', '/:id'])
+  @AttachStoreId()
   @ApiOptionalIdParam('id')
   @ApiQuery({ type: PartialType(FilterRatingDTO) })
   async findAll(

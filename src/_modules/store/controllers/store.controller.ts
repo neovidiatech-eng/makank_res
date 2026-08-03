@@ -28,6 +28,7 @@ import { StripFieldsIfNoPermission } from 'src/decorators/api/permissionStripInt
 import { UploadMultipleFiles } from 'src/decorators/api/upload-file.decorator';
 import { Filter } from 'src/decorators/param/filter.decorator';
 import { RequiredIdParam } from 'src/dtos/params/id-param.dto';
+import { MergeStoreNameOnUpdate } from '../interceptors/merge-store-name.interceptor';
 import { isOne } from 'src/globals/helpers/first-or-many';
 import { buildExamples } from 'src/globals/helpers/generate-example.helper';
 import { tag } from 'src/globals/helpers/tag.helper';
@@ -161,6 +162,7 @@ export class StoreController {
       required: false,
     },
   ])
+  @MergeStoreNameOnUpdate()
   async update(
     @Res() res: Response,
     @Param() { id }: RequiredIdParam,
