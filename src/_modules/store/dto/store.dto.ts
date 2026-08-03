@@ -149,7 +149,7 @@ export class UpdateStoreDTO extends OmitType(PartialType(CreateStoreDTO), [
   prepTimeMinutes: number;
 
   // Delivery-time estimate range (minutes) shown alongside prep time —
-  // admin-only (see restrictedFields on PATCH /stores/:id).
+  // settable by the store itself or by an admin, same as prepTimeMinutes.
   @Optional()
   @ValidateNumber()
   deliveryTimeMinMinutes: number;

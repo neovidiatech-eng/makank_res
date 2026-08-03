@@ -142,11 +142,9 @@ export class StoreController {
       'isVerified',
       'zonePricingEnabled',
       'managedByAdmin',
-      // Delivery-time range is set by hand per store, admin-only —
-      // prepTimeMinutes is deliberately NOT in this list, the store sets
-      // its own prep time too.
-      'deliveryTimeMinMinutes',
-      'deliveryTimeMaxMinutes',
+      // deliveryTimeMinMinutes/deliveryTimeMaxMinutes and prepTimeMinutes are
+      // deliberately NOT in this list — the store sets its own delivery-time
+      // estimate and prep time, same self-service level.
     ],
     method: 'manage',
   })
