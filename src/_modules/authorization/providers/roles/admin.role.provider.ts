@@ -29,7 +29,7 @@ const adminPermissions: PermissionMap = {
   'store-commission': ['patch'],
   'store-zone-pricing': ['patch'],
   'store-managed-by-admin': ['patch'],
-  rating: ['get'],
+  rating: ['get', 'patch', 'delete'],
   servicerating: ['get'],
   storerating: ['get'],
   notification: ['post', 'get', 'patch', 'delete', 'manage'],
