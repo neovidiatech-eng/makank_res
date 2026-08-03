@@ -83,6 +83,16 @@ export class KashierController implements OnModuleInit {
       );
     } else {
       this.logger.log(`Payment failed for order ${query.orderId}`);
+      const orderId = Number(query.orderId);
+      if (!isNaN(orderId)) {
+        try {
+          await this.orderService.handleKashierFailure(orderId);
+        } catch (err) {
+          this.logger.error(
+            `Failed to process Kashier failure for order ${query.orderId}: ${err.message}`,
+          );
+        }
+      }
       return res.redirect(
         `https://your-frontend.com/payment-failure?orderId=${query.orderId}`,
       );
@@ -104,6 +114,16 @@ export class KashierController implements OnModuleInit {
       await this.orderService.handleKashierSuccess(Number(payload.orderId));
     } else {
       this.logger.log(`Webhook: Payment failed for order ${payload.orderId}`);
+      const orderId = Number(payload.orderId);
+      if (!isNaN(orderId)) {
+        try {
+          await this.orderService.handleKashierFailure(orderId);
+        } catch (err) {
+          this.logger.error(
+            `Failed to process Kashier failure webhook for order ${payload.orderId}: ${err.message}`,
+          );
+        }
+      }
     }
 
     return res.status(HttpStatus.OK).send('OK');

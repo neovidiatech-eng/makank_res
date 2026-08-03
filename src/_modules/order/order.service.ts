@@ -2293,6 +2293,42 @@ export class OrderService {
     return updatedOrder;
   }
 
+  // Mirrors verifyPayment()'s rejection branch (bank-transfer decline) — the
+  // Kashier callback/webhook previously only ever called handleKashierSuccess;
+  // a declined/failed card payment updated nothing and notified no one, so
+  // the customer had no way to know their payment didn't go through.
+  async handleKashierFailure(orderId: number) {
+    const order = await this.helpers.getOrderById(orderId);
+    if (order.paymentStatus === PaymentStatus.PAID) {
+      // Already confirmed successful by an earlier callback/webhook — a
+      // late/duplicate failure signal must never downgrade a paid order.
+      return order;
+    }
+
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.PAYMENT_FAILD },
+    });
+
+    try {
+      await this.notificationService.sendLocalizedNotification(
+        order.userId,
+        { ar: 'فشل الدفع', en: 'Payment failed' },
+        {
+          ar: 'لم تكتمل عملية الدفع، من فضلك حاول مرة أخرى',
+          en: 'Your payment could not be completed — please try again',
+        },
+        { resourceId: `${orderId}` },
+        NotificationType.ORDER,
+        orderId,
+      );
+    } catch (err) {
+      this.logger.error(`Failed to send kashier failure notification to user ${order.userId}: ${err.message}`);
+    }
+
+    return updatedOrder;
+  }
+
   // zoneId is mandatory on every stop, but lat/lng are optional — a stop with
   // no map pin gets its zone's centroid as a stand-in location, exactly like
   // Online delivery already does (ZoneService.getZoneCentroid). Everything
