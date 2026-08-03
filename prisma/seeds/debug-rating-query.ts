@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { PrismaClient } from '@prisma/client';
-import { getStoreRatingArgsWithSelect } from '../src/_modules/rating/prisma-args/rating.prisma.args';
+import { getStoreRatingArgsWithSelect } from 'src/_modules/rating/prisma-args/rating.prisma.args';
 
 const prisma = new PrismaClient();
 
