@@ -12,6 +12,7 @@ const buildTx = () => ({
 
 const buildPrisma = (tx = buildTx()) => ({
   storeTemplate: { findFirst: jest.fn() },
+  city: { findMany: jest.fn().mockResolvedValue([]) },
   $transaction: jest.fn(async (cb: any) => cb(tx)),
 });
 
@@ -264,6 +265,85 @@ describe('StoreService.update — prepTimeMinutes / deliveryTime range', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(prisma.__tx.store.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('StoreService — auto-derived cityId (no manual field, computed from location)', () => {
+  const cairoCity = {
+    id: 1,
+    lat: 30.0444,
+    lng: 31.2357,
+    radius: 15,
+    toleranceRadius: 5,
+  };
+
+  it('create() sets cityId from the main branch location when a city covers it', async () => {
+    const tx = buildTx();
+    const prisma = buildPrisma(tx);
+    (prisma.city.findMany as AnyFn).mockResolvedValue([cairoCity]);
+    (prisma.storeTemplate.findFirst as AnyFn).mockResolvedValue({
+      id: 5,
+      active: true,
+    });
+
+    await buildService(prisma, {
+      storeTemplateService: { applyTemplateWithinTx: jest.fn() },
+    }).create({ ...baseBody, lat: 30.05, lng: 31.24 }, currentUser);
+
+    const arg = (tx.store.create as AnyFn).mock.calls[0][0];
+    expect(arg.data.cityId).toBe(1);
+  });
+
+  it('create() leaves cityId null when no active city covers the location', async () => {
+    const tx = buildTx();
+    const prisma = buildPrisma(tx);
+    (prisma.city.findMany as AnyFn).mockResolvedValue([]);
+    (prisma.storeTemplate.findFirst as AnyFn).mockResolvedValue({
+      id: 5,
+      active: true,
+    });
+
+    await buildService(prisma).create(baseBody, currentUser);
+
+    const arg = (tx.store.create as AnyFn).mock.calls[0][0];
+    expect(arg.data.cityId).toBeNull();
+  });
+
+  it('update() recomputes cityId when lat/lng change', async () => {
+    const tx = {
+      store: { update: jest.fn() },
+      branch: {
+        findFirst: jest.fn().mockResolvedValue({ id: 9, closed: false, busyUntil: null }),
+        update: jest.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
+      city: { findMany: jest.fn().mockResolvedValue([cairoCity]) },
+      branch: { findFirst: jest.fn().mockResolvedValue({ lat: 30.05, lng: 31.24 }) },
+    };
+
+    await buildService(prisma as any).update(1, { lat: 30.05, lng: 31.24 } as any);
+
+    expect(tx.store.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ cityId: 1 }) }),
+    );
+  });
+
+  it('update() does not touch cityId when lat/lng are not part of the update', async () => {
+    const tx = { store: { update: jest.fn() }, branch: { findFirst: jest.fn() } };
+    const prisma = {
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
+      city: { findMany: jest.fn() },
+      branch: { findFirst: jest.fn() },
+    };
+
+    await buildService(prisma as any).update(1, { prepTimeMinutes: 10 } as any);
+
+    expect(prisma.city.findMany).not.toHaveBeenCalled();
+    expect(tx.store.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { prepTimeMinutes: 10 } }),
+    );
   });
 });
 

@@ -25,6 +25,12 @@ export const getStoreArgs = (
   // instead of here at the DB level, or LIMIT/OFFSET would lock in page
   // boundaries before open/busy/closed is even known.
   deferPagination?: boolean,
+  // The city resolved from the customer/visitor's own lat/lng (see
+  // resolveCityForPoint, called in StoreService.findAll before this runs) —
+  // authoritative and NOT the same thing as the client-supplied `cityId`
+  // filter below; when present it restricts results to that one city
+  // regardless of what (if anything) the client passed in `filter.cityId`.
+  resolvedCityId?: number | null,
 ) => {
   const { orderBy, page, limit, ...filter } = query;
   const searchArray = [
@@ -35,6 +41,13 @@ export const getStoreArgs = (
     filterKey<Store>(filter, 'isStoreAccepted'),
     filterKey<Store>(filter, 'isVerified'),
     filterKey<Store>(filter, 'isBlocked'),
+    enforceVisible && {
+      // A store whose auto-derived city was later deactivated disappears
+      // from the customer app; cityId: null (never resolved/backfilled yet)
+      // stays visible so this doesn't retroactively hide unconfigured stores.
+      OR: [{ cityId: null }, { city: { active: true } }],
+    },
+    resolvedCityId != null && { cityId: resolvedCityId },
 
     filter.active !== undefined && {
       branches: {

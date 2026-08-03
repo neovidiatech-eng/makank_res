@@ -5,6 +5,7 @@ import { PrismaService } from 'src/globals/services/prisma.service';
 
 import { firstOrMany, isOne } from 'src/globals/helpers/first-or-many';
 import { paginationParams } from 'src/globals/helpers/pagination-params';
+import { resolveCityForPoint } from 'src/globals/helpers/resolve-city-for-point.helper';
 import {
   CreateStoreDTO,
   FilterStoreDTO,
@@ -66,6 +67,15 @@ export class StoreService {
     });
     if (!template)
       throw new NotFoundException('Template not found or inactive');
+
+    // Auto-derived from the main branch's own location, never manually
+    // assigned — the store owner already has to enter this address, so
+    // there's no separate admin step to remember (and no way for it to
+    // drift from reality). Left null if no active city's radius covers
+    // this point yet.
+    const resolvedCity = await resolveCityForPoint(this.prisma, lat, lng);
+    storeData['cityId'] = resolvedCity?.id ?? null;
+
     if (CurrentUser && CurrentUser.Role.roleKey === RolesKeys.ADMIN) {
       // Admin-created stores are trusted immediately — no review queue.
       storeData['isStoreAccepted'] = true;
@@ -129,6 +139,34 @@ export class StoreService {
       );
     }
 
+    const branchFieldsProvided =
+      lat !== undefined ||
+      lng !== undefined ||
+      address !== undefined ||
+      temporarilyClosed !== undefined ||
+      closed !== undefined ||
+      body.status !== undefined;
+
+    // Re-derive the store's city whenever its location moves — using
+    // whichever of lat/lng was actually sent plus the branch's existing
+    // other coordinate, so a lat-only or lng-only update still resolves
+    // correctly instead of comparing against undefined.
+    let existingBranch: { lat: number; lng: number } | null = null;
+    if (branchFieldsProvided) {
+      existingBranch = await this.prisma.branch.findFirst({
+        where: { storeId: id },
+        select: { lat: true, lng: true },
+      });
+    }
+    if (lat !== undefined || lng !== undefined) {
+      const resolvedCity = await resolveCityForPoint(
+        this.prisma,
+        lat ?? existingBranch?.lat,
+        lng ?? existingBranch?.lng,
+      );
+      storeData['cityId'] = resolvedCity?.id ?? null;
+    }
+
     await this.prisma.$transaction(async (tx) => {
       // Update Store record (if there are fields left)
       if (Object.keys(storeData).length > 0) {
@@ -136,14 +174,7 @@ export class StoreService {
       }
 
       // Update the "main" branch (first one) if branch fields are provided
-      if (
-        lat !== undefined ||
-        lng !== undefined ||
-        address !== undefined ||
-        temporarilyClosed !== undefined ||
-        closed !== undefined ||
-        body.status !== undefined
-      ) {
+      if (branchFieldsProvided) {
         const firstBranch = await tx.branch.findFirst({
           where: { storeId: id },
         });
@@ -336,6 +367,25 @@ export class StoreService {
     const customerId = filters?.customerId;
     const shouldUseNearest = (customerId || isVisitor) && !filters?.id;
     const enforceVisible = !!(customerId || isVisitor);
+
+    // Customer/visitor browse listing only (not a single-store fetch, same
+    // scope as shouldUseNearest): the customer only ever sees restaurants in
+    // whichever active city their own location resolves to. If their point
+    // doesn't fall inside ANY active city's radius, they see no restaurants
+    // at all rather than an unscoped/wrong-city list.
+    let resolvedCityId: number | null | undefined;
+    if (shouldUseNearest && filters?.lat != null && filters?.lng != null) {
+      const resolved = await resolveCityForPoint(
+        this.prisma,
+        filters.lat,
+        filters.lng,
+      );
+      // shouldUseNearest already implies !filters?.id, so this is always
+      // the list case — no active city covers this point, so no stores.
+      if (!resolved) return [];
+      resolvedCityId = resolved.id;
+    }
+
     const [languages, stores] = await Promise.all([
       this.Language.getCashedLanguages(),
       this.getNearestStoresIfNeeded(filters, isVisitor),
@@ -348,6 +398,7 @@ export class StoreService {
       shouldUseNearest,
       enforceVisible,
       shouldUseNearest,
+      resolvedCityId,
     );
     // Only the store detail/profile view (single-id fetch) embeds active bundles.
     const argsWithSelect = getStoreArgsWithSelect(customerId, !!filters?.id);
@@ -518,6 +569,17 @@ export class StoreService {
     const shouldUseNearest = (customerId || isVisitor) && !filters?.id;
     const enforceVisible = !!(customerId || isVisitor);
 
+    let resolvedCityId: number | null | undefined;
+    if (shouldUseNearest && filters?.lat != null && filters?.lng != null) {
+      const resolved = await resolveCityForPoint(
+        this.prisma,
+        filters.lat,
+        filters.lng,
+      );
+      if (!resolved) return 0;
+      resolvedCityId = resolved.id;
+    }
+
     filters.limit = 100000000;
     const [languages, stores] = await Promise.all([
       this.Language.getCashedLanguages(),
@@ -529,6 +591,8 @@ export class StoreService {
       stores,
       shouldUseNearest,
       enforceVisible,
+      undefined,
+      resolvedCityId,
     );
     const total = await this.prisma.store.count({ where: args.where });
 
