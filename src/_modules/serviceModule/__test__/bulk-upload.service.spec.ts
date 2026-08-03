@@ -17,6 +17,8 @@ const buildWorkbookBuffer = async (rows: any[][]) => {
     'السعر بعد الخصم',
     'مدة التحضير بالدقايق',
     'متاح (نعم/لا)',
+    'الأحجام',
+    'الإضافات',
   ]);
   rows.forEach((r) => sheet.addRow(r));
   return Buffer.from(await workbook.xlsx.writeBuffer());
@@ -138,5 +140,55 @@ describe('ServiceModuleService.bulkUploadFromExcel', () => {
     await service.bulkUploadFromExcel(9, buffer);
 
     expect(logsService.createLog).not.toHaveBeenCalled();
+  });
+
+  it('passes parsed Sizes/Addons through to create(), with the first size marked default', async () => {
+    const { service } = buildService({ existingCategory: { id: 700 } });
+    const buffer = await buildWorkbookBuffer([
+      [
+        'ساندوتشات',
+        'برجر',
+        '',
+        '',
+        '',
+        80,
+        '',
+        '',
+        '',
+        'صغير:80;وسط:100:90',
+        'جبنة إضافية:10',
+      ],
+    ]);
+
+    await service.bulkUploadFromExcel(9, buffer, storeUser);
+
+    expect(service.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Sizes: [
+          { name: { ar: 'صغير', en: 'صغير' }, price: 80, isDefault: true },
+          {
+            name: { ar: 'وسط', en: 'وسط' },
+            price: 100,
+            priceAfterDiscount: 90,
+            isDefault: false,
+          },
+        ],
+        Addons: [{ name: { ar: 'جبنة إضافية', en: 'جبنة إضافية' }, price: 10 }],
+      }),
+    );
+  });
+
+  it('fails the row with a clear reason instead of silently dropping a malformed size', async () => {
+    const { service } = buildService({ existingCategory: { id: 700 } });
+    const buffer = await buildWorkbookBuffer([
+      ['ساندوتشات', 'برجر', '', '', '', 80, '', '', '', 'صغير', ''],
+    ]);
+
+    const summary = await service.bulkUploadFromExcel(9, buffer, storeUser);
+
+    expect(summary.failedCount).toBe(1);
+    expect(summary.results[0]).toMatchObject({ status: 'failed' });
+    expect(summary.results[0].reason).toEqual(expect.stringContaining('صغير'));
+    expect(service.create).not.toHaveBeenCalled();
   });
 });

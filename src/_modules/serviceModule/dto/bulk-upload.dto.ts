@@ -10,6 +10,8 @@ export const BULK_UPLOAD_COLUMNS = [
   { key: 'priceAfterDiscount', header: 'السعر بعد الخصم' },
   { key: 'durationMinutes', header: 'مدة التحضير بالدقايق' },
   { key: 'available', header: 'متاح (نعم/لا)' },
+  { key: 'sizes', header: 'الأحجام (اختياري - شوف شيت التعليمات)' },
+  { key: 'addons', header: 'الإضافات (اختياري - شوف شيت التعليمات)' },
 ] as const;
 
 export interface BulkUploadRowResult {

@@ -287,6 +287,9 @@ export class ServiceModuleService {
         if (row.price == null || row.price <= 0) {
           throw new Error('السعر مطلوب ولازم يكون رقم أكبر من صفر');
         }
+        if (row.variantErrors.length) {
+          throw new Error(row.variantErrors.join('؛ '));
+        }
 
         const categoryId = await this.resolveOrCreateCategory(
           storeId,
@@ -303,6 +306,7 @@ export class ServiceModuleService {
           durationMinutes: row.durationMinutes ?? 15,
           price: row.price,
           ...(row.priceAfterDiscount != null &&
+            row.priceAfterDiscount >= 0 &&
             row.priceAfterDiscount < row.price && {
               priceAfterDiscount: row.priceAfterDiscount,
             }),
@@ -313,6 +317,25 @@ export class ServiceModuleService {
           available: row.available,
           storeId,
           categoryId,
+          ...(row.sizes.length && {
+            Sizes: row.sizes.map((size, index) => ({
+              name: { ar: size.name, en: size.name },
+              price: size.price,
+              ...(size.priceAfterDiscount !== undefined && {
+                priceAfterDiscount: size.priceAfterDiscount,
+              }),
+              isDefault: index === 0,
+            })),
+          }),
+          ...(row.addons.length && {
+            Addons: row.addons.map((addon) => ({
+              name: { ar: addon.name, en: addon.name },
+              price: addon.price,
+              ...(addon.priceAfterDiscount !== undefined && {
+                priceAfterDiscount: addon.priceAfterDiscount,
+              }),
+            })),
+          }),
         } as unknown as CreateServiceDTO);
 
         results.push({

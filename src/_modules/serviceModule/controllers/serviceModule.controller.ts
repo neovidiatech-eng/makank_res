@@ -203,9 +203,14 @@ export class ServiceModuleController {
     // that would be mutating it before the fields even exist. Resolved
     // explicitly instead: a Store-role caller always uses their own store;
     // only Admin may (and must) pass storeId explicitly.
+    // multipart/form-data delivers every field as a string regardless of the
+    // declared TS type, so an Admin-supplied storeId must be coerced before
+    // it reaches Prisma (an Int column filtered by a string throws).
     const storeId =
-      user.Role?.roleKey === RolesKeys.STORE ? user.storeId : body.storeId;
-    if (!storeId) {
+      user.Role?.roleKey === RolesKeys.STORE
+        ? user.storeId
+        : Number(body.storeId);
+    if (!storeId || !Number.isFinite(storeId)) {
       throw new BadRequestException('storeId is required');
     }
     const summary = await this.service.bulkUploadFromExcel(
