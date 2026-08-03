@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { calculateDeletedAverageRating } from 'src/globals/helpers/calculateAverageRating.helper';
 import { PrismaService } from 'src/globals/services/prisma.service';
+import { NotificationService } from 'src/globals/services/notification.service';
 import { FilterRatingDTO } from '../dto/rating.dto';
 import {
   getDeliveryRatingArgs,
@@ -12,7 +13,10 @@ import {
 
 @Injectable()
 export class RatingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   async findAll(filters: FilterRatingDTO) {
     const { id, deliveryId, branchId, storeId } = filters;
@@ -82,7 +86,26 @@ export class RatingService {
   }
 
   async reply(id: Id, reply: string, user: CurrentUser) {
-    const rating = await this.prisma.storeRating.findUnique({ where: { id } });
+    const rating = await this.prisma.storeRating.findUnique({
+      where: { id },
+      include: {
+        store: {
+          select: {
+            name: true,
+          },
+        },
+        Branch: {
+          include: {
+            Store: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
     if (!rating) throw new NotFoundException('Rating not found');
 
     if (
@@ -96,6 +119,26 @@ export class RatingService {
       where: { id },
       data: { reply, repliedAt: new Date() },
     });
+
+    const storeName = rating.store?.name || rating.Branch?.Store?.name;
+    const storeNameAr = (storeName as any)?.ar || 'المطعم';
+    const storeNameEn = (storeName as any)?.en || 'Restaurant';
+
+    try {
+      await this.notificationService.sendLocalizedNotification(
+        rating.userId,
+        {
+          ar: `رد جديد على تقييمك من ${storeNameAr}`,
+          en: `New reply to your review from ${storeNameEn}`,
+        },
+        {
+          ar: reply,
+          en: reply,
+        },
+      );
+    } catch (err) {
+      // Don't block HTTP response if notification delivery fails
+    }
   }
 
   // Store (or admin) can delete a customer's review outright — but never
