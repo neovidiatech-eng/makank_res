@@ -1044,11 +1044,51 @@ export class OrderService {
         admins.forEach((admin) => notifyUserIds.add(admin.id));
       }
 
+      const orderDetails = await this.prisma.order.findUnique({
+        where: { id: order.id },
+        select: {
+          id: true,
+          totalPriceAfterDiscount: true,
+          paymentMethod: true,
+          paidWithWallet: true,
+          type: true,
+          Customer: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+
+      const paymentStrAr = orderDetails.paidWithWallet
+        ? 'محفظة التطبيق'
+        : orderDetails.paymentMethod === PaymentMethod.WALLET
+        ? 'تحويل بنكي'
+        : 'كاش';
+      const paymentStrEn = orderDetails.paidWithWallet
+        ? 'App Wallet'
+        : orderDetails.paymentMethod === PaymentMethod.WALLET
+        ? 'Bank Transfer'
+        : 'Cash';
+
+      const typeStrAr = orderDetails.type === OrderType.PICKUP ? 'استلام من الفرع' : 'توصيل للمنزل';
+      const typeStrEn = orderDetails.type === OrderType.PICKUP ? 'Store Pickup' : 'Home Delivery';
+
+      const customTitle = {
+        ar: `طلب جديد رقم #${orderDetails.id}`,
+        en: `New Order #${orderDetails.id}`,
+      };
+
+      const customBody = {
+        ar: `طلب جديد من العميل (${orderDetails.Customer?.name || ''}). القيمة: ${orderDetails.totalPriceAfterDiscount} ج.م. الدفع: ${paymentStrAr} (${typeStrAr}).`,
+        en: `New order from client (${orderDetails.Customer?.name || ''}). Total: EGP ${orderDetails.totalPriceAfterDiscount}. Payment: ${paymentStrEn} (${typeStrEn}).`,
+      };
+
       for (const userId of notifyUserIds) {
         await this.notificationService.sendLocalizedNotification(
           userId,
-          NotificationMessages.newOrderCreated.title,
-          NotificationMessages.newOrderCreated.body,
+          customTitle,
+          customBody,
           undefined,
           NotificationType.NEW_ORDER,
           order.id,
@@ -1909,13 +1949,15 @@ export class OrderService {
       recipients.add(order.deliveryId);
     }
 
-    const { title, body } = NotificationMessages.orderStatusChanged(status);
     for (const recipientId of recipients) {
+      const isStoreOrAdmin = recipientId !== order.userId;
+      const { title, body } = NotificationMessages.orderStatusChanged(status, order, isStoreOrAdmin);
+
       // Phase 1 passive guard: a customer-facing ORDER notification must belong to the order
       // owner. We still SEND to non-owners here (store/admin/driver clients may rely on it
       // today), but log it so the residual role-leak stays observable until Phase 2 re-types
       // those audiences off the customer ORDER contract.
-      if (recipientId !== order.userId) {
+      if (isStoreOrAdmin) {
         this.logger.warn(
           `ORDER notification to non-owner: orderId=${order.id} ownerId=${order.userId} ` +
             `recipientId=${recipientId} status=${status} context=changeStatus`,

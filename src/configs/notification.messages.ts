@@ -9,54 +9,117 @@ export const NotificationMessages = {
       en: 'New Order Created',
     },
   },
-  orderStatusChanged: (status: string) => {
-    const statuses = {
-      PREPARING: {
-        title: { ar: 'تحديث الطلب', en: 'Order Update' },
-        body: {
-          ar: 'طلبك قيد التحضير الآن',
-          en: 'Your order is being prepared',
+  orderStatusChanged: (status: string, order?: any, isStoreOrAdmin?: boolean) => {
+    const orderId = order?.id || '';
+    if (isStoreOrAdmin) {
+      const statuses = {
+        PREPARING: {
+          title: { ar: `قبول الطلب #${orderId}`, en: `Accepted Order #${orderId}` },
+          body: {
+            ar: `تم قبول الطلب رقم #${orderId} وبدأ التحضير في المطبخ.`,
+            en: `Order #${orderId} was accepted and preparation has started.`,
+          },
         },
-      },
-      READY_PICKUP: {
-        title: { ar: 'الطلب جاهز', en: 'Order Ready' },
-        body: {
-          ar: 'طلبك جاهز للاستلام',
-          en: 'Your order is ready for pickup',
+        READY_PICKUP: {
+          title: { ar: `الطلب جاهز #${orderId}`, en: `Order #${orderId} Ready` },
+          body: {
+            ar: `الطلب رقم #${orderId} أصبح جاهزاً للتسليم/الاستلام.`,
+            en: `Order #${orderId} is now ready for pickup/handover.`,
+          },
         },
-      },
-      ON_THE_WAY: {
-        title: { ar: 'طلبك في الطريق', en: 'Order on the way' },
-        body: {
-          ar: 'طلبك في الطريق إليك الآن',
-          en: 'Your order is on the way',
+        ON_THE_WAY: {
+          title: { ar: `الطلب في الطريق #${orderId}`, en: `Order #${orderId} On The Way` },
+          body: {
+            ar: `الطلب رقم #${orderId} في الطريق للعميل مع المندوب.`,
+            en: `Order #${orderId} is now on the way to the client with the driver.`,
+          },
         },
-      },
-      DELIVERED: {
-        title: { ar: 'تم التوصيل', en: 'Order Delivered' },
-        body: {
-          ar: 'تم توصيل طلبك بنجاح',
-          en: 'Your order has been delivered safely',
+        DELIVERED: {
+          title: { ar: `تم تسليم الطلب #${orderId}`, en: `Order #${orderId} Delivered` },
+          body: {
+            ar: `تم تسليم الطلب رقم #${orderId} للعميل بنجاح.`,
+            en: `Order #${orderId} has been successfully delivered to the customer.`,
+          },
         },
-      },
-      CANCELLED: {
-        title: { ar: 'تم إلغاء الطلب', en: 'Order Cancelled' },
-        body: { ar: 'تم إلغاء طلبك', en: 'Your order has been cancelled' },
-      },
-      REJECTED: {
-        title: { ar: 'تم رفض الطلب', en: 'Order Rejected' },
-        body: { ar: 'تم رفض طلبك', en: 'Your order has been rejected' },
-      },
-    };
-    return (
-      statuses[status] || {
-        title: { ar: 'تحديث الطلب', en: 'Order Update' },
-        body: {
-          ar: `تغيرت حالة طلبك إلى ${status}`,
-          en: `Your order status changed to ${status}`,
+        CANCELLED: {
+          title: { ar: `إلغاء الطلب #${orderId}`, en: `Order #${orderId} Cancelled` },
+          body: {
+            ar: `تم إلغاء الطلب رقم #${orderId} من قبل العميل.`,
+            en: `Order #${orderId} was cancelled by the customer.`,
+          },
         },
-      }
-    );
+        REJECTED: {
+          title: { ar: `رفض الطلب #${orderId}`, en: `Order #${orderId} Rejected` },
+          body: {
+            ar: `تم رفض الطلب رقم #${orderId}.`,
+            en: `Order #${orderId} was rejected.`,
+          },
+        },
+      };
+      return (
+        statuses[status] || {
+          title: { ar: `تحديث الطلب #${orderId}`, en: `Order Update #${orderId}` },
+          body: {
+            ar: `تغيرت حالة الطلب رقم #${orderId} إلى ${status}`,
+            en: `Order #${orderId} status changed to ${status}`,
+          },
+        }
+      );
+    } else {
+      const statuses = {
+        PREPARING: {
+          title: { ar: `تحديث الطلب #${orderId}`, en: `Order Update #${orderId}` },
+          body: {
+            ar: `طلبك رقم #${orderId} قيد التحضير الآن.`,
+            en: `Your order #${orderId} is being prepared now.`,
+          },
+        },
+        READY_PICKUP: {
+          title: { ar: `الطلب جاهز #${orderId}`, en: `Order Ready #${orderId}` },
+          body: {
+            ar: `طلبك رقم #${orderId} جاهز للاستلام.`,
+            en: `Your order #${orderId} is ready for pickup.`,
+          },
+        },
+        ON_THE_WAY: {
+          title: { ar: `طلبك في الطريق #${orderId}`, en: `Order On The Way #${orderId}` },
+          body: {
+            ar: `طلبك رقم #${orderId} في الطريق إليك الآن.`,
+            en: `Your order #${orderId} is on the way.`,
+          },
+        },
+        DELIVERED: {
+          title: { ar: `تم التوصيل #${orderId}`, en: `Order Delivered #${orderId}` },
+          body: {
+            ar: `تم توصيل طلبك رقم #${orderId} بنجاح.`,
+            en: `Your order #${orderId} has been delivered safely.`,
+          },
+        },
+        CANCELLED: {
+          title: { ar: `تم إلغاء الطلب #${orderId}`, en: `Order Cancelled #${orderId}` },
+          body: {
+            ar: `تم إلغاء طلبك رقم #${orderId}.`,
+            en: `Your order #${orderId} has been cancelled.`,
+          },
+        },
+        REJECTED: {
+          title: { ar: `تم رفض الطلب #${orderId}`, en: `Order Rejected #${orderId}` },
+          body: {
+            ar: `تم رفض طلبك رقم #${orderId}.`,
+            en: `Your order #${orderId} has been rejected.`,
+          },
+        },
+      };
+      return (
+        statuses[status] || {
+          title: { ar: `تحديث الطلب #${orderId}`, en: `Order Update #${orderId}` },
+          body: {
+            ar: `تغيرت حالة طلبك رقم #${orderId} إلى ${status}`,
+            en: `Your order #${orderId} status changed to ${status}`,
+          },
+        }
+      );
+    }
   },
   // Sent to admins only, when a store rejects an order the platform already
   // took payment for. No automatic refund happens on REJECTED — this is the
