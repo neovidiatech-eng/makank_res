@@ -74,6 +74,24 @@ export class StoreScheduleController {
       schedule,
     );
   }
+  @Get('/')
+  @ApiOperation({ summary: 'Get current store schedules' })
+  async getMySchedules(
+    @Res() res: Response,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (!user?.branchId) throw new BadRequestException('Branch ID is required');
+    const schedule = await this.globalHelpers.getStoreAvailableDays(
+      user.branchId,
+      true,
+    );
+    return this.response.success(
+      res,
+      'store schedule returned successfully',
+      schedule,
+    );
+  }
+
   @Get('/:id/:date')
   @ApiRequiredIdParam('id')
   @ApiParam({

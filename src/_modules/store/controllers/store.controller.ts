@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -351,6 +352,19 @@ export class StoreController {
   ) {
     await this.service.deleteZonePrice(id, zoneId);
     return this.response.success(res, 'store zone price removed successfully');
+  }
+
+  @Get('me')
+  @Auth({ prefix })
+  async getMyStore(
+    @Res() res: Response,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (!user.storeId) {
+      throw new BadRequestException('Store ID not found for this user');
+    }
+    const store = await this.service.findAll({ id: user.storeId } as FilterStoreDTO);
+    return this.response.success(res, 'Store fetched successfully', store);
   }
 
   @Get(['/', '/:id'])
