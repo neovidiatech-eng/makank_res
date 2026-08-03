@@ -12,6 +12,9 @@
 // Takes effect immediately — permissions are read fresh from the DB on every
 // request (access-token.strategy.ts), so no one needs to log out/in again.
 
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import { PrismaClient } from '@prisma/client';
 import { seedPermissions, seedRoles, seedRolePermissions } from './permissionAndRoles.seed';
 
