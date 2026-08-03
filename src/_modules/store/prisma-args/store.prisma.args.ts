@@ -18,6 +18,13 @@ export const getStoreArgs = (
   stores: Store[],
   filterWithStore?: boolean,
   enforceVisible?: boolean,
+  // The customer/visitor browse listing pushes busy/closed stores below open
+  // ones, computed in JS from live status/busyUntil after the fact — not a
+  // plain sortable column — so pagination for that path must be deferred
+  // (applied as a manual slice AFTER that sort, in StoreService.findAll)
+  // instead of here at the DB level, or LIMIT/OFFSET would lock in page
+  // boundaries before open/busy/closed is even known.
+  deferPagination?: boolean,
 ) => {
   const { orderBy, page, limit, ...filter } = query;
   const searchArray = [
@@ -135,7 +142,7 @@ export const getStoreArgs = (
     orderKey('id', 'id', orderBy),
   ].filter(Boolean) as Prisma.StoreOrderByWithRelationInput[];
   return {
-    ...paginateOrNot({ limit, page }, query?.id),
+    ...(!deferPagination && paginateOrNot({ limit, page }, query?.id)),
     orderBy: orderArray.length
       ? orderArray
       : [{ storeOrder: 'asc' }, { id: 'asc' }],

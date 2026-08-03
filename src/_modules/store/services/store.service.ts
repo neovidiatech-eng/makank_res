@@ -4,6 +4,7 @@ import { NotificationService } from 'src/globals/services/notification.service';
 import { PrismaService } from 'src/globals/services/prisma.service';
 
 import { firstOrMany, isOne } from 'src/globals/helpers/first-or-many';
+import { paginationParams } from 'src/globals/helpers/pagination-params';
 import {
   CreateStoreDTO,
   FilterStoreDTO,
@@ -346,6 +347,7 @@ export class StoreService {
       stores,
       shouldUseNearest,
       enforceVisible,
+      shouldUseNearest,
     );
     // Only the store detail/profile view (single-id fetch) embeds active bundles.
     const argsWithSelect = getStoreArgsWithSelect(customerId, !!filters?.id);
@@ -377,7 +379,7 @@ export class StoreService {
       'shippingKMCharge',
     ]);
 
-    const processedData = await Promise.all(
+    let processedData = await Promise.all(
       storesArray.map(async (store: any) => {
         const storeCoupon = store.StoreCoupons?.[0]?.Coupon;
 
@@ -460,6 +462,32 @@ export class StoreService {
         return response;
       }),
     );
+
+    // Customer/visitor browse listing: push busy/closed stores below open
+    // ones. Whether a branch is genuinely open right now depends on live
+    // status/busyUntil (computed into `response.status`/`response.closed`
+    // just above), not a plain sortable DB column, so this can only be done
+    // here in JS — and it must run on the FULL matching set, not one page.
+    // Pagination for this path was deliberately skipped in getStoreArgs
+    // (deferPagination) and is applied here instead, AFTER the sort: doing
+    // it the normal way (DB-level LIMIT/OFFSET before this point) would
+    // lock in page boundaries before open/busy/closed is even known, and
+    // could strand an open store on page 2 behind a closed one holding a
+    // page-1 slot.
+    if (shouldUseNearest) {
+      const openTier = (store: any) =>
+        store.status === 'BUSY' || store.closed ? 1 : 0;
+      processedData.sort((a, b) => openTier(a) - openTier(b));
+
+      const pagination = paginationParams({
+        page: filters?.page,
+        limit: filters?.limit,
+      });
+      if (pagination) {
+        const start = (pagination.page - 1) * pagination.limit;
+        processedData = processedData.slice(start, start + pagination.limit);
+      }
+    }
 
     // Batch calculate professional distances and durations using Google Maps if coordinates are available
     if (filters?.lat && filters?.lng && processedData.length > 0) {
