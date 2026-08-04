@@ -47,7 +47,12 @@ export const getStoreArgs = (
       // stays visible so this doesn't retroactively hide unconfigured stores.
       OR: [{ cityId: null }, { city: { active: true } }],
     },
-    resolvedCityId != null && { cityId: resolvedCityId },
+    // When we know which city the customer is in, show only that city's stores
+    // OR stores that are not yet assigned to any city (cityId = null) so that
+    // existing stores created before city-gating was configured don't disappear.
+    resolvedCityId != null && {
+      OR: [{ cityId: null }, { cityId: resolvedCityId }],
+    },
 
     filter.active !== undefined && {
       branches: {
