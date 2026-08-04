@@ -53,15 +53,10 @@ export class TokenService {
     return tokenExpiries[type];
   }
 
-  private async getLatestFcmToken(userId: Id, ipAddress?: string) {
-    if (!ipAddress) {
-      return null;
-    }
-
+  private async getLatestFcmToken(userId: Id) {
     const session = await this.prisma.session.findFirst({
       where: {
         userId,
-        ipAddress,
         fcmToken: { not: null },
       },
       orderBy: { createdAt: 'desc' },
@@ -91,32 +86,17 @@ export class TokenService {
     }
 
     const normalizedFcmToken =
-      fcmToken ?? (await this.getLatestFcmToken(userId, ipAddress));
+      fcmToken ?? (await this.getLatestFcmToken(userId));
 
     // DEBUG — diagnose sessions created with no FCM token (safe: no full token logged)
     if (!normalizedFcmToken) {
       this.logger.warn(
-        `[push-debug] generateToken userId=${userId} type=${type} — no FCM token (provided=${!!fcmToken} fallback=${!!ipAddress}). Push will not reach this session.`,
+        `[push-debug] generateToken userId=${userId} type=${type} — no FCM token (provided=${!!fcmToken}). Push will not reach this session.`,
       );
     } else {
       this.logger.debug(
         `[push-debug] generateToken userId=${userId} type=${type} — token prefix=${normalizedFcmToken.slice(0, 8)}…`,
       );
-    }
-
-    if (
-      ipAddress &&
-      ([SessionType.ACCESS, SessionType.REFRESH] as SessionType[]).includes(
-        type,
-      )
-    ) {
-      await this.prisma.session.deleteMany({
-        where: {
-          userId,
-          type,
-          ipAddress,
-        },
-      });
     }
 
     if (normalizedFcmToken) {

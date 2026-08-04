@@ -24,6 +24,7 @@ import { validBundleWhere } from 'src/_modules/bundle/prisma-args/bundle.prisma.
 import { ServiceModuleHelper } from 'src/_modules/serviceModule/services/serviceModule.helper.service';
 import { ZoneService } from 'src/_modules/zone/zone.service';
 import { calculateDistance } from 'src/globals/helpers/calculateDistance.helper';
+import { isPointInPolygon } from 'src/globals/helpers/point-in-polygon.helper';
 import { GlobalHelpers } from 'src/globals/services/globalHelpers.service';
 import { MapService } from 'src/globals/services/map.service';
 import { PrismaService } from 'src/globals/services/prisma.service';
@@ -663,10 +664,24 @@ export class HelpersService {
         lng: true,
         radius: true,
         toleranceRadius: true,
+        coordinates: true,
       },
     });
 
-    if (!city || city.lat == null || city.lng == null) {
+    if (!city) return;
+
+    const coordinates = city.coordinates as Array<{ lat: number; lng: number }> | null;
+    if (coordinates && Array.isArray(coordinates) && coordinates.length >= 3) {
+      const inside = isPointInPolygon({ lat: destLat, lng: destLng }, coordinates);
+      if (!inside) {
+        throw new BadRequestException(
+          `العنوان المحدد يقع خارج نطاق خدمة المدينة المحدد على الخريطة`,
+        );
+      }
+      return;
+    }
+
+    if (city.lat == null || city.lng == null) {
       return;
     }
 

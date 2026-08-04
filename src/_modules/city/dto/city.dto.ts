@@ -28,6 +28,15 @@ export class CreateCityDTO {
   @ValidateNumber()
   toleranceRadius?: number;
 
+  @Optional({
+    example: [
+      { lat: 30.0444, lng: 31.2357 },
+      { lat: 30.05, lng: 31.24 },
+      { lat: 30.04, lng: 31.25 },
+    ],
+  })
+  coordinates?: Json;
+
   // Turning a city off removes every one of its stores from the customer
   // app (see StoreService.findAll) — not just this city's own listing.
   @Optional()

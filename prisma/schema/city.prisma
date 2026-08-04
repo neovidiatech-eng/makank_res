@@ -5,6 +5,7 @@ model City {
   lng             Float?    @map("lng")
   radius          Float?    @default(15) @map("radius")
   toleranceRadius Float?    @default(5) @map("tolerance_radius")
+  coordinates     Json?     @map("coordinates")
   active          Boolean   @default(true) @map("active")
   deletedAt       DateTime? @map("deleted_at")
   Store           Store[]

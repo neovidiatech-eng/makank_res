@@ -29,6 +29,7 @@ export const selectCityOBJ = () => {
     lng: true,
     radius: true,
     toleranceRadius: true,
+    coordinates: true,
     active: true,
   };
   return selectArgs;

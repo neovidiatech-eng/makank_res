@@ -42,20 +42,9 @@ export class RefreshTokenStrategy extends PassportStrategy(
 
   async validate(request: Request, payload: Payload) {
     const { id, jti } = payload;
-    const clientIp = getClientIp(request);
     const foundedSession = await this.prisma.session.findUnique({
       where: { jti },
     });
-
-    // Mobile clients' IPs change constantly (WiFi<->cellular switches, tower
-    // handoffs, carrier NAT reassignment) — hard-rejecting a refresh on IP
-    // mismatch was logging real users out on every network change. Log for
-    // visibility only; don't block the refresh on it.
-    if (foundedSession && clientIp !== foundedSession.ipAddress) {
-      this.logger.warn(
-        `Refresh token used from a different IP than login (jti=${jti}, loginIp=${foundedSession.ipAddress}, requestIp=${clientIp})`,
-      );
-    }
 
     if (!id || !jti) {
       throw new UnauthorizedException('Invalid token payload');

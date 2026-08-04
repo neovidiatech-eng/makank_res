@@ -302,12 +302,6 @@ export class UserService {
     const { allow, fcm } = dto;
     const fcmToken = allow ? fcm : null;
 
-    // Get current session to find the IP address
-    const currentSession = await this.prisma.session.findUnique({
-      where: { jti },
-      select: { ipAddress: true },
-    });
-
     // Detach this FCM token from any OTHER user's sessions before (re)binding it
     // here, so a shared/reused device never keeps delivering a previous account's
     // push notifications. Only needed when actually setting a token (allow=true).
@@ -318,9 +312,9 @@ export class UserService {
       });
     }
 
-    // Update the current session
-    await this.prisma.session.update({
-      where: { jti },
+    // Update all sessions for this user with the new FCM token
+    await this.prisma.session.updateMany({
+      where: { userId },
       data: { fcmToken },
     });
 
@@ -329,17 +323,6 @@ export class UserService {
       where: { id: userId },
       data: { allowNotification: allow },
     });
-
-    // Update all REFRESH sessions for this user on the same IP
-    if (currentSession?.ipAddress) {
-      await this.prisma.session.updateMany({
-        where: {
-          userId,
-          ipAddress: currentSession.ipAddress,
-        },
-        data: { fcmToken },
-      });
-    }
   }
 
   async getCoupons(userId: Id, filters?: FilterUserCouponDTO) {

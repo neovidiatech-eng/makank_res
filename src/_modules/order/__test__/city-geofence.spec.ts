@@ -101,4 +101,42 @@ describe('HelpersService — City Geofencing & Grace Buffer', () => {
       helpersService.validateCityCoverage(2, destLat, destLng),
     ).resolves.not.toThrow();
   });
+
+  it('allows delivery location inside polygon city coordinates', async () => {
+    const polygonCity = {
+      id: 3,
+      name: { ar: 'القاهرة بوليجون', en: 'Cairo Polygon' },
+      coordinates: [
+        { lat: 30.0, lng: 31.0 },
+        { lat: 30.1, lng: 31.0 },
+        { lat: 30.1, lng: 31.1 },
+        { lat: 30.0, lng: 31.1 },
+      ],
+    };
+
+    mockPrisma.city.findUnique.mockResolvedValue(polygonCity);
+
+    await expect(
+      helpersService.validateCityCoverage(3, 30.05, 31.05),
+    ).resolves.not.toThrow();
+  });
+
+  it('rejects delivery location outside polygon city coordinates', async () => {
+    const polygonCity = {
+      id: 3,
+      name: { ar: 'القاهرة بوليجون', en: 'Cairo Polygon' },
+      coordinates: [
+        { lat: 30.0, lng: 31.0 },
+        { lat: 30.1, lng: 31.0 },
+        { lat: 30.1, lng: 31.1 },
+        { lat: 30.0, lng: 31.1 },
+      ],
+    };
+
+    mockPrisma.city.findUnique.mockResolvedValue(polygonCity);
+
+    await expect(
+      helpersService.validateCityCoverage(3, 30.5, 31.5),
+    ).rejects.toThrow(BadRequestException);
+  });
 });
