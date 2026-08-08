@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { selectUserOBJ } from 'src/_modules/user/prisma-args/user.prisma-select';
 import { paginateOrNot } from 'src/globals/helpers/pagination-params';
-import { GetDeliveriesDTO } from '../dto/delivery.dto';
+import { DriverOrderFilterEnum, GetDeliveriesDTO } from '../dto/delivery.dto';
 
 export const getDeliveryArgs = (query: GetDeliveriesDTO) => {
   const {
@@ -78,7 +78,9 @@ export const getDeliveryArgs = (query: GetDeliveriesDTO) => {
 export const getDriverListWhere = (
   query: GetDeliveriesDTO,
 ): Prisma.UserWhereInput => {
-  const { search } = query;
+  const { search, active, availableNow, onShiftOnly, forceAvailable, zeroOrdersOnly, orderFilter } = query;
+
+  const isAvailableNow = availableNow || onShiftOnly;
 
   const searchArray = [
     search
@@ -88,6 +90,32 @@ export const getDriverListWhere = (
             { email: { contains: search } },
             { phone: { contains: search } },
           ],
+        }
+      : undefined,
+    active !== undefined
+      ? { active: (active as any) === 'true' || active === true }
+      : undefined,
+    isAvailableNow !== undefined || forceAvailable !== undefined
+      ? {
+          DeliveryDetails: {
+            ...(isAvailableNow !== undefined && {
+              availableNow:
+                (isAvailableNow as any) === 'true' || isAvailableNow === true,
+            }),
+            ...(forceAvailable !== undefined && {
+              forceAvailable:
+                (forceAvailable as any) === 'true' || forceAvailable === true,
+            }),
+          },
+        }
+      : undefined,
+    (zeroOrdersOnly || orderFilter === DriverOrderFilterEnum.ZERO_DELIVERED)
+      ? {
+          DeliveryOrders: {
+            none: {
+              status: 'DELIVERED',
+            },
+          },
         }
       : undefined,
     { roleKey: RolesKeys.DELIVERY },

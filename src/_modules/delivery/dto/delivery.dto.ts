@@ -98,6 +98,15 @@ export class UpdateDeliveryDTO extends OmitType(
 
 import { PaginationParamsDTO } from 'src/dtos/params/pagination-params.dto';
 
+export enum DriverOrderFilterEnum {
+  MOST_DELIVERED = 'MOST_DELIVERED',
+  LEAST_DELIVERED = 'LEAST_DELIVERED',
+  MOST_TODAY = 'MOST_TODAY',
+  ZERO_DELIVERED = 'ZERO_DELIVERED',
+  MOST_REJECTED = 'MOST_REJECTED',
+  MOST_EARNINGS = 'MOST_EARNINGS',
+}
+
 export class GetDeliveriesDTO extends PaginationParamsDTO {
   @Optional()
   @ValidateString()
@@ -118,6 +127,22 @@ export class GetDeliveriesDTO extends PaginationParamsDTO {
   @Optional()
   @ValidateBoolean()
   forceAvailable?: boolean;
+
+  @Optional({ enum: DriverOrderFilterEnum })
+  @ValidateEnum(DriverOrderFilterEnum)
+  orderFilter?: DriverOrderFilterEnum;
+
+  @Optional()
+  @ValidateBoolean()
+  zeroOrdersOnly?: boolean;
+
+  @Optional()
+  @ValidateBoolean()
+  onShiftOnly?: boolean;
+
+  @Optional()
+  @ValidateBoolean()
+  includeStats?: boolean;
 }
 
 export class GetDeliveryStatisticsDTO {

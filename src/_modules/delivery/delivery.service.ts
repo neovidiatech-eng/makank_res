@@ -10,6 +10,7 @@ import {
   CreateDeliveryDTO,
   CreateDeliveryScheduleDTO,
   DeliveryScheduleDTO,
+  DriverOrderFilterEnum,
   GetDeliveriesDTO,
   GetDeliveryStatisticsDTO,
   GetDriverDashboardDTO,
@@ -50,13 +51,141 @@ export class DeliveryService {
     return formatEgypt(breakUntil);
   }
 
+  async attachOrderStatsToDrivers(drivers: any[]) {
+    if (!drivers || drivers.length === 0) return drivers;
+    const driverIds = drivers.map((d) => d?.id).filter(Boolean);
+    if (driverIds.length === 0) return drivers;
+
+    const { start: todayStart, end: todayEnd } = this.dayRange();
+    const todayFilter = { gte: todayStart, lte: todayEnd };
+
+    const [
+      allTimeOrdersGrouped,
+      todayOrdersGrouped,
+      activeOrdersGrouped,
+      rejectedAssignmentsGrouped,
+    ] = await Promise.all([
+      this.prisma.order.groupBy({
+        by: ['deliveryId', 'status'],
+        where: { deliveryId: { in: driverIds } },
+        _count: { id: true },
+        _sum: { shipping: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['deliveryId', 'status'],
+        where: { deliveryId: { in: driverIds }, date: todayFilter },
+        _count: { id: true },
+        _sum: { shipping: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['deliveryId'],
+        where: {
+          deliveryId: { in: driverIds },
+          status: {
+            in: [
+              OrderStatus.PREPARING,
+              OrderStatus.READY_PICKUP,
+              OrderStatus.ON_THE_WAY,
+            ],
+          },
+        },
+        _count: { id: true },
+      }),
+      this.prisma.orderDeliveryAssignment.groupBy({
+        by: ['deliveryId'],
+        where: {
+          deliveryId: { in: driverIds },
+          status: { in: [AssignmentStatus.REJECTED, AssignmentStatus.TIMEOUT] },
+        },
+        _count: { id: true },
+      }),
+    ]);
+
+    const driverStatsMap = new Map<
+      number,
+      {
+        todayDelivered: number;
+        totalDelivered: number;
+        activeOrders: number;
+        todayEarnings: number;
+        totalEarnings: number;
+        rejectedAssignments: number;
+      }
+    >();
+
+    const getStats = (id: number) => {
+      let stats = driverStatsMap.get(id);
+      if (!stats) {
+        stats = {
+          todayDelivered: 0,
+          totalDelivered: 0,
+          activeOrders: 0,
+          todayEarnings: 0,
+          totalEarnings: 0,
+          rejectedAssignments: 0,
+        };
+        driverStatsMap.set(id, stats);
+      }
+      return stats;
+    };
+
+    for (const item of allTimeOrdersGrouped) {
+      if (!item.deliveryId) continue;
+      const stats = getStats(item.deliveryId);
+      const count = item._count.id;
+      if (item.status === OrderStatus.DELIVERED) {
+        stats.totalDelivered += count;
+        stats.totalEarnings += item._sum.shipping ?? 0;
+      }
+    }
+
+    for (const item of todayOrdersGrouped) {
+      if (!item.deliveryId) continue;
+      const stats = getStats(item.deliveryId);
+      const count = item._count.id;
+      if (item.status === OrderStatus.DELIVERED) {
+        stats.todayDelivered += count;
+        stats.todayEarnings += item._sum.shipping ?? 0;
+      }
+    }
+
+    for (const item of activeOrdersGrouped) {
+      if (!item.deliveryId) continue;
+      const stats = getStats(item.deliveryId);
+      stats.activeOrders = item._count.id;
+    }
+
+    for (const item of rejectedAssignmentsGrouped) {
+      if (!item.deliveryId) continue;
+      const stats = getStats(item.deliveryId);
+      stats.rejectedAssignments = item._count.id;
+    }
+
+    return drivers.map((driver) => {
+      if (!driver) return driver;
+      const stats = driverStatsMap.get(driver.id) || {
+        todayDelivered: 0,
+        totalDelivered: 0,
+        activeOrders: 0,
+        todayEarnings: 0,
+        totalEarnings: 0,
+        rejectedAssignments: 0,
+      };
+      return {
+        ...driver,
+        orderStats: stats,
+      };
+    });
+  }
+
   async findAll(query: GetDeliveriesDTO) {
     const args = getDeliveryArgs(query);
     const [data, count] = await Promise.all([
       this.prisma.user.findMany(args),
       this.prisma.user.count({ where: args.where }),
     ]);
-    return { data, count };
+    const enrichedData = await this.attachOrderStatsToDrivers(data);
+    return { data: enrichedData, count };
   }
 
   async count(query: GetDeliveriesDTO) {
@@ -67,9 +196,7 @@ export class DeliveryService {
   /**
    * Driver Management cards listing. Returns one flat card per driver
    * (id, name, email, phone, avatar, isVerified, isAvailable, isOnShift,
-   * createdAt) plus { page, limit, total, totalPages } pagination — everything
-   * the listing UI needs in a single response. Supports ?page&limit&search
-   * (name/email/phone) via getDriverListWhere.
+   * createdAt, orderStats) plus { page, limit, total, totalPages } pagination & summary.
    */
   async findAllForDashboard(query: GetDeliveriesDTO) {
     const page = query.page || 1;
@@ -77,22 +204,28 @@ export class DeliveryService {
     const where = getDriverListWhere(query);
     const pagination = paginationParams({ page, limit });
 
-    const [rows, total] = await Promise.all([
-      this.prisma.user.findMany({
-        where,
-        select: selectDriverCardOBJ(),
-        orderBy: { createdAt: 'desc' },
-        ...(pagination
-          ? {
-              skip: (pagination.page - 1) * pagination.limit,
-              take: pagination.limit,
-            }
-          : {}),
-      }),
-      this.prisma.user.count({ where }),
-    ]);
+    const { start: todayStart, end: todayEnd } = this.dayRange();
+    const todayFilter = { gte: todayStart, lte: todayEnd };
 
-    const data = rows.map((row) => {
+    const [allDriversRows, total, onShiftDriversCount, todayDeliveredAggregate] =
+      await Promise.all([
+        this.prisma.user.findMany({
+          where,
+          select: selectDriverCardOBJ(),
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.user.count({ where }),
+        this.prisma.deliveryDetails.count({
+          where: { availableNow: true },
+        }),
+        this.prisma.order.aggregate({
+          where: { status: OrderStatus.DELIVERED, date: todayFilter },
+          _count: { id: true },
+          _sum: { shipping: true },
+        }),
+      ]);
+
+    let data = allDriversRows.map((row) => {
       const details = row.DeliveryDetails;
       return {
         id: row.id,
@@ -110,14 +243,65 @@ export class DeliveryService {
       };
     });
 
-    const effectiveLimit = pagination?.limit ?? total;
+    data = await this.attachOrderStatsToDrivers(data);
+
+    if (query.orderFilter) {
+      if (query.orderFilter === DriverOrderFilterEnum.MOST_DELIVERED) {
+        data.sort(
+          (a: any, b: any) =>
+            (b.orderStats?.totalDelivered ?? 0) -
+            (a.orderStats?.totalDelivered ?? 0),
+        );
+      } else if (query.orderFilter === DriverOrderFilterEnum.LEAST_DELIVERED) {
+        data.sort(
+          (a: any, b: any) =>
+            (a.orderStats?.totalDelivered ?? 0) -
+            (b.orderStats?.totalDelivered ?? 0),
+        );
+      } else if (query.orderFilter === DriverOrderFilterEnum.MOST_TODAY) {
+        data.sort(
+          (a: any, b: any) =>
+            (b.orderStats?.todayDelivered ?? 0) -
+            (a.orderStats?.todayDelivered ?? 0),
+        );
+      } else if (query.orderFilter === DriverOrderFilterEnum.MOST_REJECTED) {
+        data.sort(
+          (a: any, b: any) =>
+            (b.orderStats?.rejectedAssignments ?? 0) -
+            (a.orderStats?.rejectedAssignments ?? 0),
+        );
+      } else if (query.orderFilter === DriverOrderFilterEnum.MOST_EARNINGS) {
+        data.sort(
+          (a: any, b: any) =>
+            (b.orderStats?.todayEarnings ?? 0) -
+            (a.orderStats?.todayEarnings ?? 0),
+        );
+      }
+    }
+
+    const totalMatching = data.length;
+    const effectiveLimit = pagination?.limit ?? totalMatching;
+    const paginatedData = pagination
+      ? data.slice(
+          (pagination.page - 1) * pagination.limit,
+          pagination.page * pagination.limit,
+        )
+      : data;
+
     return {
-      data,
+      data: paginatedData,
+      summary: {
+        totalDrivers: total,
+        onShiftDrivers: onShiftDriversCount,
+        todayTotalDelivered: todayDeliveredAggregate._count.id ?? 0,
+        todayTotalEarnings: todayDeliveredAggregate._sum.shipping ?? 0,
+      },
       pagination: {
         page: pagination?.page ?? 1,
         limit: effectiveLimit,
-        total,
-        totalPages: effectiveLimit > 0 ? Math.ceil(total / effectiveLimit) : 0,
+        total: totalMatching,
+        totalPages:
+          effectiveLimit > 0 ? Math.ceil(totalMatching / effectiveLimit) : 0,
       },
     };
   }
