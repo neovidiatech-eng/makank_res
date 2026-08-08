@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, PaymentMethod } from '@prisma/client';
 import {
   toEgyptDateKey,
   toEgyptParts,
@@ -8,7 +8,10 @@ import { PrismaService } from 'src/globals/services/prisma.service';
 
 import { RolesKeys } from '../authorization/providers/roles';
 import { LanguagesService } from '../languages/languages.service';
-import { FilterStatisticsDTO } from './dto/statistics.dto';
+import {
+  FilterStatisticsDTO,
+  StatisticsPeriodEnum,
+} from './dto/statistics.dto';
 import { FilterByFromToDate } from './prisma-args/statistics.prisma.args';
 
 const ADMIN_PERIOD_SETTING_KEY = 'adminDashboardPeriodStartAt';
@@ -175,21 +178,70 @@ export class StatisticsService {
 
     return {
       pendingWithdrawalsCount: pendingWithdrawals._count.id || 0,
-      pendingWithdrawalsAmount: pendingWithdrawals._sum.amount || 0,
-      totalCollectedCashOutstanding: cashHeld._sum.collectedCash || 0,
       totalDriverWalletBalance: cashHeld._sum.wallet || 0,
     };
   }
 
-  // Single reference endpoint for every platform-wide financial figure —
-  // revenue, discounts given, commission (platform + store), wallet balances,
-  // withdrawal requests, and cash drivers are holding. fromDate/toDate filter
-  // the event-based figures (orders, withdrawal requests); wallet/cash
-  // balances are always the CURRENT snapshot regardless of the date filter —
-  // a "balance" has no meaningful historical value to filter by, same
-  // convention as getDriverFinanceSummary above.
+  private resolvePeriodDates(filters: FilterStatisticsDTO): {
+    fromDate?: Date;
+    toDate?: Date;
+  } {
+    let { fromDate, toDate, date, periodFilter } = filters;
+
+    if (date) {
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+      return { fromDate: start, toDate: end };
+    }
+
+    if (periodFilter) {
+      const now = new Date();
+      if (periodFilter === StatisticsPeriodEnum.TODAY) {
+        const start = new Date(now);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+        return { fromDate: start, toDate: end };
+      } else if (periodFilter === StatisticsPeriodEnum.YESTERDAY) {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(now);
+        end.setDate(end.getDate() - 1);
+        end.setHours(23, 59, 59, 999);
+        return { fromDate: start, toDate: end };
+      } else if (periodFilter === StatisticsPeriodEnum.THIS_WEEK) {
+        const start = new Date(now);
+        const day = start.getDay();
+        const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+        start.setDate(diff);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+        return { fromDate: start, toDate: end };
+      } else if (periodFilter === StatisticsPeriodEnum.THIS_MONTH) {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        const end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+        return { fromDate: start, toDate: end };
+      } else if (periodFilter === StatisticsPeriodEnum.THIS_YEAR) {
+        const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+        const end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+        return { fromDate: start, toDate: end };
+      }
+    }
+
+    return {
+      fromDate: fromDate ? new Date(fromDate) : undefined,
+      toDate: toDate ? new Date(toDate) : undefined,
+    };
+  }
+
   async getFinancialOverview(filters: FilterStatisticsDTO) {
-    const { fromDate, toDate } = filters;
+    const { fromDate, toDate } = this.resolvePeriodDates(filters);
     const orderDateFilter = FilterByFromToDate(fromDate, toDate, 'date');
     const withdrawDateFilter = FilterByFromToDate(
       fromDate,
@@ -199,6 +251,10 @@ export class StatisticsService {
 
     const [
       orderAgg,
+      deliveredOrderAgg,
+      cancelledOrdersCount,
+      cashOrdersAgg,
+      walletOrdersAgg,
       storeWithdrawPending,
       storeWithdrawApproved,
       driverWithdrawPending,
@@ -217,7 +273,41 @@ export class StatisticsService {
           shipping: true,
           tax: true,
           price: true,
+          packagingFee: true,
         },
+        _count: { id: true },
+      }),
+      this.prisma.order.aggregate({
+        where: { ...orderDateFilter, status: OrderStatus.DELIVERED },
+        _sum: {
+          totalPriceAfterDiscount: true,
+          shipping: true,
+          adminCommission: true,
+        },
+        _count: { id: true },
+      }),
+      this.prisma.order.count({
+        where: {
+          ...orderDateFilter,
+          status: { in: [OrderStatus.CANCELLED, OrderStatus.REJECTED] },
+        },
+      }),
+      this.prisma.order.aggregate({
+        where: {
+          ...orderDateFilter,
+          status: OrderStatus.DELIVERED,
+          paymentMethod: PaymentMethod.CASH,
+        },
+        _sum: { totalPriceAfterDiscount: true },
+        _count: { id: true },
+      }),
+      this.prisma.order.aggregate({
+        where: {
+          ...orderDateFilter,
+          status: OrderStatus.DELIVERED,
+          paymentMethod: PaymentMethod.WALLET,
+        },
+        _sum: { totalPriceAfterDiscount: true },
         _count: { id: true },
       }),
       this.prisma.withdraw.aggregate({
@@ -249,22 +339,52 @@ export class StatisticsService {
       }),
     ]);
 
+    const totalOrders = orderAgg._count.id || 0;
+    const deliveredOrders = deliveredOrderAgg._count.id || 0;
+    const totalRevenue = orderAgg._sum.totalPriceAfterDiscount || 0;
+    const shipping = orderAgg._sum.shipping || 0;
+    const platformCommission = orderAgg._sum.adminCommission || 0;
+
     return {
-      period: { fromDate: fromDate ?? null, toDate: toDate ?? null },
+      period: {
+        fromDate: fromDate ? fromDate.toISOString() : null,
+        toDate: toDate ? toDate.toISOString() : null,
+        periodFilter: filters.periodFilter ?? null,
+      },
+      summary: {
+        totalOrders,
+        deliveredOrders,
+        cancelledOrders: cancelledOrdersCount,
+        totalRevenue,
+        platformCommission,
+        shippingFees: shipping,
+      },
       revenue: {
-        totalOrders: orderAgg._count.id || 0,
-        totalRevenue: orderAgg._sum.totalPriceAfterDiscount || 0,
+        totalOrders,
+        deliveredOrders,
+        totalRevenue,
         totalDiscountGiven: orderAgg._sum.discountAmount || 0,
         productPrice: orderAgg._sum.price || 0,
-        shipping: orderAgg._sum.shipping || 0,
+        shipping,
         tax: orderAgg._sum.tax || 0,
+        packagingFee: orderAgg._sum.packagingFee || 0,
         globalCommission: orderAgg._sum.globalCommission || 0,
       },
       commission: {
-        platformCommission: orderAgg._sum.adminCommission || 0,
+        platformCommission,
         storeCommission: orderAgg._sum.storeCommission || 0,
       },
-      // Current snapshot — not affected by fromDate/toDate (see method comment).
+      paymentMethods: {
+        cash: {
+          count: cashOrdersAgg._count.id || 0,
+          amount: cashOrdersAgg._sum.totalPriceAfterDiscount || 0,
+        },
+        wallet: {
+          count: walletOrdersAgg._count.id || 0,
+          amount: walletOrdersAgg._sum.totalPriceAfterDiscount || 0,
+        },
+      },
+      // Current snapshot — not affected by fromDate/toDate
       walletBalances: {
         totalStoreWalletBalance: walletAgg._sum.currentBalance || 0,
         totalStoreCommissionDeducted:
@@ -273,7 +393,7 @@ export class StatisticsService {
         totalDriverUnsettledCommission:
           driverDetailsAgg._sum.unsettledCommission || 0,
       },
-      // Current snapshot — cash drivers are physically holding right now, awaiting handover.
+      // Current snapshot — cash drivers are physically holding right now
       cashCollectedByDrivers: driverDetailsAgg._sum.collectedCash || 0,
       withdrawals: {
         stores: {
