@@ -9,12 +9,13 @@ import { resolveCityForPoint } from 'src/globals/helpers/resolve-city-for-point.
 import {
   CreateStoreDTO,
   FilterStoreDTO,
+  StoreOrderFilterEnum,
   UpdateStoreDTO,
   UpdateStoreUserDTO,
 } from '../dto/store.dto';
 
 import { BadRequestException } from '@nestjs/common';
-import { CommissionType, CouponType } from '@prisma/client';
+import { CommissionType, CouponType, OrderStatus } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { ServiceModuleHelper } from 'src/_modules/serviceModule/services/serviceModule.helper.service';
 import { StoreTemplateService } from 'src/_modules/store-template/store-template.service';
@@ -561,7 +562,116 @@ export class StoreService {
       }
     }
 
+    // Attach order performance stats to each store
+    processedData = await this.attachOrderStatsToStores(processedData);
+
+    // Order filtering / sorting for admin reports
+    if (filters?.orderFilter) {
+      if (filters.orderFilter === StoreOrderFilterEnum.MOST_ORDERS) {
+        processedData.sort(
+          (a, b) =>
+            (b.orderStats?.totalOrders ?? 0) - (a.orderStats?.totalOrders ?? 0),
+        );
+      } else if (filters.orderFilter === StoreOrderFilterEnum.LEAST_ORDERS) {
+        processedData.sort(
+          (a, b) =>
+            (a.orderStats?.totalOrders ?? 0) - (b.orderStats?.totalOrders ?? 0),
+        );
+      } else if (filters.orderFilter === StoreOrderFilterEnum.MOST_CANCELLED) {
+        processedData.sort(
+          (a, b) =>
+            (b.orderStats?.cancelledOrders ?? 0) -
+            (a.orderStats?.cancelledOrders ?? 0),
+        );
+      } else if (filters.orderFilter === StoreOrderFilterEnum.MOST_REVENUE) {
+        processedData.sort(
+          (a, b) =>
+            (b.orderStats?.totalRevenue ?? 0) -
+            (a.orderStats?.totalRevenue ?? 0),
+        );
+      }
+    }
+
     return Array.isArray(data) ? processedData : processedData[0];
+  }
+
+  async attachOrderStatsToStores(stores: any[]) {
+    if (!stores || stores.length === 0) return stores;
+    const storeIds = stores.map((s) => s?.id).filter(Boolean);
+    if (storeIds.length === 0) return stores;
+
+    const branches = await this.prisma.branch.findMany({
+      where: { storeId: { in: storeIds }, deletedAt: null },
+      select: { id: true, storeId: true },
+    });
+
+    const branchToStoreMap = new Map<number, number>();
+    const branchIds: number[] = [];
+    for (const b of branches) {
+      branchToStoreMap.set(b.id, b.storeId);
+      branchIds.push(b.id);
+    }
+
+    const storeStatsMap = new Map<
+      number,
+      {
+        totalOrders: number;
+        completedOrders: number;
+        cancelledOrders: number;
+        totalRevenue: number;
+      }
+    >();
+
+    if (branchIds.length > 0) {
+      const statsGrouped = await this.prisma.order.groupBy({
+        by: ['branchId', 'status'],
+        where: { branchId: { in: branchIds } },
+        _count: { id: true },
+        _sum: { totalPriceAfterDiscount: true },
+      });
+
+      for (const item of statsGrouped) {
+        if (!item.branchId) continue;
+        const storeId = branchToStoreMap.get(item.branchId);
+        if (!storeId) continue;
+
+        let stats = storeStatsMap.get(storeId);
+        if (!stats) {
+          stats = {
+            totalOrders: 0,
+            completedOrders: 0,
+            cancelledOrders: 0,
+            totalRevenue: 0,
+          };
+          storeStatsMap.set(storeId, stats);
+        }
+        const count = item._count.id;
+        stats.totalOrders += count;
+        if (item.status === OrderStatus.DELIVERED) {
+          stats.completedOrders += count;
+          stats.totalRevenue += item._sum.totalPriceAfterDiscount ?? 0;
+        } else if (
+          item.status === OrderStatus.CANCELLED ||
+          item.status === OrderStatus.REJECTED
+        ) {
+          stats.cancelledOrders += count;
+        }
+      }
+    }
+
+    return stores.map((store) => {
+      if (!store) return store;
+      const stats = storeStatsMap.get(store.id) || {
+        totalOrders: 0,
+        completedOrders: 0,
+        cancelledOrders: 0,
+        totalRevenue: 0,
+      };
+      return {
+        ...store,
+        orderStats: stats,
+      };
+    });
   }
 
   async count(filters: FilterStoreDTO, isVisitor?: boolean) {

@@ -10,7 +10,7 @@ import {
   filterKey,
   orderKey,
 } from 'src/globals/helpers/prisma-filters';
-import { FilterStoreDTO } from '../dto/store.dto';
+import { FilterStoreDTO, StoreOrderFilterEnum } from '../dto/store.dto';
 
 export const getStoreArgs = (
   query: FilterStoreDTO,
@@ -41,6 +41,15 @@ export const getStoreArgs = (
     filterKey<Store>(filter, 'isStoreAccepted'),
     filterKey<Store>(filter, 'isVerified'),
     filterKey<Store>(filter, 'isBlocked'),
+    (filter?.zeroOrdersOnly || filter?.orderFilter === StoreOrderFilterEnum.ZERO_ORDERS) && {
+      branches: {
+        none: {
+          Orders: {
+            some: {},
+          },
+        },
+      },
+    },
     enforceVisible && {
       // A store whose auto-derived city was later deactivated disappears
       // from the customer app; cityId: null (never resolved/backfilled yet)

@@ -4,6 +4,16 @@ import { ValidateNumber } from 'src/decorators/dto/validators/validate-number.de
 import { ValidateString } from 'src/decorators/dto/validators/validate-string.decorator';
 import { PaginationParamsDTO } from 'src/dtos/params/pagination-params.dto';
 
+import { ValidateEnum } from 'src/decorators/dto/enum.decorator';
+import { ValidateBoolean } from 'src/decorators/dto/validators/validate-boolean.decorator';
+
+export enum UserOrderFilterEnum {
+  MOST_ORDERS = 'MOST_ORDERS',
+  LEAST_ORDERS = 'LEAST_ORDERS',
+  ZERO_ORDERS = 'ZERO_ORDERS',
+  MOST_CANCELLED = 'MOST_CANCELLED',
+}
+
 export class FilterUserDTO extends PaginationParamsDTO {
   @Optional({})
   @ValidateNumber({ allowNegative: false })
@@ -29,4 +39,17 @@ export class FilterUserDTO extends PaginationParamsDTO {
 
   @OptionalSwagger()
   storeId?: Id;
+
+  @Optional({ enum: UserOrderFilterEnum })
+  @ValidateEnum(UserOrderFilterEnum)
+  orderFilter?: UserOrderFilterEnum;
+
+  @Optional()
+  @ValidateBoolean()
+  zeroOrdersOnly?: boolean;
+
+  @Optional()
+  @ValidateBoolean()
+  includeStats?: boolean;
 }
+

@@ -8,9 +8,9 @@ import * as path from 'path';
 
 import { PrismaService } from '../../../globals/services/prisma.service';
 
-import { OTPType, SessionType } from '@prisma/client';
+import { OrderStatus, OTPType, SessionType } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
-import { firstOrMany } from 'src/globals/helpers/first-or-many';
+import { firstOrMany, isOne } from 'src/globals/helpers/first-or-many';
 import {
   hashPassword,
   validateUserPassword,
@@ -26,7 +26,7 @@ import {
   UpdateUserPasswordDTO,
 } from '../dto/create.user.dto';
 import { FilterUserCouponDTO } from '../dto/filter.user.coupon.dto';
-import { FilterUserDTO } from '../dto/filter.user.dto';
+import { FilterUserDTO, UserOrderFilterEnum } from '../dto/filter.user.dto';
 import { getUserArgs } from '../prisma-args/user.prisma-ags';
 import {
   FlattenedUser,
@@ -55,11 +55,96 @@ export class UserService {
     return flattenUser;
   }
 
-  async getAll(filters: FilterUserDTO) {
-    const args = getUserArgs(filters);
-    const users = await this.prisma.user[firstOrMany(filters.id)](args);
-    return users;
+  async attachOrderStatsToUsers(users: any[]) {
+    if (!users || users.length === 0) return users;
+    const userIds = users.map((u) => u?.id).filter(Boolean);
+    if (userIds.length === 0) return users;
+
+    const statsGrouped = await this.prisma.order.groupBy({
+      by: ['userId', 'status'],
+      where: { userId: { in: userIds } },
+      _count: { id: true },
+      _sum: { totalPriceAfterDiscount: true },
+    });
+
+    const userStatsMap = new Map<
+      number,
+      {
+        totalOrders: number;
+        completedOrders: number;
+        cancelledOrders: number;
+        totalSpent: number;
+      }
+    >();
+
+    for (const item of statsGrouped) {
+      let stats = userStatsMap.get(item.userId);
+      if (!stats) {
+        stats = {
+          totalOrders: 0,
+          completedOrders: 0,
+          cancelledOrders: 0,
+          totalSpent: 0,
+        };
+        userStatsMap.set(item.userId, stats);
+      }
+      const count = item._count.id;
+      stats.totalOrders += count;
+      if (item.status === OrderStatus.DELIVERED) {
+        stats.completedOrders += count;
+        stats.totalSpent += item._sum.totalPriceAfterDiscount ?? 0;
+      } else if (
+        item.status === OrderStatus.CANCELLED ||
+        item.status === OrderStatus.REJECTED
+      ) {
+        stats.cancelledOrders += count;
+      }
+    }
+
+    return users.map((user) => {
+      if (!user) return user;
+      const stats = userStatsMap.get(user.id) || {
+        totalOrders: 0,
+        completedOrders: 0,
+        cancelledOrders: 0,
+        totalSpent: 0,
+      };
+      return {
+        ...user,
+        orderStats: stats,
+      };
+    });
   }
+
+  async getAll(filters: FilterUserDTO) {
+    if (filters?.orderFilter === UserOrderFilterEnum.MOST_CANCELLED) {
+      const args = getUserArgs(filters);
+      delete args.take;
+      delete args.skip;
+
+      const users = (await this.prisma.user.findMany(args)) as any[];
+      const enrichedUsers = await this.attachOrderStatsToUsers(users);
+
+      enrichedUsers.sort(
+        (a, b) =>
+          (b.orderStats?.cancelledOrders ?? 0) -
+          (a.orderStats?.cancelledOrders ?? 0),
+      );
+
+      const page = filters.page ? +filters.page : 1;
+      const limit = filters.limit ? +filters.limit : 10;
+      const paginated = enrichedUsers.slice((page - 1) * limit, page * limit);
+      return isOne(filters?.id) ? paginated[0] || null : paginated;
+    }
+
+    const args = getUserArgs(filters);
+    const users = await this.prisma.user[firstOrMany(filters?.id)](args);
+    if (!users) return isOne(filters?.id) ? null : [];
+    const usersArray = Array.isArray(users) ? users : [users];
+    const enriched = await this.attachOrderStatsToUsers(usersArray);
+    return isOne(filters?.id) ? enriched[0] || null : enriched;
+  }
+
   async getFcmToken(jti: string) {
     const session = await this.prisma.session.findUnique({
       where: { jti },
@@ -68,10 +153,12 @@ export class UserService {
 
     return session?.fcmToken;
   }
+
   async count(filters: FilterUserDTO) {
     const args = getUserArgs(filters);
     return this.prisma.user.count({ where: args.where });
   }
+
 
   async delete(id: Id) {
     const user = await this.prisma.user.findUnique({ where: { id } });

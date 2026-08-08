@@ -205,6 +205,14 @@ export class SortStoreDTO {
   @ApiProperty({ example: 'desc' })
   popular?: SortOptions;
 }
+export enum StoreOrderFilterEnum {
+  MOST_ORDERS = 'MOST_ORDERS',
+  LEAST_ORDERS = 'LEAST_ORDERS',
+  ZERO_ORDERS = 'ZERO_ORDERS',
+  MOST_CANCELLED = 'MOST_CANCELLED',
+  MOST_REVENUE = 'MOST_REVENUE',
+}
+
 export class FilterStoreDTO extends PaginationParamsDTO {
   @Optional()
   @ValidateNumber()
@@ -301,6 +309,18 @@ export class FilterStoreDTO extends PaginationParamsDTO {
   @OptionalSwagger()
   @ValidateNumber()
   customerId: Id;
+
+  @Optional({ enum: StoreOrderFilterEnum })
+  @ValidateEnum(StoreOrderFilterEnum)
+  orderFilter?: StoreOrderFilterEnum;
+
+  @Optional()
+  @ValidateBoolean()
+  zeroOrdersOnly?: boolean;
+
+  @Optional()
+  @ValidateBoolean()
+  includeStats?: boolean;
 
   @Optional()
   orderBy?: SortStoreDTO[];
