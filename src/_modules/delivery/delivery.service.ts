@@ -344,7 +344,16 @@ export class DeliveryService {
         verified: true,
         active: true,
         DeliveryDetails: {
-          select: { availableNow: true, forceAvailable: true },
+          select: {
+            availableNow: true,
+            forceAvailable: true,
+          },
+        },
+        Details: {
+          select: {
+            wallet: true,
+            collectedCash: true,
+          },
         },
       },
     });
@@ -353,8 +362,22 @@ export class DeliveryService {
       throw new NotFoundException('Delivery person not found');
     }
 
-    const { start, end } = this.dayRange(query.date);
-    const dayDateFilter = { gte: start, lte: end };
+    let dateFilter: any = undefined;
+    if (query.fromDate || query.toDate) {
+      dateFilter = {
+        ...(query.fromDate && { gte: new Date(query.fromDate) }),
+        ...(query.toDate && { lte: new Date(query.toDate) }),
+      };
+    } else if (query.date) {
+      const { start, end } = this.dayRange(query.date);
+      dateFilter = { gte: start, lte: end };
+    } else {
+      const { start, end } = this.dayRange();
+      dateFilter = { gte: start, lte: end };
+    }
+
+    const assignedAtFilter = dateFilter ? { assignedAt: dateFilter } : {};
+    const orderDateFilter = dateFilter ? { date: dateFilter } : {};
 
     const [
       acceptedAssignments,
@@ -363,33 +386,31 @@ export class DeliveryService {
       financials,
       orders,
     ] = await Promise.all([
-      // Accepted (assignment accepted by this driver) within the day
+      // Accepted (assignment accepted by this driver)
       this.prisma.orderDeliveryAssignment.count({
         where: {
           deliveryId: id,
           status: AssignmentStatus.ACCEPTED,
-          assignedAt: dayDateFilter,
+          ...assignedAtFilter,
         },
       }),
-      // Rejected = explicit REJECTED + lapsed TIMEOUT (system's decline workflow)
+      // Rejected = explicit REJECTED + lapsed TIMEOUT
       this.prisma.orderDeliveryAssignment.count({
         where: {
           deliveryId: id,
           status: { in: [AssignmentStatus.REJECTED, AssignmentStatus.TIMEOUT] },
-          assignedAt: dayDateFilter,
+          ...assignedAtFilter,
         },
       }),
       this.prisma.order.count({
         where: {
           deliveryId: id,
           status: OrderStatus.DELIVERED,
-          date: dayDateFilter,
+          ...orderDateFilter,
         },
       }),
-      // Financial summary across this driver's orders for the day — sum of the
-      // already-persisted per-order values (no duplication of pricing logic).
       this.prisma.order.aggregate({
-        where: { deliveryId: id, date: dayDateFilter },
+        where: { deliveryId: id, ...orderDateFilter },
         _sum: {
           totalPriceAfterDiscount: true,
           shipping: true,
@@ -398,16 +419,12 @@ export class DeliveryService {
         },
       }),
       this.prisma.order.findMany({
-        where: { deliveryId: id, date: dayDateFilter },
+        where: { deliveryId: id, ...orderDateFilter },
         select: selectDriverDashboardOrderOBJ(),
         orderBy: { createdAt: 'desc' },
       }),
     ]);
 
-    // Label the day using local calendar parts (not toISOString, which is UTC)
-    // so it matches the local-time day bounds above on servers ahead of UTC.
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const selectedDate = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
     const details = driver.DeliveryDetails;
 
     return {
@@ -423,7 +440,6 @@ export class DeliveryService {
         isOnShift: details?.availableNow ?? false,
       },
       statistics: {
-        selectedDate,
         acceptedOrders: acceptedAssignments,
         rejectedOrders: rejectedAssignments,
         deliveredOrders: deliveredCount,
@@ -433,6 +449,8 @@ export class DeliveryService {
         deliveryFees: financials._sum.shipping ?? 0,
         tips: financials._sum.tip ?? 0,
         adminCommission: financials._sum.adminCommission ?? 0,
+        walletBalance: driver.Details?.wallet ?? 0,
+        collectedCash: driver.Details?.collectedCash ?? 0,
       },
       acceptanceSummary: {
         acceptedOrders: acceptedAssignments,

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
+  CommissionType,
   NotificationTargetType,
   NotificationType,
   Prisma,
@@ -434,6 +435,57 @@ export class AdminNotificationService {
     };
 
     // Send to all customers who allow notifications, in bounded chunks.
+    const customers = await this.prisma.user.findMany({
+      where: {
+        roleKey: RolesKeys.CUSTOMER,
+        deletedAt: null,
+        active: true,
+        allowNotification: true,
+      },
+      select: { id: true },
+    });
+
+    await this.dispatchChunked(customers, title, body, storeId);
+  }
+
+  async sendStoreDiscountNotification(
+    storeId: number,
+    discountType: CommissionType,
+    value: number,
+    categoryName?: string,
+  ) {
+    const store = await this.prisma.store.findUnique({
+      where: { id: storeId },
+    });
+    if (!store) return;
+
+    const storeNameAr =
+      typeof store.name === 'object' && store.name
+        ? (store.name as any)['ar'] || (store.name as any)['en'] || 'المتجر'
+        : store.name || 'المتجر';
+    const storeNameEn =
+      typeof store.name === 'object' && store.name
+        ? (store.name as any)['en'] || (store.name as any)['ar'] || 'the store'
+        : store.name || 'the store';
+
+    const discountTextAr =
+      discountType === CommissionType.PERCENTAGE ? `${value}%` : `${value} ج.م`;
+    const discountTextEn =
+      discountType === CommissionType.PERCENTAGE ? `${value}%` : `${value} EGP`;
+
+    const title = {
+      en: `🔥 Special Offer at ${storeNameEn}!`,
+      ar: `🔥 خصم جديد في ${storeNameAr}!`,
+    };
+    const body = {
+      en: `Enjoy ${discountTextEn} OFF on ${
+        categoryName ? categoryName : 'all products'
+      } at ${storeNameEn} for a limited time!`,
+      ar: `استمتع بخصم ${discountTextAr} على ${
+        categoryName ? `قسم ${categoryName}` : 'جميع المنتجات'
+      } في ${storeNameAr} لفترة محدودة!`,
+    };
+
     const customers = await this.prisma.user.findMany({
       where: {
         roleKey: RolesKeys.CUSTOMER,

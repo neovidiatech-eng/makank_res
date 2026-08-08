@@ -156,10 +156,17 @@ export class GetDeliveryStatisticsDTO {
 }
 
 export class GetDriverDashboardDTO {
-  // Day to build the dashboard for (YYYY-MM-DD). Defaults to today when omitted.
   @Optional()
   @ValidateDate()
   date?: Date;
+
+  @Optional()
+  @ValidateDate()
+  fromDate?: Date;
+
+  @Optional()
+  @ValidateDate()
+  toDate?: Date;
 }
 
 export class CreateDeliveryScheduleDTO {
