@@ -34,6 +34,8 @@ async function bootstrap() {
     logger: environment !== 'production' ? ['error', 'warn', 'log'] : false,
   });
 
+  app.enableCors(corsConfig);
+
   // Serve the uploads directory statically under all common prefixes
   const uploadsDir = path.join(process.cwd(), 'uploads');
   app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
