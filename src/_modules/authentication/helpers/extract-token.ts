@@ -8,7 +8,20 @@ function getToken(bearer: string): string | undefined {
 export function extractJWT(req: Request): string | undefined {
   const authorizationHeader = req.headers?.authorization;
   if (authorizationHeader) {
-    return getToken(authorizationHeader);
+    const token = getToken(authorizationHeader);
+    if (token) return token;
+  }
+
+  const customHeader = (req.headers?.refreshtoken || req.headers?.['refresh-token']) as string | undefined;
+  if (customHeader) {
+    const token = customHeader.startsWith('Bearer ') ? getToken(customHeader) : customHeader;
+    if (token) return token;
+  }
+
+  if (req.body?.refreshToken || req.body?.RefreshToken) {
+    const bodyToken = req.body.refreshToken || req.body.RefreshToken;
+    const token = bodyToken.startsWith('Bearer ') ? getToken(bodyToken) : bodyToken;
+    if (token) return token;
   }
 
   const accessTokenCookieKey = env('ACCESS_TOKEN_COOKIE_KEY');

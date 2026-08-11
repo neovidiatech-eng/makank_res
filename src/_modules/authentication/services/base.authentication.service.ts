@@ -359,6 +359,19 @@ export class BaseAuthenticationService {
       SessionType.ACCESS,
       locale,
     );
-    return { user: data, AccessToken };
+    const RefreshToken = await this.tokenService.generateToken(
+      userId,
+      ip,
+      undefined,
+      SessionType.REFRESH,
+      locale,
+    );
+    return {
+      user: data,
+      AccessToken,
+      RefreshToken,
+      accessToken: AccessToken,
+      refreshToken: RefreshToken,
+    };
   }
 }

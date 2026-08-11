@@ -36,7 +36,7 @@ export class BaseAuthenticationController {
     private readonly response: ResponseService,
   ) {}
 
-  @Post('refresh-token')
+  @Post(['refresh-token', 'refresh-token/:role'])
   @ApiDefaultOkResponse(null)
   @Auth({ type: SessionType.REFRESH })
   async refreshToken(
@@ -45,7 +45,7 @@ export class BaseAuthenticationController {
     @CurrentUser('id') userId: Id,
     @CurrentUser('languageId') languageId: string,
   ) {
-    const { user, AccessToken } = await this.service.refreshToken(
+    const { user, AccessToken, RefreshToken } = await this.service.refreshToken(
       ip,
       userId,
       languageId,
@@ -53,9 +53,12 @@ export class BaseAuthenticationController {
 
     res.cookie(env('ACCESS_TOKEN_COOKIE_KEY'), AccessToken, cookieConfig);
 
-    return this.response.success(res, 'Access token refreshed successfully', {
+    return this.response.success(res, 'Token refreshed successfully', {
       user,
+      accessToken: AccessToken,
+      refreshToken: RefreshToken,
       AccessToken,
+      RefreshToken,
     });
   }
 
