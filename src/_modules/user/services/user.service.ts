@@ -243,18 +243,32 @@ export class UserService {
     });
     if (data?.phone) {
       const isFound = await this.prisma.user.findFirst({
-        where: { phone: data.phone, roleKey: user.roleKey },
+        where: { phone: data.phone, roleKey: user.roleKey, deletedAt: null },
       });
       if (isFound && isFound.id !== userId) {
-        throw new BadRequestException('phone_already_exists');
+        if (!isFound.verified) {
+          await this.prisma.user.update({
+            where: { id: isFound.id },
+            data: { phone: null },
+          });
+        } else {
+          throw new BadRequestException('phone_already_exists');
+        }
       }
     }
     if (data?.email) {
       const isFound = await this.prisma.user.findFirst({
-        where: { email: data.email, roleKey: user.roleKey },
+        where: { email: data.email, roleKey: user.roleKey, deletedAt: null },
       });
-      if (isFound && user.id !== userId) {
-        throw new BadRequestException('email_already_exists');
+      if (isFound && isFound.id !== userId) {
+        if (!isFound.verified) {
+          await this.prisma.user.update({
+            where: { id: isFound.id },
+            data: { email: null },
+          });
+        } else {
+          throw new BadRequestException('email_already_exists');
+        }
       }
     }
     if (fcm) {
