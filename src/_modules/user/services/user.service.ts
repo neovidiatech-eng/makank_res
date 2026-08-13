@@ -10,6 +10,7 @@ import { PrismaService } from '../../../globals/services/prisma.service';
 
 import { OrderStatus, OTPType, SessionType } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
+import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/prisma-args/customer.prisma-args';
 import { firstOrMany, isOne } from 'src/globals/helpers/first-or-many';
 import {
   hashPassword,
@@ -55,14 +56,19 @@ export class UserService {
     return flattenUser;
   }
 
-  async attachOrderStatsToUsers(users: any[]) {
+  async attachOrderStatsToUsers(users: any[], filters?: FilterUserDTO) {
     if (!users || users.length === 0) return users;
     const userIds = users.map((u) => u?.id).filter(Boolean);
     if (userIds.length === 0) return users;
 
+    const dateRange = filters ? resolveDateRangeFilter(filters as any) : null;
+
     const statsGrouped = await this.prisma.order.groupBy({
       by: ['userId', 'status'],
-      where: { userId: { in: userIds } },
+      where: {
+        userId: { in: userIds },
+        ...(dateRange ? { date: dateRange } : {}),
+      },
       _count: { id: true },
       _sum: { totalPriceAfterDiscount: true },
     });
@@ -123,7 +129,7 @@ export class UserService {
       delete args.skip;
 
       const users = (await this.prisma.user.findMany(args)) as any[];
-      const enrichedUsers = await this.attachOrderStatsToUsers(users);
+      const enrichedUsers = await this.attachOrderStatsToUsers(users, filters);
 
       enrichedUsers.sort(
         (a, b) =>
@@ -141,7 +147,7 @@ export class UserService {
     const users = await this.prisma.user[firstOrMany(filters?.id)](args);
     if (!users) return isOne(filters?.id) ? null : [];
     const usersArray = Array.isArray(users) ? users : [users];
-    const enriched = await this.attachOrderStatsToUsers(usersArray);
+    const enriched = await this.attachOrderStatsToUsers(usersArray, filters);
     return isOne(filters?.id) ? enriched[0] || null : enriched;
   }
 

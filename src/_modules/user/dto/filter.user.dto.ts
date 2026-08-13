@@ -49,7 +49,30 @@ export class FilterUserDTO extends PaginationParamsDTO {
   zeroOrdersOnly?: boolean;
 
   @Optional()
+  @ValidateString()
+  search?: string;
+
+  @Optional()
+  @ValidateString()
+  q?: string;
+
+  @Optional()
+  @ValidateString()
+  fromDate?: string;
+
+  @Optional()
+  @ValidateString()
+  toDate?: string;
+
+  @Optional()
+  @ValidateString()
+  date?: string;
+
+  @Optional()
+  @ValidateString()
+  periodFilter?: string;
+
+  @Optional()
   @ValidateBoolean()
   includeStats?: boolean;
 }
-
