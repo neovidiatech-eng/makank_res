@@ -1,10 +1,14 @@
 import { Language, Order, OrderStatus, Prisma } from '@prisma/client';
+import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/prisma-args/customer.prisma-args';
 import { paginateOrNot } from 'src/globals/helpers/pagination-params';
 import { filterKey, orderKey } from 'src/globals/helpers/prisma-filters';
 import { FilterOrderDTO } from '../dto/order.dto';
 
 export const getOrderArgs = (query: FilterOrderDTO, languages: Language[]) => {
   const { orderBy, page, limit, ...filter } = query;
+  const dateRange = resolveDateRangeFilter(query as any);
+  const effectiveUserId = query.userId || query.customerId;
+
   const searchArray = [
     filterKey<Order>(filter, 'id'),
     filterKey<Order>(filter, 'status'),
@@ -12,6 +16,8 @@ export const getOrderArgs = (query: FilterOrderDTO, languages: Language[]) => {
     filterKey<Order>(filter, 'branchId'),
     filterKey<Order>(filter, 'deliveryId'),
     filterKey<Order>(filter, 'zoneId'),
+    effectiveUserId && { userId: Number(effectiveUserId) },
+    dateRange && { date: dateRange },
 
     query.storeId && {
       Branch: {
@@ -60,21 +66,9 @@ export const getOrderArgs = (query: FilterOrderDTO, languages: Language[]) => {
     ...paginateOrNot({ limit, page }, query?.id),
     orderBy: orderArray,
     where: {
-      AND: [
-        ...searchArray,
-        ...(query?.userId || query?.branchId
-          ? [
-              {
-                OR: [
-                  query?.userId && { userId: query?.userId },
-                  query?.branchId && { branchId: query?.branchId },
-                ].filter(Boolean) as Prisma.OrderWhereInput[],
-              },
-            ]
-          : []),
-      ],
+      AND: searchArray,
     },
-  } as Prisma.OrderFindManyArgs;
+  } satisfies Prisma.OrderFindManyArgs;
 };
 
 export const selectOrderOBJ = (filters: FilterOrderDTO, userId?: Id) => {
