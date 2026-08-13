@@ -233,6 +233,24 @@ export class OrderController {
     );
   }
 
+  @Get('/statistics/status-count')
+  @Auth({ prefix })
+  @AttachStoreId()
+  @ApiQuery({ type: PartialType(OrderStatusCountFilterDTO) })
+  async getOrderStatusCount(
+    @Res() res: Response,
+    @Filter({ dto: OrderStatusCountFilterDTO })
+    filters: OrderStatusCountFilterDTO,
+  ) {
+    const data = await this.service.getOrderStatusCount(filters);
+
+    return this.response.success(
+      res,
+      'Order Status Counts fetched successfully',
+      data,
+    );
+  }
+
   @Get(['/', '/:id'])
   @Auth({ prefix, visitor: true })
   @AttachUserId()
@@ -243,7 +261,10 @@ export class OrderController {
     @Filter({ dto: FilterOrderDTO }) filters: FilterOrderDTO,
     @CurrentUser() user: CurrentUser,
   ) {
-    if (user.Role?.roleKey === RolesKeys.STORE) {
+    if (filters?.id && isNaN(Number(filters.id))) {
+      delete (filters as any).id;
+    }
+    if (user?.Role?.roleKey === RolesKeys.STORE) {
       if (user.branchId) {
         filters.branchId = user.branchId;
       } else if (user.storeId) {
@@ -259,6 +280,7 @@ export class OrderController {
       total,
     });
   }
+
   @Post('/calculate/order')
   @Auth({ prefix })
   async calculateOrder(
@@ -274,24 +296,6 @@ export class OrderController {
     return this.response.success(
       res,
       'Order calculation fetched successfully',
-      data,
-    );
-  }
-
-  @Get('/statistics/status-count')
-  @Auth({ prefix })
-  @AttachStoreId()
-  @ApiQuery({ type: PartialType(OrderStatusCountFilterDTO) })
-  async getOrderStatusCount(
-    @Res() res: Response,
-    @Filter({ dto: OrderStatusCountFilterDTO })
-    filters: OrderStatusCountFilterDTO,
-  ) {
-    const data = await this.service.getOrderStatusCount(filters);
-
-    return this.response.success(
-      res,
-      'Order Status Counts fetched successfully',
       data,
     );
   }

@@ -198,14 +198,12 @@ export class ZoneService {
     zoneId?: Id | null,
   ): Promise<number | null> {
     if (storeId == null || zoneId == null) return null;
-    const store = await this.prisma.store.findUnique({
-      where: { id: storeId },
-      select: { zonePricingEnabled: true },
-    });
-    if (!store?.zonePricingEnabled) return null;
     const row = await this.prisma.storeZonePrice.findUnique({
-      where: { storeId_zoneId: { storeId, zoneId } },
+      where: { storeId_zoneId: { storeId: Number(storeId), zoneId: Number(zoneId) } },
     });
-    return row?.price ?? null;
+    if (row && row.price != null) {
+      return row.price;
+    }
+    return null;
   }
 }

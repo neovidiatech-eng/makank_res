@@ -918,7 +918,25 @@ export class StoreService {
   // Returns every admin-defined zone alongside this store's own price for it
   // (null where the store hasn't set one). Store dashboards use this as the
   // "template" list to fill in per-zone prices.
-  async getZonePrices(storeId: Id) {
+  private async resolveStoreId(id: Id): Promise<number> {
+    const numericId = Number(id);
+    if (!isNaN(numericId)) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: numericId },
+        select: { id: true },
+      });
+      if (store) return store.id;
+      const branch = await this.prisma.branch.findUnique({
+        where: { id: numericId },
+        select: { storeId: true },
+      });
+      if (branch) return branch.storeId;
+    }
+    throw new NotFoundException('Store not found');
+  }
+
+  async getZonePrices(id: Id) {
+    const storeId = await this.resolveStoreId(id);
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
     });
@@ -947,36 +965,8 @@ export class StoreService {
     };
   }
 
-  // Customer-facing counterpart to getZonePrices above — that one is locked to
-  // the store owner/admin (management view: raw configured prices + the
-  // enabled flag, even while disabled). This one is public and returns the
-  // EFFECTIVE price per zone for a regular delivery order from this specific
-  // store — i.e. exactly what checkout will charge: the store's own price
-  // (only if zonePricingEnabled), else the app-wide zone price, else null
-  // (meaning the km-formula applies). Lets the mobile app show accurate
-  // per-zone prices while the customer is ordering from this particular store,
-  // instead of the store-agnostic prices from GET /zones.
   async getEffectiveZonePrices(id: Id) {
-    let storeId = id;
-    const store = await this.prisma.store.findUnique({ where: { id } });
-    if (!store) {
-      // The mobile app calls this with the store's MAIN BRANCH id instead of
-      // the store id in some builds — the two only happen to match for
-      // stores whose branch was created in the same id sequence position
-      // (e.g. store 73 / branch 73), so this silently 404'd for any store
-      // where they've since diverged (e.g. store 119 / branch 120), with no
-      // visible difference in either record's own data. Fall back to
-      // resolving `id` as a branch id so the customer isn't blocked on a
-      // mobile app release to fix its own request.
-      const branch = await this.prisma.branch.findUnique({
-        where: { id },
-        select: { storeId: true },
-      });
-      if (!branch) {
-        throw new NotFoundException('Store not found');
-      }
-      storeId = branch.storeId;
-    }
+    const storeId = await this.resolveStoreId(id);
     const zones = await this.prisma.zone.findMany({
       where: { active: true },
       select: { id: true, name: true, cityId: true },
@@ -991,26 +981,51 @@ export class StoreService {
     );
   }
 
-  // Upserts the store's own price for each given zone. Only takes effect for
-  // pricing while zonePricingEnabled is true (admin-controlled) — enforced here
-  // so a store can't silently start overriding delivery prices the moment the
-  // admin flips the switch back on without re-confirming its rows.
-  async setZonePrices(storeId: Id, entries: { zoneId: Id; price: number }[]) {
-    const store = await this.prisma.store.findUnique({
-      where: { id: storeId },
-    });
-    if (!store) {
-      throw new NotFoundException('Store not found');
+  async setZonePrices(id: Id, payload: any) {
+    const storeId = await this.resolveStoreId(id);
+
+    let entries: { zoneId: number; price: number }[] = [];
+    if (Array.isArray(payload)) {
+      entries = payload;
+    } else if (payload && Array.isArray(payload.zonePrices)) {
+      entries = payload.zonePrices;
+    } else if (payload && Array.isArray(payload.prices)) {
+      entries = payload.prices;
+    } else if (payload && typeof payload === 'object') {
+      if ('zoneId' in payload && 'price' in payload) {
+        entries = [payload];
+      } else {
+        entries = Object.entries(payload)
+          .filter(([k, v]) => !isNaN(Number(k)) && !isNaN(Number(v)))
+          .map(([k, v]) => ({ zoneId: Number(k), price: Number(v) }));
+      }
     }
-    const zoneIds = entries.map((entry) => entry.zoneId);
+
+    if (!entries.length) {
+      throw new BadRequestException('No valid zone price entries provided');
+    }
+
+    const normalizedEntries = entries.map((e) => ({
+      zoneId: Number(e.zoneId),
+      price: Number(e.price),
+    }));
+
+    const zoneIds = normalizedEntries.map((entry) => entry.zoneId);
     const validZoneCount = await this.prisma.zone.count({
       where: { id: { in: zoneIds }, active: true },
     });
     if (validZoneCount !== new Set(zoneIds).size) {
       throw new BadRequestException('One or more zones are invalid');
     }
+
+    // Auto-enable zone pricing for the store if configured
+    await this.prisma.store.update({
+      where: { id: storeId },
+      data: { zonePricingEnabled: true },
+    });
+
     await this.prisma.$transaction(
-      entries.map((entry) =>
+      normalizedEntries.map((entry) =>
         this.prisma.storeZonePrice.upsert({
           where: { storeId_zoneId: { storeId, zoneId: entry.zoneId } },
           update: { price: entry.price },
@@ -1020,8 +1035,9 @@ export class StoreService {
     );
   }
 
-  async deleteZonePrice(storeId: Id, zoneId: Id): Promise<void> {
-    await this.prisma.storeZonePrice.deleteMany({ where: { storeId, zoneId } });
+  async deleteZonePrice(id: Id, zoneId: Id): Promise<void> {
+    const storeId = await this.resolveStoreId(id);
+    await this.prisma.storeZonePrice.deleteMany({ where: { storeId, zoneId: Number(zoneId) } });
   }
 
   async delete(id: Id): Promise<void> {
