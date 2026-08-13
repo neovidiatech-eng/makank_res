@@ -1002,11 +1002,6 @@ export class StoreService {
     if (!store) {
       throw new NotFoundException('Store not found');
     }
-    if (!store.zonePricingEnabled) {
-      throw new BadRequestException(
-        'Zone pricing is not enabled for this store — ask the platform admin to enable it first',
-      );
-    }
     const zoneIds = entries.map((entry) => entry.zoneId);
     const validZoneCount = await this.prisma.zone.count({
       where: { id: { in: zoneIds }, active: true },
