@@ -180,48 +180,45 @@ export class ServiceModuleController {
   // afterward through the normal edit screen, not part of this file). One
   // bad row never blocks the rest; the response lists exactly which rows
   // succeeded/failed and why.
-  @Post('/bulk-upload')
+  @Post(['/bulk-upload', '/bulk-upload/upload'])
   @Auth({ prefix })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 5 * 1024 * 1024 },
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
   async bulkUpload(
     @Res() res: Response,
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: { storeId?: number },
+    @Body() body: { storeId?: any },
     @CurrentUser() user: CurrentUser,
   ) {
     if (!file) {
-      throw new BadRequestException('ملف الإكسل مطلوب');
+      throw new BadRequestException('ملف الإكسل مطلوب (في حقل file)');
     }
-    // Not using @AttachStoreId() here — multer parses the multipart body
-    // inside FileInterceptor, so an interceptor mutating req.body ahead of
-    // that would be mutating it before the fields even exist. Resolved
-    // explicitly instead: a Store-role caller always uses their own store;
-    // only Admin may (and must) pass storeId explicitly.
-    // multipart/form-data delivers every field as a string regardless of the
-    // declared TS type, so an Admin-supplied storeId must be coerced before
-    // it reaches Prisma (an Int column filtered by a string throws).
-    const storeId =
-      user.Role?.roleKey === RolesKeys.STORE
-        ? user.storeId
-        : Number(body.storeId);
+
+    let storeId = user?.storeId ? Number(user.storeId) : Number(body?.storeId);
     if (!storeId || !Number.isFinite(storeId)) {
-      throw new BadRequestException('storeId is required');
+      throw new BadRequestException('معرف المتجر storeId مطلوب لرفع ملف الإكسيل للمنتجات');
     }
-    const summary = await this.service.bulkUploadFromExcel(
-      storeId,
-      file.buffer,
-      user,
-    );
-    return this.response.success(
-      res,
-      'bulk product upload processed',
-      summary,
-    );
+
+    try {
+      const summary = await this.service.bulkUploadFromExcel(
+        storeId,
+        file.buffer,
+        user,
+      );
+      return this.response.success(
+        res,
+        'bulk product upload processed',
+        summary,
+      );
+    } catch (err: any) {
+      throw new BadRequestException(
+        err?.message || 'تعذر معالجة ملف الإكسيل، يرجى التأكد من صيغة الملف (.xlsx)',
+      );
+    }
   }
 }
