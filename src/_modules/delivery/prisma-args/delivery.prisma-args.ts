@@ -6,57 +6,12 @@ import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/pris
 import { DriverOrderFilterEnum, GetDeliveriesDTO } from '../dto/delivery.dto';
 
 export const getDeliveryArgs = (query: GetDeliveriesDTO) => {
-  const {
-    page,
-    limit,
-    search,
-    availableNow,
-    bestRated,
-    active,
-    forceAvailable,
-  } = query;
-
-  const searchArray = [
-    search
-      ? {
-          OR: [
-            { name: { contains: search } },
-            { email: { contains: search } },
-            { phone: { contains: search } },
-          ],
-        }
-      : undefined,
-    active !== undefined
-      ? { active: (active as any) === 'true' || active === true }
-      : undefined,
-    availableNow !== undefined ||
-    bestRated !== undefined ||
-    forceAvailable !== undefined
-      ? {
-          DeliveryDetails: {
-            ...(availableNow !== undefined && {
-              availableNow:
-                (availableNow as any) === 'true' || availableNow === true,
-            }),
-            ...(bestRated !== undefined && {
-              bestRated: (bestRated as any) === 'true' || bestRated === true,
-            }),
-            ...(forceAvailable !== undefined && {
-              forceAvailable:
-                (forceAvailable as any) === 'true' || forceAvailable === true,
-            }),
-          },
-        }
-      : undefined,
-    {
-      roleKey: RolesKeys.DELIVERY,
-    },
-  ]
-    .filter((x) => x)
-    .flat();
+  const { page, limit } = query;
+  const where = getDriverListWhere(query);
 
   return {
     ...paginateOrNot({ limit, page }, false),
+    orderBy: [{ createdAt: 'desc' }],
     select: {
       ...selectUserOBJ(),
       DeliveryDetails: {
@@ -65,9 +20,7 @@ export const getDeliveryArgs = (query: GetDeliveriesDTO) => {
         },
       },
     },
-    where: {
-      AND: searchArray as any,
-    },
+    where,
   } satisfies Prisma.UserFindManyArgs;
 };
 

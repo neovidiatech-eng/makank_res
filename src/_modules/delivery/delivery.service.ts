@@ -17,7 +17,8 @@ import {
   UpdateDeliveryDTO,
 } from './dto/delivery.dto';
 
-import { AssignmentStatus, OrderStatus } from '@prisma/client';
+import { AssignmentStatus, OrderStatus, Prisma } from '@prisma/client';
+import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/prisma-args/customer.prisma-args';
 import {
   egyptNowParts,
   egyptWallClockToTimeColumn,
@@ -51,17 +52,19 @@ export class DeliveryService {
     return formatEgypt(breakUntil);
   }
 
-  async attachOrderStatsToDrivers(drivers: any[]) {
+  async attachOrderStatsToDrivers(drivers: any[], filters?: GetDeliveriesDTO) {
     if (!drivers || drivers.length === 0) return drivers;
     const driverIds = drivers.map((d) => d?.id).filter(Boolean);
     if (driverIds.length === 0) return drivers;
 
-    const { start: todayStart, end: todayEnd } = this.dayRange();
-    const todayFilter = { gte: todayStart, lte: todayEnd };
+    const dateRange = filters ? resolveDateRangeFilter(filters as any) : null;
+    const orderDateFilter = dateRange
+      ? { OR: [{ date: dateRange }, { createdAt: dateRange }] }
+      : { date: { gte: this.dayRange().start, lte: this.dayRange().end } };
 
     const [
       allTimeOrdersGrouped,
-      todayOrdersGrouped,
+      periodOrdersGrouped,
       activeOrdersGrouped,
       rejectedAssignmentsGrouped,
     ] = await Promise.all([
@@ -73,7 +76,7 @@ export class DeliveryService {
       }),
       this.prisma.order.groupBy({
         by: ['deliveryId', 'status'],
-        where: { deliveryId: { in: driverIds }, date: todayFilter },
+        where: { deliveryId: { in: driverIds }, ...orderDateFilter },
         _count: { id: true },
         _sum: { shipping: true },
       }),
@@ -139,7 +142,7 @@ export class DeliveryService {
       }
     }
 
-    for (const item of todayOrdersGrouped) {
+    for (const item of periodOrdersGrouped) {
       if (!item.deliveryId) continue;
       const stats = getStats(item.deliveryId);
       const count = item._count.id;
@@ -184,7 +187,7 @@ export class DeliveryService {
       this.prisma.user.findMany(args),
       this.prisma.user.count({ where: args.where }),
     ]);
-    const enrichedData = await this.attachOrderStatsToDrivers(data);
+    const enrichedData = await this.attachOrderStatsToDrivers(data, query);
     return { data: enrichedData, count };
   }
 

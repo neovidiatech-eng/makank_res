@@ -6,6 +6,7 @@ import { PrismaService } from 'src/globals/services/prisma.service';
 import { firstOrMany, isOne } from 'src/globals/helpers/first-or-many';
 import { paginationParams } from 'src/globals/helpers/pagination-params';
 import { resolveCityForPoint } from 'src/globals/helpers/resolve-city-for-point.helper';
+import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/prisma-args/customer.prisma-args';
 import {
   CreateStoreDTO,
   FilterStoreDTO,
@@ -563,7 +564,7 @@ export class StoreService {
     }
 
     // Attach order performance stats to each store
-    processedData = await this.attachOrderStatsToStores(processedData);
+    processedData = await this.attachOrderStatsToStores(processedData, filters);
 
     // Order filtering / sorting for admin reports
     if (filters?.orderFilter) {
@@ -595,10 +596,15 @@ export class StoreService {
     return Array.isArray(data) ? processedData : processedData[0];
   }
 
-  async attachOrderStatsToStores(stores: any[]) {
+  async attachOrderStatsToStores(stores: any[], filters?: FilterStoreDTO) {
     if (!stores || stores.length === 0) return stores;
     const storeIds = stores.map((s) => s?.id).filter(Boolean);
     if (storeIds.length === 0) return stores;
+
+    const dateRange = filters ? resolveDateRangeFilter(filters as any) : null;
+    const orderDateFilter = dateRange
+      ? { OR: [{ date: dateRange }, { createdAt: dateRange }] }
+      : {};
 
     const branches = await this.prisma.branch.findMany({
       where: { storeId: { in: storeIds }, deletedAt: null },
@@ -625,7 +631,7 @@ export class StoreService {
     if (branchIds.length > 0) {
       const statsGrouped = await this.prisma.order.groupBy({
         by: ['branchId', 'status'],
-        where: { branchId: { in: branchIds } },
+        where: { branchId: { in: branchIds }, ...orderDateFilter },
         _count: { id: true },
         _sum: { totalPriceAfterDiscount: true },
       });

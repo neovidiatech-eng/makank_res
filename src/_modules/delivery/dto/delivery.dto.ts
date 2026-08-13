@@ -143,6 +143,26 @@ export class GetDeliveriesDTO extends PaginationParamsDTO {
   @Optional()
   @ValidateBoolean()
   includeStats?: boolean;
+
+  @Optional()
+  @ValidateString()
+  q?: string;
+
+  @Optional()
+  @ValidateString()
+  fromDate?: string;
+
+  @Optional()
+  @ValidateString()
+  toDate?: string;
+
+  @Optional()
+  @ValidateString()
+  date?: string;
+
+  @Optional()
+  @ValidateString()
+  periodFilter?: string;
 }
 
 export class GetDeliveryStatisticsDTO {
