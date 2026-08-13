@@ -253,7 +253,7 @@ export class OrderController {
 
   @Get(['/', '/:id'])
   @Auth({ prefix, visitor: true })
-  @AttachUserId()
+  @AttachUserId({ ignoreGet: true })
   @ApiQuery({ type: PartialType(FilterOrderDTO) })
   @ApiOptionalIdParam('id')
   async findAll(
@@ -265,11 +265,17 @@ export class OrderController {
       delete (filters as any).id;
     }
     if (user?.Role?.roleKey === RolesKeys.STORE) {
+      delete filters.userId;
       if (user.branchId) {
         filters.branchId = user.branchId;
       } else if (user.storeId) {
         filters.storeId = user.storeId;
       }
+    } else if (user?.Role?.roleKey === RolesKeys.DELIVERY) {
+      delete filters.userId;
+      filters.deliveryId = user.id;
+    } else if (user?.Role?.roleKey === RolesKeys.CUSTOMER) {
+      filters.userId = user.id;
     }
     const data = await this.service.findAll(filters, user);
     const total = isOne(filters?.id)

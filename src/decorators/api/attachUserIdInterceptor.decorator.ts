@@ -41,7 +41,7 @@ export class AttachUserIdInterceptor implements NestInterceptor {
     }
 
     if (method === 'GET' && !this.ignoreGet) {
-      if (user.Role.roleKey !== RolesKeys.ADMIN) {
+      if (user?.Role?.roleKey === RolesKeys.CUSTOMER) {
         filters.userId = user?.id;
       }
     }
