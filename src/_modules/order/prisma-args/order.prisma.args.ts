@@ -13,15 +13,15 @@ export const getOrderArgs = (query: FilterOrderDTO, languages: Language[]) => {
     filterKey<Order>(filter, 'id'),
     filterKey<Order>(filter, 'status'),
     filterKey<Order>(filter, 'type'),
-    filterKey<Order>(filter, 'branchId'),
-    filterKey<Order>(filter, 'deliveryId'),
-    filterKey<Order>(filter, 'zoneId'),
+    query.branchId && { branchId: Number(query.branchId) },
+    query.deliveryId && { deliveryId: Number(query.deliveryId) },
+    query.zoneId && { zoneId: Number(query.zoneId) },
     effectiveUserId && { userId: Number(effectiveUserId) },
     dateRange && { date: dateRange },
 
     query.storeId && {
       Branch: {
-        storeId: query?.storeId,
+        storeId: Number(query.storeId),
       },
     },
     query.current && {

@@ -243,8 +243,12 @@ export class OrderController {
     @Filter({ dto: FilterOrderDTO }) filters: FilterOrderDTO,
     @CurrentUser() user: CurrentUser,
   ) {
-    if (user.Role.roleKey === RolesKeys.STORE) {
-      filters.branchId = user.branchId;
+    if (user.Role?.roleKey === RolesKeys.STORE) {
+      if (user.branchId) {
+        filters.branchId = user.branchId;
+      } else if (user.storeId) {
+        filters.storeId = user.storeId;
+      }
     }
     const data = await this.service.findAll(filters, user);
     const total = isOne(filters?.id)
