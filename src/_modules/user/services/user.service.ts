@@ -67,7 +67,11 @@ export class UserService {
       by: ['userId', 'status'],
       where: {
         userId: { in: userIds },
-        ...(dateRange ? { date: dateRange } : {}),
+        ...(dateRange
+          ? {
+              OR: [{ date: dateRange }, { createdAt: dateRange }],
+            }
+          : {}),
       },
       _count: { id: true },
       _sum: { totalPriceAfterDiscount: true },

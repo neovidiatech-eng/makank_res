@@ -60,10 +60,14 @@ export const getUserArgs = (query: FilterUserDTO) => {
 
   if (dateRange) {
     searchArray.push({
-      OR: [
-        { createdAt: dateRange },
-        { CustomerOrders: { some: { date: dateRange } } },
-      ],
+      CustomerOrders: {
+        some: {
+          OR: [
+            { date: dateRange },
+            { createdAt: dateRange },
+          ],
+        },
+      },
     });
   }
 
