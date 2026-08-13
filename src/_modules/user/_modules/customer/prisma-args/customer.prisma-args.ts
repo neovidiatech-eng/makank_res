@@ -63,6 +63,13 @@ export function resolveDateRangeFilter(query: any): { gte?: Date; lte?: Date } |
       const d = parseFlexibleDate(rawTo, true);
       if (d) range.lte = d;
     }
+    if (range.gte && range.lte && range.gte > range.lte) {
+      const temp = range.gte;
+      range.gte = range.lte;
+      range.gte.setHours(0, 0, 0, 0);
+      range.lte = temp;
+      range.lte.setHours(23, 59, 59, 999);
+    }
     return Object.keys(range).length > 0 ? range : null;
   }
 
