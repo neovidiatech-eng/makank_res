@@ -289,11 +289,10 @@ export class ServiceModuleService {
     const rows = await parseBulkUploadWorkbook(buffer);
     const results: BulkUploadRowResult[] = [];
 
-    // Checked once for the whole batch instead of once per row — the result
-    // can't change mid-upload, and re-checking per row turned "store isn't
-    // approved yet" into e.g. 150 identical failures instead of one clear
-    // upfront rejection.
-    await assertStoreAccepted(this.prisma, storeId);
+    // Checked once for the whole batch if not Admin — Admin can upload products for any store
+    if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
+      await assertStoreAccepted(this.prisma, storeId);
+    }
 
     // Category name -> id, resolved at most once per unique name per upload
     // instead of once per row — a normal menu reuses the same handful of
@@ -404,18 +403,22 @@ export class ServiceModuleService {
     }
 
     if (user) {
-      const actingUser = await this.prisma.user.findUnique({
-        where: { id: user.id },
-        select: { name: true },
-      });
-      await this.logsService.createLog({
-        userId: String(user.id),
-        userName: actingUser?.name ?? '',
-        userRole: user.Role?.roleKey ?? '',
-        action: 'SERVICES_BULK_UPLOADED',
-        details: `Bulk product upload: ${createdCount} created, ${failedCount} failed (of ${rows.length} rows)`,
-        storeId,
-      });
+      try {
+        const actingUser = await this.prisma.user.findUnique({
+          where: { id: user.id },
+          select: { name: true },
+        });
+        await this.logsService.createLog({
+          userId: String(user.id),
+          userName: actingUser?.name ?? '',
+          userRole: user.Role?.roleKey ?? '',
+          action: 'SERVICES_BULK_UPLOADED',
+          details: `Bulk product upload: ${createdCount} created, ${failedCount} failed (of ${rows.length} rows)`,
+          storeId,
+        });
+      } catch {
+        // Logging error should never break response
+      }
     }
 
     return {
