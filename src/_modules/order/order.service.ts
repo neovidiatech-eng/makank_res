@@ -1006,16 +1006,21 @@ export class OrderService {
     // branch-less user (all customers/admins/drivers) and would broadcast a NEW_ORDER push to
     // them. Branch-less orders (e.g. CUSTOM_DELIVERY) have no store staff to notify on this path.
     if (order.branchId != null) {
-      const [storeUsers, branch] = await Promise.all([
-        this.prisma.user.findMany({
-          where: { branchId: order.branchId },
-          select: { id: true },
-        }),
-        this.prisma.branch.findUnique({
-          where: { id: order.branchId },
-          select: { storeId: true, Store: { select: { managedByAdmin: true } } },
-        }),
-      ]);
+      const branch = await this.prisma.branch.findUnique({
+        where: { id: order.branchId },
+        select: { storeId: true, Store: { select: { managedByAdmin: true } } },
+      });
+
+      const storeUsers = await this.prisma.user.findMany({
+        where: {
+          OR: [
+            { branchId: order.branchId },
+            ...(branch?.storeId ? [{ storeId: branch.storeId }] : []),
+          ],
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
 
       // Live push to any store dashboard/app connected to the WebSocket
       // gateway — lets the UI show a new order instantly without polling,
