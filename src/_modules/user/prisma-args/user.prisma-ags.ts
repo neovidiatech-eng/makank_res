@@ -72,6 +72,9 @@ export const getUserArgs = (query: FilterUserDTO) => {
     orderBy = [{ CustomerOrders: { _count: 'desc' } }, { id: 'desc' }];
   } else if (filter?.orderFilter === UserOrderFilterEnum.LEAST_ORDERS) {
     orderBy = [{ CustomerOrders: { _count: 'asc' } }, { id: 'asc' }];
+  } else if (query.includeStats) {
+    // When includeStats=true (e.g. Analytics tab), prioritize users with order activity
+    orderBy = [{ CustomerOrders: { _count: 'desc' } }, { id: 'desc' }];
   }
 
   return {
