@@ -45,7 +45,7 @@ import { ServiceModuleService } from '../services/storeModule.service';
 
 const prefix = 'services';
 
-@Controller(prefix)
+@Controller(['services', 'service'])
 @ApiTags(tag(prefix))
 export class ServiceModuleController {
   constructor(

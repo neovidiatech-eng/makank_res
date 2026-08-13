@@ -161,17 +161,37 @@ export class DeliveryController {
     );
   }
 
+  @Get('me/dashboard')
+  @ApiOperation({
+    summary: 'Logged-in driver dashboard (stats, financials & orders)',
+  })
+  @Auth()
+  async getMyDashboard(
+    @Res() res: Response,
+    @CurrentUser() user: CurrentUser,
+    @Query() query: GetDriverDashboardDTO,
+  ) {
+    const data = await this.deliveryService.getDriverDashboard(user.id, query);
+    return this.responses.success(
+      res,
+      'Driver dashboard fetched successfully',
+      data,
+    );
+  }
+
   @Get(':id/dashboard')
   @ApiOperation({
     summary: 'Driver details dashboard (stats, financials & orders) for a day',
   })
-  @Auth({ prefix: 'delivery' })
+  @Auth()
   async dashboard(
     @Res() res: Response,
     @Param('id') id: string,
+    @CurrentUser() user: CurrentUser,
     @Query() query: GetDriverDashboardDTO,
   ) {
-    const data = await this.deliveryService.getDriverDashboard(+id, query);
+    const targetId = id === 'me' ? user.id : +id;
+    const data = await this.deliveryService.getDriverDashboard(targetId, query);
     return this.responses.success(
       res,
       'Driver dashboard fetched successfully',
