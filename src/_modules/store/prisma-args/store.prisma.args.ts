@@ -4,6 +4,7 @@ import {
   validBundleWhere,
 } from 'src/_modules/bundle/prisma-args/bundle.prisma.args';
 import { selectServiceOBJ } from 'src/_modules/serviceModule/prisma-args/service.prisma.args';
+import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/prisma-args/customer.prisma-args';
 import { paginateOrNot } from 'src/globals/helpers/pagination-params';
 import {
   filterJsonKeyWithRawSQL,
@@ -18,24 +19,33 @@ export const getStoreArgs = (
   stores: Store[],
   filterWithStore?: boolean,
   enforceVisible?: boolean,
-  // The customer/visitor browse listing pushes busy/closed stores below open
-  // ones, computed in JS from live status/busyUntil after the fact — not a
-  // plain sortable column — so pagination for that path must be deferred
-  // (applied as a manual slice AFTER that sort, in StoreService.findAll)
-  // instead of here at the DB level, or LIMIT/OFFSET would lock in page
-  // boundaries before open/busy/closed is even known.
   deferPagination?: boolean,
-  // The city resolved from the customer/visitor's own lat/lng (see
-  // resolveCityForPoint, called in StoreService.findAll before this runs) —
-  // authoritative and NOT the same thing as the client-supplied `cityId`
-  // filter below; when present it restricts results to that one city
-  // regardless of what (if anything) the client passed in `filter.cityId`.
   resolvedCityId?: number | null,
 ) => {
   const { orderBy, page, limit, ...filter } = query;
+  const dateRange = resolveDateRangeFilter(query as any);
+  const searchStr = (query.search || query.q || query.name || '').trim();
+
   const searchArray = [
     filterKey<Store>(filter, 'id'),
     filterJsonKeyWithRawSQL<Store>(filter, 'name', languages),
+    searchStr && Number.isInteger(Number(searchStr)) && Number(searchStr) > 0 && {
+      id: Number(searchStr),
+    },
+    dateRange && {
+      OR: [
+        { createdAt: dateRange },
+        {
+          branches: {
+            some: {
+              Orders: {
+                some: { date: dateRange },
+              },
+            },
+          },
+        },
+      ],
+    },
     filterKey<Store>(filter, 'planId'),
     filterKey<Store>(filter, 'cityId'),
     filterKey<Store>(filter, 'isStoreAccepted'),

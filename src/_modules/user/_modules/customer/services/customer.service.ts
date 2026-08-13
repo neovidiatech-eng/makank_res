@@ -66,15 +66,18 @@ export class CustomerService {
   }
 
   private async statistics(users: any): Promise<CustomerStats[]> {
+    const userIds = users.map((u: any) => u.id);
+    if (!userIds || userIds.length === 0) return [];
+
     const stats = await this.prisma.order.groupBy({
       by: ['userId'],
-      where: { userId: { in: users.map((u: any) => u.id) } },
+      where: { userId: { in: userIds } },
       _count: { _all: true },
       _sum: { totalPriceAfterDiscount: true },
     });
 
     const enrichedUsers: CustomerStats[] = users.map((u: any) => {
-      const stat = stats.find((s: any) => s.customerId === u.id);
+      const stat = stats.find((s: any) => s.userId === u.id);
 
       return {
         ...u,

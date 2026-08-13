@@ -29,4 +29,28 @@ export class FilterCustomerDTO extends PartialType(PaginationParamsDTO) {
   @Optional()
   @ValidateBoolean()
   active: boolean;
+
+  @Optional()
+  @ValidateString()
+  search?: string;
+
+  @Optional()
+  @ValidateString()
+  q?: string;
+
+  @Optional()
+  @ValidateString()
+  fromDate?: string;
+
+  @Optional()
+  @ValidateString()
+  toDate?: string;
+
+  @Optional()
+  @ValidateString()
+  date?: string;
+
+  @Optional()
+  @ValidateString()
+  periodFilter?: string;
 }

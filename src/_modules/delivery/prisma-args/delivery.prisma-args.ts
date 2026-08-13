@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { selectUserOBJ } from 'src/_modules/user/prisma-args/user.prisma-select';
 import { paginateOrNot } from 'src/globals/helpers/pagination-params';
+import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/prisma-args/customer.prisma-args';
 import { DriverOrderFilterEnum, GetDeliveriesDTO } from '../dto/delivery.dto';
 
 export const getDeliveryArgs = (query: GetDeliveriesDTO) => {
@@ -82,6 +83,8 @@ export const getDriverListWhere = (
 
   const isAvailableNow = availableNow || onShiftOnly;
 
+  const dateRange = resolveDateRangeFilter(query as any);
+
   const searchArray = [
     search
       ? {
@@ -89,6 +92,7 @@ export const getDriverListWhere = (
             { name: { contains: search } },
             { email: { contains: search } },
             { phone: { contains: search } },
+            ...(Number.isInteger(Number(search)) && Number(search) > 0 ? [{ id: Number(search) }] : []),
           ],
         }
       : undefined,
@@ -116,6 +120,15 @@ export const getDriverListWhere = (
               status: 'DELIVERED',
             },
           },
+        }
+      : undefined,
+    dateRange
+      ? {
+          OR: [
+            { createdAt: dateRange },
+            { DeliveryOrders: { some: { date: dateRange } } },
+            { OrderDeliveryAssignment: { some: { assignedAt: dateRange } } },
+          ],
         }
       : undefined,
     { roleKey: RolesKeys.DELIVERY },
