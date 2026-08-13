@@ -63,6 +63,7 @@ model Order {
   Customer                User                      @relation("CustomerOrders", fields: [userId], references: [id])
   Delivery                DeliveryDetails?          @relation(fields: [deliveryId], references: [userId])
   Specialist              Specialist?               @relation(fields: [specialistId], references: [id])
+  CustomerSelectedZone    Zone?                     @relation("CustomerSelectedZoneOrders", fields: [customerSelectedZoneId], references: [id])
   Zone                    Zone?                     @relation(fields: [zoneId], references: [id])
   OrderBundles            OrderBundle[]
   Assignments             OrderDeliveryAssignment[]

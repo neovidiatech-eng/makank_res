@@ -13,6 +13,7 @@ model Zone {
   CouponZones          CouponZones[]
   OnlineSellerProfiles OnlineSellerProfile[]
   Order                Order[]
+  CustomerSelectedZoneOrders Order[]              @relation("CustomerSelectedZoneOrders")
   StoreZonePrices      StoreZonePrice[]
   OrderStations        OrderStation[]
   ArchivedOrders       ArchivedOrder[]

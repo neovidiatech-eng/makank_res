@@ -123,14 +123,12 @@ export const selectOrderOBJ = (filters: FilterOrderDTO, userId?: Id) => {
     // Zone the customer picked from a dropdown for a regular order — display
     // only, pricing still comes from the auto-resolved zoneId above.
     customerSelectedZoneId: true,
-    // The actual resolved delivery zone (regular order: address-derived unless
-    // overridden by customerSelectedZoneId; custom-delivery: the last stop's
-    // zone) — was never selected here, so callers only ever saw the raw
-    // customerSelectedZoneId (regular orders) with no zone at all for
-    // custom-delivery orders.
+    CustomerSelectedZone: {
+      select: { id: true, name: true },
+    },
     zoneId: true,
     Zone: {
-      select: { name: true },
+      select: { id: true, name: true },
     },
     Stations: {
       orderBy: { sequence: 'asc' },
