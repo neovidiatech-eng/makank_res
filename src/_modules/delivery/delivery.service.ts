@@ -710,7 +710,20 @@ export class DeliveryService {
       throw new BadRequestException('Invalid driver ID');
     }
 
-    const { active, forceAvailable, isOnShift, availableNow, password, newPassword, ...rest } = data;
+    // Destructure ALL known DTO fields explicitly so that `...rest` is empty
+    // and we never accidentally pass unknown fields into prisma.user.update.
+    const {
+      active,
+      verified,
+      forceAvailable,
+      isOnShift,
+      availableNow,
+      password,
+      newPassword,
+      name,
+      email,
+      phone,
+    } = data;
 
     const requestedAvailable = isOnShift ?? availableNow;
     const rawPassword = newPassword || password;
@@ -727,13 +740,18 @@ export class DeliveryService {
       );
     }
 
+    // Build only the User-model fields that were actually provided.
+    const userUpdateData: Prisma.UserUpdateInput = {};
+    if (name !== undefined)          userUpdateData.name     = name;
+    if (email !== undefined)         userUpdateData.email    = email;
+    if (phone !== undefined)         userUpdateData.phone    = phone;
+    if (active !== undefined)        userUpdateData.active   = active;
+    if (verified !== undefined)      userUpdateData.verified = verified;
+    if (hashedPassword !== undefined) userUpdateData.password = hashedPassword;
+
     const result = await this.prisma.user.update({
       where: { id },
-      data: {
-        ...rest,
-        ...(hashedPassword ? { password: hashedPassword } : {}),
-        ...(active !== undefined ? { active } : {}),
-      },
+      data: userUpdateData,
     });
 
     const deliveryDetailsUpdate: Prisma.DeliveryDetailsUpdateInput = {};
