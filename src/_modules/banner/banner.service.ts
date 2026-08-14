@@ -38,7 +38,8 @@ export class BannerService {
   }
 
   async create(data: CreateBannerDTO) {
-    const normalizedClickUrl = this.normalizeClickUrl(data.clickUrl);
+    const rawClickUrl = data.clickUrl ?? data.url ?? data.link;
+    const normalizedClickUrl = this.normalizeClickUrl(rawClickUrl);
     this.assertTargetTypeConsistency(data.targetType, {
       storeId: data.storeId,
       categoryId: data.categoryId,
@@ -88,6 +89,11 @@ export class BannerService {
     });
     if (!existing) throw new NotFoundException('Banner not found');
 
+    const rawClickUrl =
+      body.clickUrl !== undefined || body.url !== undefined || body.link !== undefined
+        ? (body.clickUrl ?? body.url ?? body.link)
+        : undefined;
+
     const effectiveStoreId =
       body.storeId !== undefined ? body.storeId : existing.storeId;
     const effectiveCategoryId =
@@ -101,8 +107,8 @@ export class BannerService {
         ? body.zoneIds.length > 0
         : existing._count.Zones > 0;
     const effectiveClickUrl =
-      body.clickUrl !== undefined
-        ? this.normalizeClickUrl(body.clickUrl)
+      rawClickUrl !== undefined
+        ? this.normalizeClickUrl(rawClickUrl)
         : existing.clickUrl;
 
     this.assertTargetTypeConsistency(effectiveTargetType, {
@@ -120,11 +126,11 @@ export class BannerService {
       zoneIds: body.zoneIds,
     });
 
-    const { zoneIds, clickUrl, ...rest } = body;
+    const { zoneIds, clickUrl, url, link, ...rest } = body;
     const updateData: Prisma.BannerUncheckedUpdateInput = {
       ...rest,
-      ...(clickUrl !== undefined
-        ? { clickUrl: this.normalizeClickUrl(clickUrl) }
+      ...(rawClickUrl !== undefined
+        ? { clickUrl: this.normalizeClickUrl(rawClickUrl) }
         : {}),
       ...(zoneIds !== undefined
         ? {

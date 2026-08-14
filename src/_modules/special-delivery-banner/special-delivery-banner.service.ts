@@ -28,12 +28,15 @@ export class SpecialDeliveryBannerService {
   ) {}
 
   async create(data: CreateSpecialDeliveryBannerDTO) {
+    const rawClickUrl = data.clickUrl ?? data.url ?? data.link;
+    const normalizedClickUrl = this.normalizeClickUrl(rawClickUrl);
+
     this.assertTargetTypeConsistency(data.targetType, {
       storeId: data.storeId,
       categoryId: data.categoryId,
       serviceId: data.serviceId,
       hasZones: !!data.zoneIds?.length,
-      clickUrl: data.clickUrl,
+      clickUrl: normalizedClickUrl,
     });
 
     const zoneIds = await this.validateTargeting({
@@ -53,7 +56,7 @@ export class SpecialDeliveryBannerService {
       order: data.order,
       startDate: data.startDate,
       endDate: data.endDate,
-      clickUrl: data.clickUrl,
+      clickUrl: normalizedClickUrl,
       ...(zoneIds?.length
         ? { Zones: { create: zoneIds.map((zoneId) => ({ zoneId })) } }
         : {}),
@@ -77,6 +80,11 @@ export class SpecialDeliveryBannerService {
     });
     if (!existing) throw new NotFoundException('Banner not found');
 
+    const rawClickUrl =
+      body.clickUrl !== undefined || body.url !== undefined || body.link !== undefined
+        ? (body.clickUrl ?? body.url ?? body.link)
+        : undefined;
+
     // Validate against the post-update state: fields the client did not send
     // keep their current values (so e.g. sending only zoneIds still validates
     // against the banner's existing store).
@@ -94,7 +102,9 @@ export class SpecialDeliveryBannerService {
         ? body.zoneIds.length > 0
         : existing._count.Zones > 0;
     const effectiveClickUrl =
-      body.clickUrl !== undefined ? body.clickUrl : existing.clickUrl;
+      rawClickUrl !== undefined
+        ? this.normalizeClickUrl(rawClickUrl)
+        : existing.clickUrl;
 
     this.assertTargetTypeConsistency(effectiveTargetType, {
       storeId: effectiveStoreId,
@@ -111,9 +121,12 @@ export class SpecialDeliveryBannerService {
       zoneIds: body.zoneIds,
     });
 
-    const { zoneIds, ...rest } = body;
+    const { zoneIds, clickUrl, url, link, ...rest } = body;
     const updateData: Prisma.SpecialDeliveryBannerUncheckedUpdateInput = {
       ...rest,
+      ...(rawClickUrl !== undefined
+        ? { clickUrl: this.normalizeClickUrl(rawClickUrl) }
+        : {}),
       // Only touch the zone links when the client explicitly sends zoneIds.
       // An empty array clears all links; undefined leaves them untouched.
       ...(zoneIds !== undefined

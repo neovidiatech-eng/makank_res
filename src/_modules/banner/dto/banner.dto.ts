@@ -119,6 +119,14 @@ export class CreateBannerDTO {
   @ValidateString()
   clickUrl?: string;
 
+  @Optional()
+  @ValidateString()
+  url?: string;
+
+  @Optional()
+  @ValidateString()
+  link?: string;
+
   // Display order (ascending). Lower shows first. Defaults to 0 at the DB level.
   @Optional({ example: 1 })
   @ValidateNumber({ allowNegative: false })

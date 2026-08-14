@@ -109,10 +109,18 @@ export class CreateSpecialDeliveryBannerDTO {
   // Required when targetType is EXTERNAL_URL, forbidden otherwise — validated
   // in SpecialDeliveryBannerService (mirrors AdminNotificationService.validateClickUrl).
   @Optional({
-    description: 'Required when targetType is EXTERNAL_URL. Must be http(s).',
+    description: 'Required when targetType is EXTERNAL_URL.',
   })
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @ValidateString()
   clickUrl?: string;
+
+  @Optional()
+  @ValidateString()
+  url?: string;
+
+  @Optional()
+  @ValidateString()
+  link?: string;
 
   // Display order (ascending). Lower shows first. Defaults to 0 at the DB level.
   @Optional({ example: 1 })
