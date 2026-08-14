@@ -75,7 +75,9 @@ export class CreateDeliveryDTO {
   forceAvailable?: boolean;
 }
 
-export class UpdateDeliveryDTO extends PartialType(CreateDeliveryDTO) {
+export class UpdateDeliveryDTO extends PartialType(
+  OmitType(CreateDeliveryDTO, ['password'] as const),
+) {
   @Optional()
   @ValidateString()
   password?: string;
@@ -83,6 +85,11 @@ export class UpdateDeliveryDTO extends PartialType(CreateDeliveryDTO) {
   @Optional()
   @ValidateString()
   newPassword?: string;
+
+  @Optional()
+  @ValidateString()
+  confirmPassword?: string;
+
   @Optional()
   @ValidateBoolean()
   active?: boolean;
@@ -91,10 +98,6 @@ export class UpdateDeliveryDTO extends PartialType(CreateDeliveryDTO) {
   @ValidateBoolean()
   forceAvailable?: boolean;
 
-  // Admin-only manual verification gate. No longer set automatically by the
-  // driver's own OTP/email-verification flow (see base.authentication.service
-  // .verify()) — a driver can log in and use the app unverified, but won't be
-  // considered for order assignment until an admin flips this on.
   @Optional()
   @ValidateBoolean()
   verified?: boolean;
@@ -106,6 +109,10 @@ export class UpdateDeliveryDTO extends PartialType(CreateDeliveryDTO) {
   @Optional()
   @ValidateBoolean()
   availableNow?: boolean;
+
+  @Optional()
+  @ValidateBoolean()
+  isAvailable?: boolean;
 }
 
 import { PaginationParamsDTO } from 'src/dtos/params/pagination-params.dto';

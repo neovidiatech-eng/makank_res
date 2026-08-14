@@ -718,6 +718,7 @@ export class DeliveryService {
       forceAvailable,
       isOnShift,
       availableNow,
+      isAvailable,
       password,
       newPassword,
       name,
@@ -725,7 +726,7 @@ export class DeliveryService {
       phone,
     } = data;
 
-    const requestedAvailable = isOnShift ?? availableNow;
+    const requestedAvailable = isAvailable ?? isOnShift ?? availableNow;
     const rawPassword = newPassword || password;
 
     let hashedPassword: string | undefined;
