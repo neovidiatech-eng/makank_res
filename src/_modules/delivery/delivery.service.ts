@@ -705,9 +705,15 @@ export class DeliveryService {
   }
 
   async update(id: number, data: UpdateDeliveryDTO) {
-    const { active, forceAvailable, isOnShift, availableNow, ...rest } = data;
+    const { active, forceAvailable, isOnShift, availableNow, password, newPassword, ...rest } = data;
 
     const requestedAvailable = isOnShift ?? availableNow;
+    const rawPassword = newPassword || password;
+
+    let hashedPassword: string | undefined;
+    if (rawPassword && rawPassword.trim().length > 0) {
+      hashedPassword = await hashPassword(rawPassword.trim());
+    }
 
     // Don't allow re-enabling availability while a forced AFK break is active.
     if (forceAvailable === true && (await this.afkBreakService.isOnBreak(id))) {
@@ -733,6 +739,7 @@ export class DeliveryService {
       where: { id },
       data: {
         ...rest,
+        ...(hashedPassword ? { password: hashedPassword } : {}),
         ...(active !== undefined ? { active } : {}),
         ...(hasDetailsUpdate
           ? {

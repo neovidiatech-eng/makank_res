@@ -75,10 +75,14 @@ export class CreateDeliveryDTO {
   forceAvailable?: boolean;
 }
 
-export class UpdateDeliveryDTO extends OmitType(
-  PartialType(CreateDeliveryDTO),
-  ['password'],
-) {
+export class UpdateDeliveryDTO extends PartialType(CreateDeliveryDTO) {
+  @Optional()
+  @ValidateString()
+  password?: string;
+
+  @Optional()
+  @ValidateString()
+  newPassword?: string;
   @Optional()
   @ValidateBoolean()
   active?: boolean;
