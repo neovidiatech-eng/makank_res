@@ -113,12 +113,10 @@ export class CreateBannerDTO {
   @ValidateEnum(BannerTargetType)
   targetType?: BannerTargetType;
 
-  // Required when targetType is EXTERNAL_URL, forbidden otherwise — validated
-  // in BannerService (mirrors AdminNotificationService.validateClickUrl).
   @Optional({
-    description: 'Required when targetType is EXTERNAL_URL. Must be http(s).',
+    description: 'Optional external URL to open when banner is clicked.',
   })
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @ValidateString()
   clickUrl?: string;
 
   // Display order (ascending). Lower shows first. Defaults to 0 at the DB level.

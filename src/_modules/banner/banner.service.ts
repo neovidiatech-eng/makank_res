@@ -27,13 +27,24 @@ export class BannerService {
     private readonly bannerHelper: BannerHelperService,
   ) {}
 
+  private normalizeClickUrl(url?: string | null): string | null {
+    if (!url) return null;
+    let trimmed = String(url).trim();
+    if (!trimmed) return null;
+    if (!/^https?:\/\//i.test(trimmed)) {
+      trimmed = `https://${trimmed}`;
+    }
+    return trimmed;
+  }
+
   async create(data: CreateBannerDTO) {
+    const normalizedClickUrl = this.normalizeClickUrl(data.clickUrl);
     this.assertTargetTypeConsistency(data.targetType, {
       storeId: data.storeId,
       categoryId: data.categoryId,
       serviceId: data.serviceId,
       hasZones: !!data.zoneIds?.length,
-      clickUrl: data.clickUrl,
+      clickUrl: normalizedClickUrl,
     });
 
     const zoneIds = await this.validateTargeting({
@@ -53,7 +64,7 @@ export class BannerService {
       order: data.order,
       startDate: data.startDate,
       endDate: data.endDate,
-      clickUrl: data.clickUrl,
+      clickUrl: normalizedClickUrl,
       ...(zoneIds?.length
         ? { Zones: { create: zoneIds.map((zoneId) => ({ zoneId })) } }
         : {}),
@@ -77,9 +88,6 @@ export class BannerService {
     });
     if (!existing) throw new NotFoundException('Banner not found');
 
-    // Validate against the post-update state: fields the client did not send
-    // keep their current values (so e.g. sending only zoneIds still validates
-    // against the banner's existing store).
     const effectiveStoreId =
       body.storeId !== undefined ? body.storeId : existing.storeId;
     const effectiveCategoryId =
@@ -88,13 +96,14 @@ export class BannerService {
       body.serviceId !== undefined ? body.serviceId : existing.serviceId;
     const effectiveTargetType =
       body.targetType !== undefined ? body.targetType : existing.targetType;
-    // zoneIds untouched on update => fall back to the current link count.
     const effectiveHasZones =
       body.zoneIds !== undefined
         ? body.zoneIds.length > 0
         : existing._count.Zones > 0;
     const effectiveClickUrl =
-      body.clickUrl !== undefined ? body.clickUrl : existing.clickUrl;
+      body.clickUrl !== undefined
+        ? this.normalizeClickUrl(body.clickUrl)
+        : existing.clickUrl;
 
     this.assertTargetTypeConsistency(effectiveTargetType, {
       storeId: effectiveStoreId,
@@ -111,11 +120,12 @@ export class BannerService {
       zoneIds: body.zoneIds,
     });
 
-    const { zoneIds, ...rest } = body;
+    const { zoneIds, clickUrl, ...rest } = body;
     const updateData: Prisma.BannerUncheckedUpdateInput = {
       ...rest,
-      // Only touch the zone links when the client explicitly sends zoneIds.
-      // An empty array clears all links; undefined leaves them untouched.
+      ...(clickUrl !== undefined
+        ? { clickUrl: this.normalizeClickUrl(clickUrl) }
+        : {}),
       ...(zoneIds !== undefined
         ? {
             Zones: {
@@ -233,20 +243,20 @@ export class BannerService {
       active?: boolean;
       startDate?: Date | null;
       endDate?: Date | null;
+      clickUrl?: string | null;
     },
   >(banner: T) {
     const zones = (banner.Zones ?? []).map((z: any) => z.Zone);
+    const normalizedUrl = this.normalizeClickUrl(banner.clickUrl);
     return {
       ...banner,
-      // Collapse the customer-scoped favorite rows to a boolean and never leak
-      // the raw FavoriteStore records. `Favorites` is only present when the
-      // list was queried for a real customer (see selectBannerOBJ).
+      clickUrl: normalizedUrl,
+      isExternalUrl: !!normalizedUrl || banner.targetType === BannerTargetType.EXTERNAL_URL,
       Store: this.mapBannerStore(banner.Store),
       Zones: zones,
       zoneIds: zones.map((z: any) => z.id),
       isSpecialDriverBanner:
         banner.targetType === BannerTargetType.SPECIAL_DRIVER,
-      // active AND inside the scheduling window (open-ended bounds allowed).
       isCurrentlyActive: this.isCurrentlyActive(banner),
     };
   }
@@ -284,13 +294,6 @@ export class BannerService {
     return [...new Set(links.map((l) => l.zoneId))];
   }
 
-  // Enforces that the declared targetType matches the targeting fields, so the
-  // client can route purely off targetType. The clickUrl<->EXTERNAL_URL check
-  // always runs (even with no targetType sent) since an unrouted clickUrl
-  // would otherwise be silently accepted and ignored. Everything else here
-  // only runs when targetType is explicitly provided — an omitted targetType
-  // keeps the legacy behaviour (defaults to GENERAL at the DB level) for
-  // backward compatibility.
   private assertTargetTypeConsistency(
     targetType: BannerTargetType | null | undefined,
     fields: {
@@ -307,6 +310,10 @@ export class BannerService {
       throw new BadRequestException(
         'clickUrl is only allowed when targetType is EXTERNAL_URL',
       );
+    }
+
+    if (clickUrl) {
+      this.validateClickUrl(clickUrl);
     }
 
     if (targetType == null) return;
@@ -366,16 +373,17 @@ export class BannerService {
             'EXTERNAL_URL banners require a clickUrl',
           );
         }
-        this.validateClickUrl(clickUrl);
         break;
     }
   }
 
-  // Defense-in-depth re-check alongside the DTO's @IsUrl — mirrors
-  // AdminNotificationService.validateClickUrl exactly.
   private validateClickUrl(url: string): void {
+    const normalized = this.normalizeClickUrl(url);
+    if (!normalized) {
+      throw new BadRequestException('clickUrl must be a valid URL');
+    }
     try {
-      const parsed = new URL(url);
+      const parsed = new URL(normalized);
       if (!['http:', 'https:'].includes(parsed.protocol)) {
         throw new BadRequestException('clickUrl must be http or https');
       }
