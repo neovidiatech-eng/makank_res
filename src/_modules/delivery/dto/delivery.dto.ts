@@ -94,6 +94,14 @@ export class UpdateDeliveryDTO extends OmitType(
   @Optional()
   @ValidateBoolean()
   verified?: boolean;
+
+  @Optional()
+  @ValidateBoolean()
+  isOnShift?: boolean;
+
+  @Optional()
+  @ValidateBoolean()
+  availableNow?: boolean;
 }
 
 import { PaginationParamsDTO } from 'src/dtos/params/pagination-params.dto';

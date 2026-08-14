@@ -34,7 +34,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { OrderService } from '../order/order.service';
 
 @ApiTags('Delivery')
-@Controller('delivery')
+@Controller(['delivery', 'deliveries'])
 export class DeliveryController {
   constructor(
     private readonly deliveryService: DeliveryService,
@@ -206,6 +206,7 @@ export class DeliveryController {
     return this.deliveryService.findOne(+id);
   }
 
+  @Put(':id')
   @Patch(':id')
   @ApiOperation({ summary: 'Update delivery person' })
   @Auth({ prefix: 'delivery' })

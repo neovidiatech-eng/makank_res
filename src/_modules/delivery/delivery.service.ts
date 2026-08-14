@@ -705,7 +705,9 @@ export class DeliveryService {
   }
 
   async update(id: number, data: UpdateDeliveryDTO) {
-    const { active, forceAvailable, ...rest } = data;
+    const { active, forceAvailable, isOnShift, availableNow, ...rest } = data;
+
+    const requestedAvailable = isOnShift ?? availableNow;
 
     // Don't allow re-enabling availability while a forced AFK break is active.
     if (forceAvailable === true && (await this.afkBreakService.isOnBreak(id))) {
@@ -714,27 +716,38 @@ export class DeliveryService {
       );
     }
 
+    const deliveryDetailsUpdate: Prisma.DeliveryDetailsUpdateInput = {};
+    if (forceAvailable !== undefined) {
+      deliveryDetailsUpdate.forceAvailable = forceAvailable;
+      if (forceAvailable === true) {
+        deliveryDetailsUpdate.availableNow = true;
+      }
+    }
+    if (requestedAvailable !== undefined) {
+      deliveryDetailsUpdate.availableNow = requestedAvailable;
+    }
+
+    const hasDetailsUpdate = Object.keys(deliveryDetailsUpdate).length > 0;
+
     const result = await this.prisma.user.update({
       where: { id },
       data: {
         ...rest,
-        active,
-        DeliveryDetails:
-          forceAvailable !== undefined
-            ? {
+        ...(active !== undefined ? { active } : {}),
+        ...(hasDetailsUpdate
+          ? {
+              DeliveryDetails: {
                 update: {
                   where: { userId: id },
-                  data: {
-                    forceAvailable,
-                    ...(forceAvailable === true && { availableNow: true }),
-                  },
+                  data: deliveryDetailsUpdate,
                 },
-              }
-            : undefined,
+              },
+            }
+          : {}),
       },
     });
 
-    if (forceAvailable !== undefined) {
+    if (hasDetailsUpdate) {
       await this.deliveryScheduleHelpers.syncDeliveryAvailability(id);
     }
 
