@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -705,6 +706,10 @@ export class DeliveryService {
   }
 
   async update(id: number, data: UpdateDeliveryDTO) {
+    if (!id || isNaN(id)) {
+      throw new BadRequestException('Invalid driver ID');
+    }
+
     const { active, forceAvailable, isOnShift, availableNow, password, newPassword, ...rest } = data;
 
     const requestedAvailable = isOnShift ?? availableNow;
@@ -722,6 +727,15 @@ export class DeliveryService {
       );
     }
 
+    const result = await this.prisma.user.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(hashedPassword ? { password: hashedPassword } : {}),
+        ...(active !== undefined ? { active } : {}),
+      },
+    });
+
     const deliveryDetailsUpdate: Prisma.DeliveryDetailsUpdateInput = {};
     if (forceAvailable !== undefined) {
       deliveryDetailsUpdate.forceAvailable = forceAvailable;
@@ -735,26 +749,18 @@ export class DeliveryService {
 
     const hasDetailsUpdate = Object.keys(deliveryDetailsUpdate).length > 0;
 
-    const result = await this.prisma.user.update({
-      where: { id },
-      data: {
-        ...rest,
-        ...(hashedPassword ? { password: hashedPassword } : {}),
-        ...(active !== undefined ? { active } : {}),
-        ...(hasDetailsUpdate
-          ? {
-              DeliveryDetails: {
-                update: {
-                  where: { userId: id },
-                  data: deliveryDetailsUpdate,
-                },
-              },
-            }
-          : {}),
-      },
-    });
-
     if (hasDetailsUpdate) {
+      await this.prisma.deliveryDetails.upsert({
+        where: { userId: id },
+        update: deliveryDetailsUpdate,
+        create: {
+          userId: id,
+          lat: 0,
+          lng: 0,
+          forceAvailable: forceAvailable ?? false,
+          availableNow: requestedAvailable ?? forceAvailable ?? false,
+        },
+      });
       await this.deliveryScheduleHelpers.syncDeliveryAvailability(id);
     }
 
