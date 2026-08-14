@@ -32,10 +32,15 @@ import { Auth } from '../authentication/decorators/auth.decorator';
 import { CurrentUser } from '../authentication/decorators/current-user.decorator';
 import { RolesKeys } from '../authorization/providers/roles';
 
-const prefix = 'banners';
+const authPrefix = 'banners';
 
-@Controller(prefix)
-@ApiTags(tag(prefix))
+@Controller([
+  'banners',
+  'banner',
+  'special-delivery-banners',
+  'special-delivery-banner',
+])
+@ApiTags(tag(authPrefix))
 export class BannerController {
   constructor(
     private readonly service: BannerService,
@@ -43,7 +48,7 @@ export class BannerController {
   ) {}
 
   @Post('/')
-  @Auth({ prefix })
+  @Auth({ prefix: authPrefix })
   @UploadFile('image', 'banner', undefined, {
     // disallowedTypes: ['image/svg+xml'],
   })
@@ -55,7 +60,7 @@ export class BannerController {
   // Public click tracking. Visitor auth (no permission gate) so customers can
   // report taps. Increments clickCount atomically; 404 if the banner is gone.
   @Post('/:id/click')
-  @Auth({ prefix, visitor: true })
+  @Auth({ prefix: authPrefix, visitor: true })
   @ApiRequiredIdParam()
   async click(@Res() res: Response, @Param() { id }: RequiredIdParam) {
     await this.service.trackClick(id);
@@ -67,7 +72,7 @@ export class BannerController {
     // disallowedTypes: ['image/svg+xml'],
   })
   @ApiRequiredIdParam()
-  @Auth({ prefix })
+  @Auth({ prefix: authPrefix })
   async update(
     @Res() res: Response,
     @Param() { id }: RequiredIdParam,
@@ -80,7 +85,7 @@ export class BannerController {
   // Admin statistics: banner name + click count. Declared before GET '/:id'
   // so the literal path is not captured by the id route.
   @Get('/statistics')
-  @Auth({ prefix })
+  @Auth({ prefix: authPrefix })
   @ApiQuery({ type: PartialType(FilterBannerDTO) })
   async statistics(
     @Res() res: Response,
@@ -104,7 +109,7 @@ export class BannerController {
   // Helper for the create/update UI: which zones the admin may pick for a
   // banner targeting this store (union of the store branches' zones).
   @Get('/store/:storeId/zones')
-  @Auth({ prefix })
+  @Auth({ prefix: authPrefix })
   async allowedZones(
     @Res() res: Response,
     @Param('storeId', ParseIntPipe) storeId: number,
@@ -118,7 +123,7 @@ export class BannerController {
   }
 
   @Get(['/', '/:id'])
-  @Auth({ prefix, visitor: true })
+  @Auth({ prefix: authPrefix, visitor: true })
   @ApiQuery({ type: PartialType(FilterBannerDTO) })
   @ApiOptionalIdParam('id')
   async findAll(
@@ -139,7 +144,7 @@ export class BannerController {
   }
 
   @Delete('/:id')
-  @Auth({ prefix })
+  @Auth({ prefix: authPrefix })
   @ApiRequiredIdParam()
   async delete(@Res() res: Response, @Param() { id }: RequiredIdParam) {
     await this.service.delete(id);

@@ -251,7 +251,10 @@ export class BannerService {
     return {
       ...banner,
       clickUrl: normalizedUrl,
-      isExternalUrl: !!normalizedUrl || banner.targetType === BannerTargetType.EXTERNAL_URL,
+      url: normalizedUrl,
+      link: normalizedUrl,
+      isExternalUrl:
+        !!normalizedUrl || banner.targetType === BannerTargetType.EXTERNAL_URL,
       Store: this.mapBannerStore(banner.Store),
       Zones: zones,
       zoneIds: zones.map((z: any) => z.id),
