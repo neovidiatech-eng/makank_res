@@ -7,11 +7,10 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  Req,
   Res,
 } from '@nestjs/common';
 import { ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import {
   ApiOptionalIdParam,
   ApiRequiredIdParam,
@@ -35,40 +34,20 @@ import { RolesKeys } from '../authorization/providers/roles';
 
 const authPrefix = 'banners';
 
-/** Returns true when the request came through one of the
- *  special-delivery-banners/* aliases so we can auto-scope targetType.
- *  Uses req.originalUrl which always contains the full path in Express. */
-const isSpecialDeliveryRoute = (req: Request): boolean =>
-  /special-delivery/i.test((req as any).originalUrl ?? req.url);
-
-@Controller([
-  'banners',
-  'banner',
-  'special-delivery-banners',
-  'special-delivery-banner',
-])
+@Controller(['banners', 'banner'])
 @ApiTags(tag(authPrefix))
 export class BannerController {
   constructor(
     private readonly service: BannerService,
     private readonly response: ResponseService,
-  ) {}
+  ) { }
 
   @Post('/')
   @Auth({ prefix: authPrefix })
   @UploadFile('image', 'banner', undefined, {
     // disallowedTypes: ['image/svg+xml'],
   })
-  async create(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Body() body: CreateBannerDTO,
-  ) {
-    // When creating via the special-delivery-banners route, always lock
-    // targetType to SPECIAL_DRIVER so the banner ends up in the right list.
-    if (isSpecialDeliveryRoute(req)) {
-      (body as any).targetType = 'SPECIAL_DRIVER';
-    }
+  async create(@Res() res: Response, @Body() body: CreateBannerDTO) {
     await this.service.create(body);
     return this.response.created(res, 'banner created successfully');
   }
@@ -90,15 +69,10 @@ export class BannerController {
   @ApiRequiredIdParam()
   @Auth({ prefix: authPrefix })
   async update(
-    @Req() req: Request,
     @Res() res: Response,
     @Param() { id }: RequiredIdParam,
     @Body() body: UpdateBannerDTO,
   ) {
-    // Preserve route-scoped targetType on edit as well.
-    if (isSpecialDeliveryRoute(req)) {
-      (body as any).targetType = 'SPECIAL_DRIVER';
-    }
     await this.service.update(id, body);
     return this.response.created(res, 'banner updated successfully');
   }
@@ -148,27 +122,16 @@ export class BannerController {
   @ApiQuery({ type: PartialType(FilterBannerDTO) })
   @ApiOptionalIdParam('id')
   async findAll(
-    @Req() req: Request,
     @Res() res: Response,
     @Filter({ dto: FilterBannerDTO }) filters: FilterBannerDTO,
     @CurrentUser() currentUser: CurrentUser,
   ) {
     const isCustomer =
       !currentUser || currentUser.Role.roleKey === RolesKeys.CUSTOMER;
-
-    // Detect which route family was used and pass that as a scoping flag.
-    // The service/args layer will then auto-restrict targetType accordingly.
-    const specialDelivery = isSpecialDeliveryRoute(req);
-
-    const data = await this.service.findAll(
-      filters,
-      isCustomer,
-      currentUser,
-      specialDelivery,
-    );
+    const data = await this.service.findAll(filters, isCustomer, currentUser);
     const total = isOne(filters?.id)
       ? undefined
-      : await this.service.count(filters, specialDelivery);
+      : await this.service.count(filters);
 
     return this.response.success(res, 'banner fetched successfully', data, {
       total,
@@ -176,10 +139,10 @@ export class BannerController {
   }
 
   @Delete('/:id')
-  @Auth({ prefix: authPrefix })
-  @ApiRequiredIdParam()
-  async delete(@Res() res: Response, @Param() { id }: RequiredIdParam) {
-    await this.service.delete(id);
-    return this.response.success(res, 'delete banner successfully');
-  }
+@Auth({ prefix: authPrefix })
+@ApiRequiredIdParam()
+async delete (@Res() res: Response, @Param() { id }: RequiredIdParam) {
+  await this.service.delete(id);
+  return this.response.success(res, 'delete banner successfully');
+}
 }

@@ -20,7 +20,6 @@ export const getBannerArgs = (
   query: FilterBannerDTO,
   languages: Language[],
   isCustomer = false,
-  specialDeliveryRoute?: boolean,
 ) => {
   const { page, limit, orderBy, ...filter } = query;
   const searchArray = [
@@ -29,22 +28,9 @@ export const getBannerArgs = (
     filterKey<Banner>(filter, 'storeId'),
     filterKey<Banner>(filter, 'categoryId'),
     filterKey<Banner>(filter, 'serviceId'),
+    filterKey<Banner>(filter, 'targetType'),
     filterKey<Banner>(filter, 'active'),
   ].filter(Boolean) as Prisma.BannerWhereInput[];
-
-  // Route-aware targetType scoping (only applied when the caller does NOT
-  // explicitly pass a targetType filter so admin overrides still work):
-  //   /special-delivery-banners  → ONLY  SPECIAL_DRIVER banners
-  //   /banners                   → NEVER SPECIAL_DRIVER banners
-  if (!filter.targetType && specialDeliveryRoute !== undefined) {
-    searchArray.push(
-      specialDeliveryRoute
-        ? { targetType: 'SPECIAL_DRIVER' as any }
-        : { NOT: { targetType: 'SPECIAL_DRIVER' as any } },
-    );
-  } else if (filter.targetType) {
-    searchArray.push(filterKey<Banner>(filter as any, 'targetType') as Prisma.BannerWhereInput);
-  }
 
   // Customers only ever see active banners inside their scheduling window;
   // admins see everything so they can manage scheduled/expired banners.

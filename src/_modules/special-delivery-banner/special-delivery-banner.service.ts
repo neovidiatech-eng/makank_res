@@ -231,13 +231,20 @@ export class SpecialDeliveryBannerService {
     return [...unique.values()];
   }
 
-  // --- helpers -------------------------------------------------------------
+  private normalizeClickUrl(url?: string | null): string | null {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  }
 
   // Flatten the zone join rows and expose explicit routing/scheduling fields so
   // the client never has to infer behaviour from the title/image.
   private mapBanner<
     T extends {
       targetType?: BannerTargetType;
+      clickUrl?: string | null;
       Zones?: any[];
       Store?: any;
       active?: boolean;
@@ -246,8 +253,14 @@ export class SpecialDeliveryBannerService {
     },
   >(banner: T) {
     const zones = (banner.Zones ?? []).map((z: any) => z.Zone);
+    const normalizedUrl = this.normalizeClickUrl(banner.clickUrl);
     return {
       ...banner,
+      clickUrl: normalizedUrl,
+      url: normalizedUrl,
+      link: normalizedUrl,
+      isExternalUrl:
+        !!normalizedUrl || banner.targetType === BannerTargetType.EXTERNAL_URL,
       Store: this.mapBannerStore(banner.Store),
       Zones: zones,
       zoneIds: zones.map((z: any) => z.id),
