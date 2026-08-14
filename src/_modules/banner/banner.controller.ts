@@ -7,10 +7,11 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
   Res,
 } from '@nestjs/common';
 import { ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import {
   ApiOptionalIdParam,
   ApiRequiredIdParam,
@@ -33,6 +34,11 @@ import { CurrentUser } from '../authentication/decorators/current-user.decorator
 import { RolesKeys } from '../authorization/providers/roles';
 
 const authPrefix = 'banners';
+
+/** Returns true when the request came through one of the
+ *  special-delivery-banners/* aliases so we can auto-scope targetType. */
+const isSpecialDeliveryRoute = (req: Request): boolean =>
+  /special-delivery/i.test(req.path + req.url);
 
 @Controller([
   'banners',
@@ -127,16 +133,27 @@ export class BannerController {
   @ApiQuery({ type: PartialType(FilterBannerDTO) })
   @ApiOptionalIdParam('id')
   async findAll(
+    @Req() req: Request,
     @Res() res: Response,
     @Filter({ dto: FilterBannerDTO }) filters: FilterBannerDTO,
     @CurrentUser() currentUser: CurrentUser,
   ) {
     const isCustomer =
       !currentUser || currentUser.Role.roleKey === RolesKeys.CUSTOMER;
-    const data = await this.service.findAll(filters, isCustomer, currentUser);
+
+    // Detect which route family was used and pass that as a scoping flag.
+    // The service/args layer will then auto-restrict targetType accordingly.
+    const specialDelivery = isSpecialDeliveryRoute(req);
+
+    const data = await this.service.findAll(
+      filters,
+      isCustomer,
+      currentUser,
+      specialDelivery,
+    );
     const total = isOne(filters?.id)
       ? undefined
-      : await this.service.count(filters);
+      : await this.service.count(filters, specialDelivery);
 
     return this.response.success(res, 'banner fetched successfully', data, {
       total,

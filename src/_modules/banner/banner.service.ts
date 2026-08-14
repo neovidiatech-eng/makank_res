@@ -143,9 +143,10 @@ export class BannerService {
     filters: FilterBannerDTO,
     isCustomer = false,
     currentUser?: CurrentUser,
+    specialDeliveryRoute?: boolean,
   ) {
     const languages = await this.Language.getCashedLanguages();
-    const args = getBannerArgs(filters, languages, isCustomer);
+    const args = getBannerArgs(filters, languages, isCustomer, specialDeliveryRoute);
     const argsWithSelect = getBannerArgsWithSelect(
       isCustomer ? currentUser?.id : undefined,
     );
@@ -162,9 +163,9 @@ export class BannerService {
         : data;
   }
 
-  async count(filters: FilterBannerDTO) {
+  async count(filters: FilterBannerDTO, specialDeliveryRoute?: boolean) {
     const languages = await this.Language.getCashedLanguages();
-    const args = getBannerArgs(filters, languages);
+    const args = getBannerArgs(filters, languages, false, specialDeliveryRoute);
     const total = await this.prisma.banner.count({ where: args.where });
 
     return total;
