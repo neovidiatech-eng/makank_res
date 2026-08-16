@@ -45,6 +45,10 @@ export class DeliveryController {
     private readonly walletService: WalletService,
   ) {}
 
+  // ==========================================
+  // Static & Specific Routes (Must be before :id)
+  // ==========================================
+
   @Get('me/current-assignment')
   @ApiOperation({ summary: 'Get current assigned order for delivery' })
   @Auth()
@@ -97,6 +101,74 @@ export class DeliveryController {
     );
   }
 
+  @Get('me/dashboard')
+  @ApiOperation({
+    summary: 'Logged-in driver dashboard (stats, financials & orders)',
+  })
+  @Auth()
+  async getMyDashboard(
+    @Res() res: Response,
+    @CurrentUser() user: CurrentUser,
+    @Query() query: GetDriverDashboardDTO,
+  ) {
+    const data = await this.deliveryService.getDriverDashboard(user.id, query);
+    return this.responses.success(
+      res,
+      'Driver dashboard fetched successfully',
+      data,
+    );
+  }
+
+  @Get('me/statistics')
+  @ApiOperation({ summary: 'Get delivery statistics' })
+  @Auth()
+  async getStatistics(
+    @CurrentUser('id') userId: number,
+    @Query() query: GetDeliveryStatisticsDTO,
+    @Res() res: Response,
+  ) {
+    const stats = await this.deliveryService.getStatistics(userId, query);
+    return this.responses.success(
+      res,
+      'Statistics fetched successfully',
+      stats,
+    );
+  }
+
+  @Put('location')
+  @Patch('location')
+  @Post('location')
+  @ApiOperation({ summary: 'Update delivery current location' })
+  @Auth()
+  async updateLocation(
+    @CurrentUser('id') userId: number,
+    @Body() body: UpdateDeliveryLocationDTO,
+  ) {
+    return this.deliveryService.updateLocation(
+      userId,
+      body.lat,
+      body.lng,
+      body.bearing,
+    );
+  }
+
+  @Put('schedule')
+  @Patch('schedule')
+  @Post('schedule')
+  @ApiOperation({ summary: 'Update delivery schedule' })
+  @Auth()
+  async updateSchedule(
+    @CurrentUser('id') userId: number,
+    @Body() data: DeliveryScheduleDTO,
+    @Res() res: Response,
+  ) {
+    await this.deliveryService.updateSchedule(userId, data);
+    return this.responses.success(
+      res,
+      'Delivery schedule updated successfully',
+    );
+  }
+
   @Post('register')
   @ApiOperation({ summary: 'Register a new delivery person' })
   @Auth({ visitor: true, prefix: 'delivery/register' })
@@ -127,6 +199,7 @@ export class DeliveryController {
       },
     );
   }
+
   @Get('all')
   @ApiOperation({ summary: 'Get all delivery persons' })
   @Auth({ prefix: 'delivery' })
@@ -161,23 +234,9 @@ export class DeliveryController {
     );
   }
 
-  @Get('me/dashboard')
-  @ApiOperation({
-    summary: 'Logged-in driver dashboard (stats, financials & orders)',
-  })
-  @Auth()
-  async getMyDashboard(
-    @Res() res: Response,
-    @CurrentUser() user: CurrentUser,
-    @Query() query: GetDriverDashboardDTO,
-  ) {
-    const data = await this.deliveryService.getDriverDashboard(user.id, query);
-    return this.responses.success(
-      res,
-      'Driver dashboard fetched successfully',
-      data,
-    );
-  }
+  // ==========================================
+  // Dynamic Parameterized Routes (:id)
+  // ==========================================
 
   @Get(':id/dashboard')
   @ApiOperation({
@@ -197,6 +256,15 @@ export class DeliveryController {
       'Driver dashboard fetched successfully',
       data,
     );
+  }
+
+  // Full reset for one driver's wallet/cash-custody figures back to zero
+  @Patch(':id/reset-wallet')
+  @ApiOperation({ summary: "Reset a driver's wallet to zero" })
+  @Auth({ prefix: 'delivery' })
+  async resetWallet(@Res() res: Response, @Param('id') id: string) {
+    await this.walletService.resetDriverWallet(+id);
+    return this.responses.success(res, 'Driver wallet reset successfully');
   }
 
   @Get(':id')
@@ -229,66 +297,5 @@ export class DeliveryController {
   async remove(@Res() res: Response, @Param('id') id: string) {
     await this.deliveryService.remove(+id);
     return this.responses.success(res, 'Delivery person deleted successfully');
-  }
-
-  // Full reset for one driver's wallet/cash-custody figures back to zero
-  // (e.g. after heavy test-order activity left it in a meaningless state).
-  // Any still-PENDING withdrawal request for this driver is auto-denied so
-  // it can't later be approved against a balance that no longer backs it.
-  // Transaction ledger history is left untouched on purpose.
-  @Patch(':id/reset-wallet')
-  @ApiOperation({ summary: "Reset a driver's wallet to zero" })
-  @Auth({ prefix: 'delivery' })
-  async resetWallet(@Res() res: Response, @Param('id') id: string) {
-    await this.walletService.resetDriverWallet(+id);
-    return this.responses.success(res, 'Driver wallet reset successfully');
-  }
-
-  @Put('schedule')
-  @ApiOperation({ summary: 'Update delivery schedule' })
-  @Auth()
-  async updateSchedule(
-    @CurrentUser('id') userId: number,
-    @Body() data: DeliveryScheduleDTO,
-    @Res() res: Response,
-  ) {
-    await this.deliveryService.updateSchedule(userId, data);
-    return this.responses.success(
-      res,
-      'Delivery schedule updated successfully',
-    );
-  }
-
-  @Put('location')
-  @Patch('location')
-  @Post('location')
-  @ApiOperation({ summary: 'Update delivery current location' })
-  @Auth()
-  async updateLocation(
-    @CurrentUser('id') userId: number,
-    @Body() body: UpdateDeliveryLocationDTO,
-  ) {
-    return this.deliveryService.updateLocation(
-      userId,
-      body.lat,
-      body.lng,
-      body.bearing,
-    );
-  }
-
-  @Get('me/statistics')
-  @ApiOperation({ summary: 'Get delivery statistics' })
-  @Auth()
-  async getStatistics(
-    @CurrentUser('id') userId: number,
-    @Query() query: GetDeliveryStatisticsDTO,
-    @Res() res: Response,
-  ) {
-    const stats = await this.deliveryService.getStatistics(userId, query);
-    return this.responses.success(
-      res,
-      'Statistics fetched successfully',
-      stats,
-    );
   }
 }
