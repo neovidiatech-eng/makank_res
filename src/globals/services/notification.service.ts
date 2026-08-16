@@ -280,13 +280,18 @@ export class NotificationService {
       data: pushData,
       tokens,
       android: {
+        priority: 'high' as const,
         notification: {
           sound: 'notification_sound',
           channelId: 'makank_orders_v2',
+          priority: 'high' as const,
           ...(imageUrl ? { image: imageUrl, imageUrl } : {}),
         },
       },
       apns: {
+        headers: {
+          'apns-priority': '10',
+        },
         payload: {
           aps: {
             sound: 'notification_sound.mp3',
@@ -337,6 +342,8 @@ export class NotificationService {
     try {
       const response = await admin.messaging().sendEachForMulticast(message);
 
+      const staleTokens: string[] = [];
+
       // Per-token result log — shows exactly which tokens succeeded/failed
       response.responses.forEach((r, i) => {
         if (r.success) {
@@ -344,12 +351,38 @@ export class NotificationService {
             `[push] ✅ SENT  token#${i} (prefix=${tokens[i]?.slice(0, 10)}…) userId=${userId}`,
           );
         } else {
+          const errCode = (r.error?.code || '').toLowerCase();
+          const errMessage = (r.error?.message || '').toLowerCase();
+
           this.logger.error(
             `[push] ❌ FAILED token#${i} (prefix=${tokens[i]?.slice(0, 10)}…) userId=${userId} ` +
               `error=${r.error?.code ?? 'unknown'} message=${r.error?.message ?? ''}`,
           );
+
+          if (
+            errCode.includes('registration-token-not-registered') ||
+            errCode.includes('invalid-registration-token') ||
+            errCode.includes('not-registered') ||
+            errMessage.includes('notregistered') ||
+            errMessage.includes('invalidregistration') ||
+            errMessage.includes('not registered')
+          ) {
+            if (tokens[i]) {
+              staleTokens.push(tokens[i]);
+            }
+          }
         }
       });
+
+      if (staleTokens.length > 0) {
+        await this.prisma.session.updateMany({
+          where: { fcmToken: { in: staleTokens } },
+          data: { fcmToken: null },
+        });
+        this.logger.log(
+          `[push-cleanup] 🧹 Cleaned up ${staleTokens.length} stale/unregistered FCM token(s) for userId=${userId}`,
+        );
+      }
 
       this.logger.log(
         `[push] Summary userId=${userId}: ✅ success=${response.successCount} ❌ failure=${response.failureCount}`,
@@ -413,12 +446,17 @@ export class NotificationService {
       data,
       token,
       android: {
+        priority: 'high' as const,
         notification: {
           sound: 'notification_sound',
           channelId: 'makank_orders_v2',
+          priority: 'high' as const,
         },
       },
       apns: {
+        headers: {
+          'apns-priority': '10',
+        },
         payload: {
           aps: {
             sound: 'notification_sound.mp3',
@@ -432,6 +470,22 @@ export class NotificationService {
       this.logger.log(`Push notification sent: ${response}`);
       return response;
     } catch (error) {
+      const errCode = (error?.code || '').toLowerCase();
+      const errMessage = (error?.message || '').toLowerCase();
+      if (
+        errCode.includes('registration-token-not-registered') ||
+        errCode.includes('invalid-registration-token') ||
+        errCode.includes('not-registered') ||
+        errMessage.includes('notregistered') ||
+        errMessage.includes('invalidregistration') ||
+        errMessage.includes('not registered')
+      ) {
+        await this.prisma.session.updateMany({
+          where: { fcmToken: token },
+          data: { fcmToken: null },
+        });
+        this.logger.log(`[push-cleanup] 🧹 Removed unregistered FCM token: ${token.slice(0, 10)}…`);
+      }
       this.logger.error(`Error sending push notification: ${error.message}`);
       throw new BadRequestException('Failed to send push notification');
     }
@@ -450,12 +504,17 @@ export class NotificationService {
       notification: { title, body },
       topic: topic,
       android: {
+        priority: 'high' as const,
         notification: {
           sound: 'notification_sound',
           channelId: 'makank_orders_v2',
+          priority: 'high' as const,
         },
       },
       apns: {
+        headers: {
+          'apns-priority': '10',
+        },
         payload: {
           aps: {
             sound: 'notification_sound.mp3',
