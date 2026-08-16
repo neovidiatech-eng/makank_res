@@ -118,6 +118,7 @@ export class StoreNearestService {
         b.temporarily_closed          AS temporarilyClosed,
         b.status,
         b.busy_until                  AS busyUntil,
+        b.status_reason               AS statusReason,
         s.is_verified                 AS isVerified,
         (SELECT COUNT(*) FROM favorite_store fs
          WHERE fs.branch_id = b.id AND fs.customer_id = ?) > 0 AS isAddedToFavorite,
@@ -147,7 +148,7 @@ export class StoreNearestService {
       WHERE distance <= ?
     )
     SELECT branchId, id, name, lat, lng, address, phone, rating, review,
-           closed, temporarilyClosed, status, busyUntil, isVerified,
+           closed, temporarilyClosed, status, busyUntil, statusReason, isVerified,
            isAddedToFavorite, distance
     FROM nearest
     WHERE rn = 1

@@ -185,8 +185,15 @@ export class StoreService {
           if (body.status === 'BUSY' && body.busyMinutes) {
             busyUntil = new Date();
             busyUntil.setMinutes(busyUntil.getMinutes() + body.busyMinutes);
-          } else if (body.status === 'OPEN') {
+          } else if (body.status === 'OPEN' || body.status === 'NORMAL') {
             busyUntil = null;
+          }
+
+          let statusReason = firstBranch.statusReason;
+          if (body.status === 'BUSY' || body.status === 'CLOSED') {
+            statusReason = body.statusReason ?? firstBranch.statusReason;
+          } else if (body.status === 'OPEN' || body.status === 'NORMAL') {
+            statusReason = null;
           }
 
           await tx.branch.update({
@@ -204,6 +211,7 @@ export class StoreService {
                     : (closed ?? firstBranch.closed),
               status: body.status,
               busyUntil,
+              statusReason,
             },
           });
         }
@@ -499,7 +507,9 @@ export class StoreService {
           rating: branchData.rating || 0,
           review: branchData.review || 0,
           status: currentStatus,
+          isBusy: currentStatus === 'BUSY',
           busyUntil: branchData.busyUntil,
+          statusReason: branchData.statusReason ?? null,
           closed: isClosed,
           temporarilyClosed: branchData.temporarilyClosed ?? false,
           phone: branchData.phone,

@@ -142,6 +142,10 @@ export class UpdateStoreDTO extends OmitType(PartialType(CreateStoreDTO), [
   @ValidateNumber()
   busyMinutes: number;
 
+  @Optional()
+  @ValidateString()
+  statusReason: string;
+
   // Static prep-time estimate shown to the customer on the store page —
   // free-form minutes, settable by the store itself or by an admin.
   @Optional()
