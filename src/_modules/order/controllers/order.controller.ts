@@ -132,27 +132,29 @@ export class OrderController {
     );
   }
 
+  @Patch('/accept')
   @Patch('/:id/accept')
-  @ApiRequiredIdParam()
   @Auth({ prefix })
   async acceptAssignment(
     @Res() res: Response,
-    @Param() { id }: RequiredIdParam,
+    @Param('id') id: string | undefined,
     @CurrentUser('id') userId: number,
   ) {
-    const data = await this.service.acceptOrderAssignment(id, userId);
+    const orderId = Number(id) || 0;
+    const data = await this.service.acceptOrderAssignment(orderId, userId);
     return this.response.success(res, 'Assignment accepted successfully', data);
   }
 
+  @Patch('/reject')
   @Patch('/:id/reject')
-  @ApiRequiredIdParam()
   @Auth({ prefix })
   async rejectAssignment(
     @Res() res: Response,
-    @Param() { id }: RequiredIdParam,
+    @Param('id') id: string | undefined,
     @CurrentUser('id') userId: number,
   ) {
-    const data = await this.service.rejectOrderAssignment(id, userId);
+    const orderId = Number(id) || 0;
+    const data = await this.service.rejectOrderAssignment(orderId, userId);
     return this.response.success(res, 'Assignment rejected successfully', data);
   }
   @Patch('/:id/admin-note')

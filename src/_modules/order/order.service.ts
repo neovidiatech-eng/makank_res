@@ -3237,19 +3237,33 @@ export class OrderService {
   }
 
   async acceptOrderAssignment(orderId: number, deliveryId: number) {
-    const assignment = await this.prisma.orderDeliveryAssignment.findFirst({
+    let assignment = await this.prisma.orderDeliveryAssignment.findFirst({
       where: {
-        orderId,
+        ...(orderId > 0 ? { orderId } : {}),
         deliveryId,
         status: AssignmentStatus.PENDING,
       },
+      orderBy: { assignedAt: 'desc' },
     });
+
+    if (!assignment && orderId > 0) {
+      // Fallback: If passed orderId was bad/0/stale, try finding ANY active pending assignment for this driver
+      assignment = await this.prisma.orderDeliveryAssignment.findFirst({
+        where: {
+          deliveryId,
+          status: AssignmentStatus.PENDING,
+        },
+        orderBy: { assignedAt: 'desc' },
+      });
+    }
 
     if (!assignment) {
       throw new BadRequestException(
         'No pending assignment found or it has expired',
       );
     }
+
+    const resolvedOrderId = assignment.orderId;
 
     if (new Date() > assignment.expiresAt) {
       await this.prisma.orderDeliveryAssignment.update({
@@ -3268,7 +3282,7 @@ export class OrderService {
       OrderStatus.DELIVERED,
     ];
     const currentOrder = await this.prisma.order.findUnique({
-      where: { id: orderId },
+      where: { id: resolvedOrderId },
     });
     if (!currentOrder) {
       throw new BadRequestException('Order not found');
@@ -3286,7 +3300,7 @@ export class OrderService {
         },
       });
       const order = await tx.order.findUnique({
-        where: { id: orderId },
+        where: { id: resolvedOrderId },
       });
 
       const nextStatus =
@@ -3295,11 +3309,11 @@ export class OrderService {
           : order.status;
 
       this.logger.log(
-        `[geofence-debug] acceptOrderAssignment: orderId=${orderId} deliveryId=${deliveryId} currentOrderStatus=${order.status} -> nextOrderStatus=${nextStatus}`,
+        `[geofence-debug] acceptOrderAssignment: orderId=${resolvedOrderId} deliveryId=${deliveryId} currentOrderStatus=${order.status} -> nextOrderStatus=${nextStatus}`,
       );
 
       await tx.order.update({
-        where: { id: orderId },
+        where: { id: resolvedOrderId },
         data: {
           deliveryId,
           status: nextStatus,
@@ -3310,7 +3324,7 @@ export class OrderService {
       // becomes the active step the moment a driver takes the order.
       if (order.type === OrderType.CUSTOM_DELIVERY) {
         const firstStation = await tx.orderStation.findFirst({
-          where: { orderId },
+          where: { orderId: resolvedOrderId },
           orderBy: { sequence: 'asc' },
         });
         if (firstStation && firstStation.status === StationStatus.WAITING) {
@@ -3521,20 +3535,36 @@ export class OrderService {
   }
 
   async rejectOrderAssignment(orderId: number, deliveryId: number) {
-    const assignment = await this.prisma.orderDeliveryAssignment.findFirst({
+    let assignment: any = await this.prisma.orderDeliveryAssignment.findFirst({
       where: {
-        orderId,
+        ...(orderId > 0 ? { orderId } : {}),
         deliveryId,
         status: AssignmentStatus.PENDING,
       },
       include: {
         Delivery: { include: { User: true } },
       },
+      orderBy: { assignedAt: 'desc' },
     });
+
+    if (!assignment && orderId > 0) {
+      assignment = await this.prisma.orderDeliveryAssignment.findFirst({
+        where: {
+          deliveryId,
+          status: AssignmentStatus.PENDING,
+        },
+        include: {
+          Delivery: { include: { User: true } },
+        },
+        orderBy: { assignedAt: 'desc' },
+      });
+    }
 
     if (!assignment) {
       throw new BadRequestException('No pending assignment found');
     }
+
+    const resolvedOrderId = assignment.orderId;
 
     await this.prisma.orderDeliveryAssignment.update({
       where: { id: assignment.id },
@@ -3554,10 +3584,10 @@ export class OrderService {
         admin.id,
         { ar: 'رفض طلب', en: 'Order Rejected' },
         {
-          ar: `الديلفري رفض الطلب رقم ${orderId}`,
-          en: `Delivery rejected order ${orderId}`,
+          ar: `الديلفري رفض الطلب رقم ${resolvedOrderId}`,
+          en: `Delivery rejected order ${resolvedOrderId}`,
         },
-        { resourceId: `${orderId}`, type: 'DELIVERY_REJECTED' },
+        { resourceId: `${resolvedOrderId}`, type: 'DELIVERY_REJECTED' },
       );
     }
 
@@ -3570,7 +3600,7 @@ export class OrderService {
       deliveryId,
       assignment.Delivery?.User?.name ?? '',
     );
-    await this.reassignAfterTimeout(orderId, deliveryId);
+    await this.reassignAfterTimeout(resolvedOrderId, deliveryId);
 
     return { success: true };
   }
