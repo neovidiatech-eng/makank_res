@@ -294,26 +294,31 @@ export class StoreController {
   // this to populate the zone dropdown while the customer is ordering from
   // this store — GET /zones is store-agnostic and won't reflect this store's
   // own overrides.
+  @Get('me/effective-zone-prices')
+  @Get('effective-zone-prices')
   @Get('/:id/effective-zone-prices')
-  @ApiRequiredIdParam()
   @Auth({ prefix, visitor: true })
-  async getEffectiveZonePrices(@Res() res: Response, @Param() { id }: RequiredIdParam) {
-    const data = await this.service.getEffectiveZonePrices(id);
+  async getEffectiveZonePrices(
+    @Res() res: Response,
+    @Param('id') id: string | undefined,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    const targetId = id ?? (user?.storeId ? String(user.storeId) : 'me');
+    const data = await this.service.getEffectiveZonePrices(targetId, user);
     return this.response.success(res, 'store effective zone prices fetched successfully', data);
   }
 
-  // Store self-service (also reachable by admin, isSuperAdmin bypasses the row
-  // check) — every admin-defined zone plus this store's own price for it.
+  @Get('me/zone-prices')
+  @Get('zone-prices')
   @Get('/:id/zone-prices')
-  @ApiRequiredIdParam()
   @Auth({ prefix })
-  @CanUserAccessModelRowId({
-    prefix,
-    modelName: 'store',
-    indirectRelation: true,
-  })
-  async getZonePrices(@Res() res: Response, @Param() { id }: RequiredIdParam) {
-    const data = await this.service.getZonePrices(id);
+  async getZonePrices(
+    @Res() res: Response,
+    @Param('id') id: string | undefined,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    const targetId = id ?? (user?.storeId ? String(user.storeId) : 'me');
+    const data = await this.service.getZonePrices(targetId, user);
     return this.response.success(
       res,
       'store zone prices fetched successfully',
@@ -321,37 +326,34 @@ export class StoreController {
     );
   }
 
+  @Patch('me/zone-prices')
+  @Patch('zone-prices')
   @Patch('/:id/zone-prices')
-  @ApiRequiredIdParam()
   @Auth({ prefix })
-  @CanUserAccessModelRowId({
-    prefix,
-    modelName: 'store',
-    indirectRelation: true,
-  })
   async setZonePrices(
     @Res() res: Response,
-    @Param() { id }: RequiredIdParam,
-    @Body() { zonePrices }: SetStoreZonePricesDTO,
+    @Param('id') id: string | undefined,
+    @Body() body: any,
+    @CurrentUser() user: CurrentUser,
   ) {
-    await this.service.setZonePrices(id, zonePrices);
-    return this.response.success(res, 'store zone prices updated successfully');
+    const targetId = id ?? (user?.storeId ? String(user.storeId) : 'me');
+    const data = await this.service.setZonePrices(targetId, body, user);
+    return this.response.success(res, 'store zone prices updated successfully', data);
   }
 
+  @Delete('me/zone-prices/:zoneId')
+  @Delete('zone-prices/:zoneId')
   @Delete('/:id/zone-prices/:zoneId')
   @Auth({ prefix })
-  @CanUserAccessModelRowId({
-    prefix,
-    modelName: 'store',
-    indirectRelation: true,
-  })
   async deleteZonePrice(
     @Res() res: Response,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string | undefined,
     @Param('zoneId', ParseIntPipe) zoneId: number,
+    @CurrentUser() user: CurrentUser,
   ) {
-    await this.service.deleteZonePrice(id, zoneId);
-    return this.response.success(res, 'store zone price removed successfully');
+    const targetId = id ?? (user?.storeId ? String(user.storeId) : 'me');
+    const data = await this.service.deleteZonePrice(targetId, zoneId, user);
+    return this.response.success(res, 'store zone price removed successfully', data);
   }
 
   @Get('me')

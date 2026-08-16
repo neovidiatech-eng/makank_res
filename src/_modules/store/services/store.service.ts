@@ -928,7 +928,10 @@ export class StoreService {
   // Returns every admin-defined zone alongside this store's own price for it
   // (null where the store hasn't set one). Store dashboards use this as the
   // "template" list to fill in per-zone prices.
-  private async resolveStoreId(id: Id): Promise<number> {
+  private async resolveStoreId(id: any, user?: CurrentUser): Promise<number> {
+    if (String(id) === 'me' || !id || isNaN(Number(id))) {
+      if (user?.storeId) return user.storeId;
+    }
     const numericId = Number(id);
     if (!isNaN(numericId)) {
       const store = await this.prisma.store.findUnique({
@@ -942,11 +945,12 @@ export class StoreService {
       });
       if (branch) return branch.storeId;
     }
+    if (user?.storeId) return user.storeId;
     throw new NotFoundException('Store not found');
   }
 
-  async getZonePrices(id: Id) {
-    const storeId = await this.resolveStoreId(id);
+  async getZonePrices(id: any, user?: CurrentUser) {
+    const storeId = await this.resolveStoreId(id, user);
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
     });
@@ -965,6 +969,7 @@ export class StoreService {
       ownPrices.map((row) => [row.zoneId, row.price]),
     );
     return {
+      storeId,
       zonePricingEnabled: store.zonePricingEnabled,
       zones: zones.map((zone) => ({
         zoneId: zone.id,
@@ -975,8 +980,8 @@ export class StoreService {
     };
   }
 
-  async getEffectiveZonePrices(id: Id) {
-    const storeId = await this.resolveStoreId(id);
+  async getEffectiveZonePrices(id: any, user?: CurrentUser) {
+    const storeId = await this.resolveStoreId(id, user);
     const zones = await this.prisma.zone.findMany({
       where: { active: true },
       select: { id: true, name: true, cityId: true },
@@ -991,8 +996,8 @@ export class StoreService {
     );
   }
 
-  async setZonePrices(id: Id, payload: any) {
-    const storeId = await this.resolveStoreId(id);
+  async setZonePrices(id: any, payload: any, user?: CurrentUser) {
+    const storeId = await this.resolveStoreId(id, user);
 
     let entries: { zoneId: number; price: number }[] = [];
     if (Array.isArray(payload)) {
@@ -1028,7 +1033,7 @@ export class StoreService {
       throw new BadRequestException('One or more zones are invalid');
     }
 
-    // Auto-enable zone pricing for the store if configured
+    // Auto-enable zone pricing for the store
     await this.prisma.store.update({
       where: { id: storeId },
       data: { zonePricingEnabled: true },
@@ -1043,11 +1048,14 @@ export class StoreService {
         }),
       ),
     );
+
+    return this.getZonePrices(storeId, user);
   }
 
-  async deleteZonePrice(id: Id, zoneId: Id): Promise<void> {
-    const storeId = await this.resolveStoreId(id);
+  async deleteZonePrice(id: any, zoneId: number, user?: CurrentUser) {
+    const storeId = await this.resolveStoreId(id, user);
     await this.prisma.storeZonePrice.deleteMany({ where: { storeId, zoneId: Number(zoneId) } });
+    return this.getZonePrices(storeId, user);
   }
 
   async delete(id: Id): Promise<void> {

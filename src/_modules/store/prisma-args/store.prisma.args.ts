@@ -226,6 +226,21 @@ export const selectStoreOBJ = (includeBundles = false) => {
     deliveryTimeMinMinutes: true,
     deliveryTimeMaxMinutes: true,
     minOrderAmount: true,
+    zonePricingEnabled: true,
+    ZonePrices: {
+      select: {
+        id: true,
+        zoneId: true,
+        price: true,
+        Zone: {
+          select: {
+            id: true,
+            name: true,
+            cityId: true,
+          },
+        },
+      },
+    },
     Services: selectTopServicesOBJ,
     branches: {
       where: { isActive: true },
