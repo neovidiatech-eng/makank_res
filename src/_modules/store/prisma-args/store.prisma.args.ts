@@ -32,20 +32,21 @@ export const getStoreArgs = (
     searchStr && Number.isInteger(Number(searchStr)) && Number(searchStr) > 0 && {
       id: Number(searchStr),
     },
-    dateRange && {
-      OR: [
-        { createdAt: dateRange },
-        {
-          branches: {
-            some: {
-              Orders: {
-                some: { date: dateRange },
+    !query.includeStats &&
+      dateRange && {
+        OR: [
+          { createdAt: dateRange },
+          {
+            branches: {
+              some: {
+                orders: {
+                  some: { date: dateRange },
+                },
               },
             },
           },
-        },
-      ],
-    },
+        ],
+      },
     filterKey<Store>(filter, 'planId'),
     filterKey<Store>(filter, 'cityId'),
     filterKey<Store>(filter, 'isStoreAccepted'),

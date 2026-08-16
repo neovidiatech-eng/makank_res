@@ -62,11 +62,16 @@ export class UserService {
     if (userIds.length === 0) return users;
 
     const dateRange = filters ? resolveDateRangeFilter(filters as any) : null;
+    const isDriverQuery =
+      filters?.roleKey === RolesKeys.DELIVERY ||
+      users.some((u) => u?.roleKey === RolesKeys.DELIVERY);
+
+    const targetField = isDriverQuery ? 'deliveryId' : 'userId';
 
     const statsGrouped = await this.prisma.order.groupBy({
-      by: ['userId', 'status'],
+      by: [targetField as any, 'status'],
       where: {
-        userId: { in: userIds },
+        [targetField]: { in: userIds },
         ...(dateRange
           ? {
               OR: [{ date: dateRange }, { createdAt: dateRange }],
@@ -88,7 +93,9 @@ export class UserService {
     >();
 
     for (const item of statsGrouped) {
-      let stats = userStatsMap.get(item.userId);
+      const id = (item as any)[targetField];
+      if (!id) continue;
+      let stats = userStatsMap.get(id);
       if (!stats) {
         stats = {
           totalOrders: 0,
@@ -96,7 +103,7 @@ export class UserService {
           cancelledOrders: 0,
           totalSpent: 0,
         };
-        userStatsMap.set(item.userId, stats);
+        userStatsMap.set(id, stats);
       }
       const count = item._count.id;
       stats.totalOrders += count;

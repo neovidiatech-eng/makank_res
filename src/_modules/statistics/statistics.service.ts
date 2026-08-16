@@ -426,14 +426,29 @@ export class StatisticsService {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
+    const store = await this.prisma.store.findUnique({
+      where: { id: storeId },
+      select: { dashboardPeriodStartAt: true, rating: true, review: true },
+    });
+    const periodStart = store?.dashboardPeriodStartAt ?? undefined;
+
     const getDailyStats = async (date: Date) => {
       const nextDay = new Date(date);
       nextDay.setDate(nextDay.getDate() + 1);
 
+      let effectiveGte = date;
+      if (periodStart && periodStart > effectiveGte) {
+        effectiveGte = periodStart;
+      }
+
+      if (effectiveGte >= nextDay) {
+        return { revenue: 0, orders: 0 };
+      }
+
       const stats = await this.prisma.order.aggregate({
         where: {
           Branch: { storeId },
-          date: { gte: date, lt: nextDay },
+          date: { gte: effectiveGte, lt: nextDay },
         },
         _sum: { totalPriceAfterDiscount: true },
         _count: { id: true },
@@ -485,10 +500,6 @@ export class StatisticsService {
     lastWeekSameDay.setDate(lastWeekSameDay.getDate() - 7);
     const lastWeekStats = await getDailyStats(lastWeekSameDay);
 
-    const store = await this.prisma.store.findUnique({
-      where: { id: storeId },
-      select: { dashboardPeriodStartAt: true, rating: true, review: true },
-    });
     const currentPeriod = await this.getCurrentPeriodSummary(
       store?.dashboardPeriodStartAt ?? undefined,
       storeId,
