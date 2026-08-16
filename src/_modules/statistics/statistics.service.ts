@@ -448,6 +448,7 @@ export class StatisticsService {
       const stats = await this.prisma.order.aggregate({
         where: {
           Branch: { storeId },
+          status: OrderStatus.DELIVERED,
           date: { gte: effectiveGte, lt: nextDay },
         },
         _sum: { totalPriceAfterDiscount: true },

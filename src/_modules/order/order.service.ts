@@ -2060,6 +2060,17 @@ export class OrderService {
   }
   async getOrderStatusCount(filters: OrderStatusCountFilterDTO) {
     const languages = await this.languages.getCashedLanguages();
+
+    if (filters.branchId && !filters.fromDate) {
+      const branch = await this.prisma.branch.findUnique({
+        where: { id: filters.branchId },
+        select: { Store: { select: { dashboardPeriodStartAt: true } } },
+      });
+      if (branch?.Store?.dashboardPeriodStartAt) {
+        filters.fromDate = branch.Store.dashboardPeriodStartAt.toISOString();
+      }
+    }
+
     const count = await this.prisma.order.groupBy({
       by: ['status'],
       ...getOrderStatusCountFilterArgs(filters, languages),
