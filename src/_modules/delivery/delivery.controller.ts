@@ -260,6 +260,8 @@ export class DeliveryController {
   }
 
   @Put('location')
+  @Patch('location')
+  @Post('location')
   @ApiOperation({ summary: 'Update delivery current location' })
   @Auth()
   async updateLocation(

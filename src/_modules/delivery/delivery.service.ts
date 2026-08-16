@@ -815,9 +815,16 @@ export class DeliveryService {
     lng: number,
     bearing?: number,
   ) {
-    const updated = await this.prisma.deliveryDetails.update({
+    const updated = await this.prisma.deliveryDetails.upsert({
       where: { userId: deliveryId },
-      data: {
+      update: {
+        lat,
+        lng,
+        bearing,
+        lastLocationUpdate: new Date(),
+      },
+      create: {
+        userId: deliveryId,
         lat,
         lng,
         bearing,
