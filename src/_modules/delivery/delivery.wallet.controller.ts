@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Put, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
@@ -8,6 +8,8 @@ import { tag } from 'src/globals/helpers/tag.helper';
 import { ResponseService } from 'src/globals/services/response.service';
 import { CreateDriverWithdrawDTO } from './dto/driver-withdraw.dto';
 import { DriverWithdrawService } from './services/driver-withdraw.service';
+
+import { DeliveryService } from './delivery.service';
 
 const prefix = 'delivery/me';
 
@@ -19,6 +21,7 @@ export class DeliveryWalletController {
     private readonly response: ResponseService,
     private readonly walletService: WalletService,
     private readonly withdrawService: DriverWithdrawService,
+    private readonly deliveryService: DeliveryService,
   ) {}
 
   @Get('/wallet')
@@ -52,6 +55,21 @@ export class DeliveryWalletController {
       res,
       'Withdraw requests fetched successfully',
       data,
+    );
+  }
+
+  @Put('/location')
+  @Patch('/location')
+  @Post('/location')
+  async updateLocation(
+    @CurrentUser('id') userId: number,
+    @Body() body: any,
+  ) {
+    return this.deliveryService.updateLocation(
+      userId,
+      body.lat,
+      body.lng,
+      body.bearing,
     );
   }
 }
