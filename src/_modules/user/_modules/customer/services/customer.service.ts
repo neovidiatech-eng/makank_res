@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { isArray } from 'class-validator';
 import { firstOrMany } from 'src/globals/helpers/first-or-many';
 import { PrismaService } from 'src/globals/services/prisma.service';
@@ -43,6 +43,7 @@ export class CustomerService {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
+    if (!user) throw new NotFoundException('Customer not found');
     await this.prisma.user.update({
       where: { id },
       data: {
@@ -54,9 +55,26 @@ export class CustomerService {
   }
 
   async update(id: Id, data: UpdateCustomerDTO) {
-    await this.prisma.user.update({
+    const user = await this.prisma.user.findUnique({
+      where: { id, deletedAt: null },
+    });
+    if (!user) throw new NotFoundException('Customer not found');
+
+    return this.prisma.user.update({
       where: { id },
       data,
+    });
+  }
+
+  async toggleStatus(id: Id) {
+    const user = await this.prisma.user.findUnique({
+      where: { id, deletedAt: null },
+    });
+    if (!user) throw new NotFoundException('Customer not found');
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { active: !user.active },
     });
   }
 

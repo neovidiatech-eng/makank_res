@@ -77,8 +77,21 @@ export class CustomerController {
     @Param() { id }: RequiredIdParam,
     @Body() dto: UpdateCustomerDTO,
   ) {
-    await this.service.update(id, dto);
-    return this.responses.success(res, 'Customer updated successfully');
+    const user = await this.service.update(id, dto);
+    return this.responses.success(res, 'Customer updated successfully', user);
+  }
+
+  @Patch('/:id/toggle-status')
+  @ApiRequiredIdParam()
+  async toggleStatus(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+  ) {
+    const user = await this.service.toggleStatus(id);
+    const message = user.active
+      ? 'Customer account unblocked successfully'
+      : 'Customer account blocked successfully';
+    return this.responses.success(res, message, user);
   }
 
   @Delete('/:id')

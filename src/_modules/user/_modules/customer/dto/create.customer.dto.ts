@@ -31,5 +31,5 @@ export class UpdateCustomerDTO extends OmitType(
 ) {
   @Optional()
   @ValidateBoolean()
-  active: boolean;
+  active?: boolean;
 }
