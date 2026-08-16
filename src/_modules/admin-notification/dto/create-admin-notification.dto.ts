@@ -21,6 +21,9 @@ export class CreateAdminNotificationDto {
   body: { ar: string; en: string };
 
   @ApiProperty({ enum: TargetType, example: TargetType.ALL })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? (value.toUpperCase() as TargetType) : value,
+  )
   @IsEnum(TargetType)
   targetType: TargetType;
 
@@ -30,10 +33,27 @@ export class CreateAdminNotificationDto {
     description:
       'List of user IDs. If targetType is STORE, these should be storeIds.',
   })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(Number).filter((n) => !isNaN(n));
+      } catch {
+        return trimmed
+          .split(',')
+          .map((v) => Number(v.trim()))
+          .filter((n) => !isNaN(n));
+      }
+    }
+    if (Array.isArray(value)) return value.map(Number).filter((n) => !isNaN(n));
+    if (typeof value === 'number') return [value];
+    return value;
+  })
   @IsArray()
   @IsInt({ each: true })
   @IsOptional()
-  @Type(() => Number)
   targetUserIds?: number[];
 
   // `@Type(() => Number)` below matters: this endpoint now accepts multipart
@@ -55,6 +75,11 @@ export class CreateAdminNotificationDto {
     description:
       'Click destination when the notification is tapped. Separate from targetType (audience).',
   })
+  @Transform(({ value }) =>
+    typeof value === 'string'
+      ? (value.toUpperCase() as NotificationTargetType)
+      : value,
+  )
   @IsEnum(NotificationTargetType)
   @IsOptional()
   clickTargetType?: NotificationTargetType;
@@ -108,7 +133,7 @@ export class CreateAdminNotificationDto {
   clickDeliveryId?: string;
 
   @ApiProperty({ required: false })
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsString()
   @IsOptional()
   clickUrl?: string;
 

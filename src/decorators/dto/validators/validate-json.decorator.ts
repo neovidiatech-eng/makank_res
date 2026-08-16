@@ -33,28 +33,26 @@ export function ValidateName(apiPropertyOptions?: ApiPropertyOptions) {
       example: apiPropertyOptions?.example || '{"en": "John", "ar": "جون"}',
     }),
     IsObject(),
-    Transform(({ value, key }) => {
+    Transform(({ value }) => {
+      if (!value && value !== 0) return undefined;
       let val;
       if (typeof value === 'object') {
         val = value;
-      } else {
+      } else if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return undefined;
         try {
-          val = JSON.parse(value);
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            val = parsed;
+          } else {
+            val = { ar: trimmed, en: trimmed };
+          }
         } catch (_) {
-          throw new BadRequestException(`errors.invalidStringifiedJson ${key}`, {
-            cause: { field: key },
-          });
+          val = { ar: trimmed, en: trimmed };
         }
       }
 
-      // A client whose own UI is Arabic-only (or English-only) was found to
-      // send just that one locale key — e.g. `{ar: "بيتزا"}` with no `en` at
-      // all — leaving the other language blank everywhere this name/title/
-      // description is displayed (customer app in the other locale, admin
-      // dashboard, etc.), for every entity that uses this decorator
-      // (products, categories, bundles, stores...). Mirroring one into the
-      // missing slot means neither language ever renders empty; it's not a
-      // real translation, but a duplicated value beats a blank field.
       if (val && typeof val === 'object') {
         if (val.ar && !val.en) val.en = val.ar;
         if (val.en && !val.ar) val.ar = val.en;
