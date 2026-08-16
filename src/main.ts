@@ -56,6 +56,23 @@ async function bootstrap() {
 
   const prefix = env('API_PREFIX') || '';
 
+  // Rewrite un-prefixed route requests (e.g. /admin-notifications -> /api/admin-notifications)
+  if (prefix) {
+    app.use((req: any, _res: any, next: any) => {
+      if (
+        req.url &&
+        !req.url.startsWith(`/${prefix}/`) &&
+        req.url !== `/${prefix}` &&
+        (req.url.startsWith('/admin-notifications') ||
+          req.url.startsWith('/special-delivery-banners') ||
+          req.url.startsWith('/banners'))
+      ) {
+        req.url = `/${prefix}${req.url.startsWith('/') ? '' : '/'}${req.url}`;
+      }
+      next();
+    });
+  }
+
   app.setGlobalPrefix(prefix);
 
   // app.useLogger(new Logger()); // By default, it logs the requests
