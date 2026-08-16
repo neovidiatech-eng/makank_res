@@ -71,6 +71,9 @@ export class AdminNotificationService {
 
     return {
       ...history,
+      sentCount,
+      failedCount,
+      recipientCount: users.length,
       dispatch: { recipientCount: users.length, sentCount, failedCount },
     };
   }
@@ -90,7 +93,7 @@ export class AdminNotificationService {
     const safety: Prisma.UserWhereInput = {
       active: true,
       deletedAt: null,
-      allowNotification: true,
+      allowNotification: { not: false },
     };
 
     switch (targetType) {
