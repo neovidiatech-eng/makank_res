@@ -294,9 +294,7 @@ export class StoreController {
   // this to populate the zone dropdown while the customer is ordering from
   // this store — GET /zones is store-agnostic and won't reflect this store's
   // own overrides.
-  @Get('me/effective-zone-prices')
-  @Get('effective-zone-prices')
-  @Get('/:id/effective-zone-prices')
+  @Get(['/me/effective-zone-prices', '/effective-zone-prices', '/:id/effective-zone-prices'])
   @Auth({ prefix, visitor: true })
   async getEffectiveZonePrices(
     @Res() res: Response,
@@ -308,9 +306,7 @@ export class StoreController {
     return this.response.success(res, 'store effective zone prices fetched successfully', data);
   }
 
-  @Get('me/zone-prices')
-  @Get('zone-prices')
-  @Get('/:id/zone-prices')
+  @Get(['/me/zone-prices', '/zone-prices', '/:id/zone-prices'])
   @Auth({ prefix })
   async getZonePrices(
     @Res() res: Response,
@@ -326,9 +322,7 @@ export class StoreController {
     );
   }
 
-  @Patch('me/zone-prices')
-  @Patch('zone-prices')
-  @Patch('/:id/zone-prices')
+  @Patch(['/me/zone-prices', '/zone-prices', '/:id/zone-prices'])
   @Auth({ prefix })
   async setZonePrices(
     @Res() res: Response,
@@ -341,9 +335,7 @@ export class StoreController {
     return this.response.success(res, 'store zone prices updated successfully', data);
   }
 
-  @Delete('me/zone-prices/:zoneId')
-  @Delete('zone-prices/:zoneId')
-  @Delete('/:id/zone-prices/:zoneId')
+  @Delete(['/me/zone-prices/:zoneId', '/zone-prices/:zoneId', '/:id/zone-prices/:zoneId'])
   @Auth({ prefix })
   async deleteZonePrice(
     @Res() res: Response,
