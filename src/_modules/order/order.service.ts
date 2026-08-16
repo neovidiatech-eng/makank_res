@@ -1452,18 +1452,11 @@ export class OrderService {
             canDeliver = distance <= storeNearestByKM;
           }
 
+          this.attachCustomProgress(order as any);
           Object.assign(order, {
             estimatedArrivalMinutes: estimatedTime,
             canDeliver: canDeliver,
             ratingEligibility: this.buildRatingEligibility(order as any),
-            ...(order.type === OrderType.CUSTOM_DELIVERY && {
-              customDeliveryProgress: this.buildStationProgress(
-                ((order as any).Stations ?? []) as {
-                  sequence: number;
-                  status: StationStatus;
-                }[],
-              ),
-            }),
           });
         }),
       );
@@ -3678,11 +3671,11 @@ export class OrderService {
     };
   }
 
-  // Attaches the custom-delivery progress block to an order (no-op for other types).
-  private attachCustomProgress<T extends { type?: OrderType; Stations?: any }>(
-    order: T,
-  ): T {
-    if (order && order.type === OrderType.CUSTOM_DELIVERY) {
+  // Attaches the custom-delivery progress block and payment/financial breakdown to an order.
+  private attachCustomProgress<T extends Record<string, any>>(order: T): T {
+    if (!order) return order;
+
+    if (order.type === OrderType.CUSTOM_DELIVERY) {
       Object.assign(order, {
         customDeliveryProgress: this.buildStationProgress(
           (order.Stations ?? []) as {
@@ -3692,6 +3685,83 @@ export class OrderService {
         ),
       });
     }
+
+    const isPaid = order.paymentStatus === PaymentStatus.PAID;
+    const isOnlinePayment =
+      isPaid ||
+      order.paymentMethod === PaymentMethod.WALLET ||
+      !!order.transferType ||
+      !!order.transferImage;
+
+    let paymentTypeLabel = 'الدفع عند الاستلام (CASH)';
+    let paymentMethodName = 'CASH';
+
+    if (order.transferType === 'INSTAPAY') {
+      paymentTypeLabel = 'دفع إلكتروني (InstaPay)';
+      paymentMethodName = 'INSTAPAY';
+    } else if (order.transferType === 'VODAFONE_CASH') {
+      paymentTypeLabel = 'دفع إلكتروني (Vodafone Cash)';
+      paymentMethodName = 'VODAFONE_CASH';
+    } else if (order.transferType === 'BANK_TRANSFER') {
+      paymentTypeLabel = 'دفع إلكتروني (تحويل بنكي)';
+      paymentMethodName = 'BANK_TRANSFER';
+    } else if (order.paymentMethod === PaymentMethod.WALLET || order.paidWithWallet) {
+      paymentTypeLabel = 'دفع من محفظة التطبيق';
+      paymentMethodName = 'WALLET';
+    } else if (isOnlinePayment) {
+      paymentTypeLabel = 'دفع إلكتروني';
+      paymentMethodName = 'ONLINE';
+    }
+
+    const collectFromCustomerAmount =
+      isOnlinePayment || isPaid
+        ? 0
+        : (order.totalPriceAfterDiscount ?? order.price ?? 0);
+
+    const price = order.price ?? 0;
+    const shipping = order.shipping ?? 0;
+    const adminCommission = order.adminCommission ?? 0;
+    const storeCommission = order.storeCommission ?? 0;
+    const packagingFee = order.packagingFee ?? 0;
+    const tax = order.tax ?? 0;
+    const discountAmount = order.discountAmount ?? 0;
+    const totalPriceAfterDiscount =
+      order.totalPriceAfterDiscount ?? price + shipping;
+
+    const storeNetEarnings = Math.max(
+      0,
+      totalPriceAfterDiscount - shipping - adminCommission,
+    );
+    const driverEarnings = shipping;
+
+    Object.assign(order, {
+      paymentDetails: {
+        isOnlinePayment,
+        isPaid,
+        collectFromCustomerAmount,
+        paymentTypeLabel,
+        paymentMethodName,
+        paymentMethod: order.paymentMethod ?? PaymentMethod.CASH,
+        paymentStatus: order.paymentStatus ?? PaymentStatus.UNPAID,
+        transferType: order.transferType ?? null,
+        transferNumber: order.transferNumber ?? null,
+        transferImage: order.transferImage ?? null,
+        transferAccountNumber: order.transferAccountNumber ?? null,
+      },
+      financialBreakdown: {
+        totalPriceAfterDiscount,
+        productSubtotal: price,
+        shippingFee: shipping,
+        adminCommission,
+        storeCommission,
+        packagingFee,
+        tax,
+        discountAmount,
+        storeNetEarnings,
+        driverEarnings,
+      },
+    });
+
     return order;
   }
 

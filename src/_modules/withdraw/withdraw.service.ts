@@ -98,8 +98,14 @@ export class WithdrawService {
     if (!store) {
       throw new NotFoundException('Branch wallet not found');
     }
-    if (store.currentBalance < amount) {
-      throw new BadRequestException('Not enough balance');
+    const availableBalance = Math.max(
+      0,
+      store.currentBalance - store.pendingWithdraw,
+    );
+    if (availableBalance < amount) {
+      throw new BadRequestException(
+        `Insufficient available balance. Available: ${availableBalance.toFixed(2)}, Requested: ${amount}`,
+      );
     }
     const foundPendingWithdraw = await this.prisma.withdraw.findFirst({
       where: { branchId, status: WithdrawStatus.PENDING },
