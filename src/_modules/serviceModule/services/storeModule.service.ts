@@ -289,7 +289,14 @@ export class ServiceModuleService {
     const rows = await parseBulkUploadWorkbook(buffer);
     const results: BulkUploadRowResult[] = [];
 
-    // Checked once for the whole batch if not Admin — Admin can upload products for any store
+    const store = await this.prisma.store.findFirst({
+      where: { id: storeId, deletedAt: null },
+      select: { id: true, isStoreAccepted: true },
+    });
+    if (!store) {
+      throw new Error(`المتجر رقم (${storeId}) غير موجود في النظام`);
+    }
+
     if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
       await assertStoreAccepted(this.prisma, storeId);
     }

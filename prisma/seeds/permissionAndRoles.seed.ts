@@ -102,3 +102,18 @@ export async function seedRolePermissions(prisma: PrismaClient) {
   // eslint-disable-next-line no-console
   console.log('✅ RolePermissions seeded');
 }
+
+if (require.main === module) {
+  const prisma = new PrismaClient();
+  (async () => {
+    await prisma.$connect();
+    await seedPermissions(prisma);
+    await seedRoles(prisma);
+    await seedRolePermissions(prisma);
+    await prisma.$disconnect();
+  })().catch((e) => {
+    // eslint-disable-next-line no-console
+    console.error(e);
+    process.exit(1);
+  });
+}

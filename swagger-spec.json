@@ -1157,7 +1157,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:10.966Z",
+              "example": "2026-08-17T10:27:52.383Z",
               "type": "string"
             }
           },
@@ -1167,7 +1167,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:10.966Z",
+              "example": "2026-08-17T10:27:52.383Z",
               "type": "string"
             }
           },
@@ -1252,8 +1252,8 @@
                           "maxUsage": "string",
                           "usageCount": 1,
                           "minOrderAmount": 1,
-                          "startDate": "2026-08-17T09:27:10.967Z",
-                          "endDate": "2026-08-17T09:27:10.967Z",
+                          "startDate": "2026-08-17T10:27:52.384Z",
+                          "endDate": "2026-08-17T10:27:52.384Z",
                           "minDiscountValue": 1,
                           "maxDiscountValue": 1,
                           "createdAt": "2025-06-26T18:17:10.000Z",
@@ -1282,8 +1282,8 @@
                         "maxUsage": "string",
                         "usageCount": 1,
                         "minOrderAmount": 1,
-                        "startDate": "2026-08-17T09:27:10.967Z",
-                        "endDate": "2026-08-17T09:27:10.967Z",
+                        "startDate": "2026-08-17T10:27:52.384Z",
+                        "endDate": "2026-08-17T10:27:52.384Z",
                         "minDiscountValue": 1,
                         "maxDiscountValue": 1,
                         "createdAt": "2025-06-26T18:17:10.000Z",
@@ -1487,7 +1487,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:10.966Z",
+              "example": "2026-08-17T10:27:52.383Z",
               "type": "string"
             }
           },
@@ -1497,7 +1497,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:10.966Z",
+              "example": "2026-08-17T10:27:52.383Z",
               "type": "string"
             }
           },
@@ -1582,8 +1582,8 @@
                           "maxUsage": "string",
                           "usageCount": 1,
                           "minOrderAmount": 1,
-                          "startDate": "2026-08-17T09:27:10.967Z",
-                          "endDate": "2026-08-17T09:27:10.967Z",
+                          "startDate": "2026-08-17T10:27:52.384Z",
+                          "endDate": "2026-08-17T10:27:52.384Z",
                           "minDiscountValue": 1,
                           "maxDiscountValue": 1,
                           "createdAt": "2025-06-26T18:17:10.000Z",
@@ -1612,8 +1612,8 @@
                         "maxUsage": "string",
                         "usageCount": 1,
                         "minOrderAmount": 1,
-                        "startDate": "2026-08-17T09:27:10.967Z",
-                        "endDate": "2026-08-17T09:27:10.967Z",
+                        "startDate": "2026-08-17T10:27:52.384Z",
+                        "endDate": "2026-08-17T10:27:52.384Z",
                         "minDiscountValue": 1,
                         "maxDiscountValue": 1,
                         "createdAt": "2025-06-26T18:17:10.000Z",
@@ -13154,7 +13154,7 @@
             "in": "path",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.288Z",
+              "example": "2026-08-17T10:27:52.715Z",
               "type": "string"
             }
           },
@@ -18086,7 +18086,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.297Z",
+              "example": "2026-08-17T10:27:52.725Z",
               "type": "string"
             }
           },
@@ -18096,7 +18096,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.297Z",
+              "example": "2026-08-17T10:27:52.726Z",
               "type": "string"
             }
           },
@@ -18211,7 +18211,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.297Z",
+              "example": "2026-08-17T10:27:52.725Z",
               "type": "string"
             }
           },
@@ -18221,7 +18221,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.297Z",
+              "example": "2026-08-17T10:27:52.726Z",
               "type": "string"
             }
           },
@@ -19493,7 +19493,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.102Z",
+              "example": "2026-08-17T10:27:52.515Z",
               "type": "string"
             }
           },
@@ -19503,7 +19503,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.102Z",
+              "example": "2026-08-17T10:27:52.515Z",
               "type": "string"
             }
           },
@@ -20983,7 +20983,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -20993,7 +20993,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21003,7 +21003,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21094,7 +21094,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21104,7 +21104,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21114,7 +21114,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21205,7 +21205,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21215,7 +21215,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21225,7 +21225,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21316,7 +21316,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21326,7 +21326,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21336,7 +21336,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21427,7 +21427,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21437,7 +21437,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -21447,7 +21447,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.258Z",
+              "example": "2026-08-17T10:27:52.682Z",
               "type": "string"
             }
           },
@@ -22362,7 +22362,7 @@
                           "reason": "string",
                           "status": "2025-06-26T18:17:10.000Z",
                           "createdAt": "2025-06-26T18:17:10.000Z",
-                          "updatedAt": "2026-08-17T09:27:11.048Z",
+                          "updatedAt": "2026-08-17T10:27:52.463Z",
                           "User": {
                             "id": 1,
                             "name": "John Doe",
@@ -22400,7 +22400,7 @@
                         "reason": "string",
                         "status": "2025-06-26T18:17:10.000Z",
                         "createdAt": "2025-06-26T18:17:10.000Z",
-                        "updatedAt": "2026-08-17T09:27:11.048Z",
+                        "updatedAt": "2026-08-17T10:27:52.463Z",
                         "User": {
                           "id": 1,
                           "name": "John Doe",
@@ -22546,7 +22546,7 @@
                           "reason": "string",
                           "status": "2025-06-26T18:17:10.000Z",
                           "createdAt": "2025-06-26T18:17:10.000Z",
-                          "updatedAt": "2026-08-17T09:27:11.048Z",
+                          "updatedAt": "2026-08-17T10:27:52.463Z",
                           "User": {
                             "id": 1,
                             "name": "John Doe",
@@ -22584,7 +22584,7 @@
                         "reason": "string",
                         "status": "2025-06-26T18:17:10.000Z",
                         "createdAt": "2025-06-26T18:17:10.000Z",
-                        "updatedAt": "2026-08-17T09:27:11.048Z",
+                        "updatedAt": "2026-08-17T10:27:52.463Z",
                         "User": {
                           "id": 1,
                           "name": "John Doe",
@@ -23538,7 +23538,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23548,7 +23548,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23558,7 +23558,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23610,7 +23610,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23620,7 +23620,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23630,7 +23630,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23682,7 +23682,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23692,7 +23692,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23744,7 +23744,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -23754,7 +23754,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -24866,7 +24866,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -24876,7 +24876,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -24886,7 +24886,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -24946,7 +24946,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -24956,7 +24956,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -24966,7 +24966,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.055Z",
+              "example": "2026-08-17T10:27:52.469Z",
               "type": "string"
             }
           },
@@ -26444,7 +26444,7 @@
                           "isActive": true,
                           "sortOrder": "string",
                           "createdAt": "2025-06-26T18:17:10.000Z",
-                          "updatedAt": "2026-08-17T09:27:11.385Z"
+                          "updatedAt": "2026-08-17T10:27:52.819Z"
                         }
                       ],
                       "total": 1
@@ -26466,7 +26466,7 @@
                         "isActive": true,
                         "sortOrder": "string",
                         "createdAt": "2025-06-26T18:17:10.000Z",
-                        "updatedAt": "2026-08-17T09:27:11.385Z"
+                        "updatedAt": "2026-08-17T10:27:52.819Z"
                       }
                     }
                   }
@@ -26606,7 +26606,7 @@
                           "isActive": true,
                           "sortOrder": "string",
                           "createdAt": "2025-06-26T18:17:10.000Z",
-                          "updatedAt": "2026-08-17T09:27:11.385Z"
+                          "updatedAt": "2026-08-17T10:27:52.819Z"
                         }
                       ],
                       "total": 1
@@ -26628,7 +26628,7 @@
                         "isActive": true,
                         "sortOrder": "string",
                         "createdAt": "2025-06-26T18:17:10.000Z",
-                        "updatedAt": "2026-08-17T09:27:11.385Z"
+                        "updatedAt": "2026-08-17T10:27:52.819Z"
                       }
                     }
                   }
@@ -27016,7 +27016,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.378Z",
+              "example": "2026-08-17T10:27:52.811Z",
               "type": "string"
             }
           },
@@ -27026,7 +27026,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.378Z",
+              "example": "2026-08-17T10:27:52.811Z",
               "type": "string"
             }
           },
@@ -27226,7 +27226,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.378Z",
+              "example": "2026-08-17T10:27:52.811Z",
               "type": "string"
             }
           },
@@ -27236,7 +27236,7 @@
             "in": "query",
             "schema": {
               "format": "date-time",
-              "example": "2026-08-17T09:27:11.378Z",
+              "example": "2026-08-17T10:27:52.811Z",
               "type": "string"
             }
           },
@@ -27740,8 +27740,8 @@
                           "pricingMode": "string",
                           "priceBeforeDiscount": 1,
                           "priceAfterDiscount": 1,
-                          "startDate": "2026-08-17T09:27:11.372Z",
-                          "endDate": "2026-08-17T09:27:11.372Z",
+                          "startDate": "2026-08-17T10:27:52.804Z",
+                          "endDate": "2026-08-17T10:27:52.804Z",
                           "createdAt": "2025-06-26T18:17:10.000Z",
                           "ScopeServices": {
                             "role": "string",
@@ -27993,8 +27993,8 @@
                           "pricingMode": "string",
                           "priceBeforeDiscount": 1,
                           "priceAfterDiscount": 1,
-                          "startDate": "2026-08-17T09:27:11.372Z",
-                          "endDate": "2026-08-17T09:27:11.372Z",
+                          "startDate": "2026-08-17T10:27:52.804Z",
+                          "endDate": "2026-08-17T10:27:52.804Z",
                           "createdAt": "2025-06-26T18:17:10.000Z",
                           "ScopeServices": {
                             "role": "string",
@@ -28827,12 +28827,12 @@
           "startDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:10.963Z"
+            "example": "2026-08-17T10:27:52.380Z"
           },
           "endDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:10.964Z"
+            "example": "2026-08-17T10:27:52.380Z"
           },
           "minDiscountValue": {
             "type": "number"
@@ -28924,12 +28924,12 @@
           "startDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:10.963Z"
+            "example": "2026-08-17T10:27:52.380Z"
           },
           "endDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:10.964Z"
+            "example": "2026-08-17T10:27:52.380Z"
           },
           "minDiscountValue": {
             "type": "number"
@@ -29463,12 +29463,12 @@
           "startDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.016Z"
+            "example": "2026-08-17T10:27:52.431Z"
           },
           "endDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.016Z"
+            "example": "2026-08-17T10:27:52.431Z"
           },
           "image": {
             "type": "string",
@@ -29542,12 +29542,12 @@
           "startDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.016Z"
+            "example": "2026-08-17T10:27:52.431Z"
           },
           "endDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.016Z"
+            "example": "2026-08-17T10:27:52.431Z"
           },
           "image": {
             "type": "string",
@@ -29621,12 +29621,12 @@
           "startDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.256Z"
+            "example": "2026-08-17T10:27:52.679Z"
           },
           "endDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.256Z"
+            "example": "2026-08-17T10:27:52.679Z"
           },
           "image": {
             "type": "string",
@@ -29700,12 +29700,12 @@
           "startDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.256Z"
+            "example": "2026-08-17T10:27:52.679Z"
           },
           "endDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.256Z"
+            "example": "2026-08-17T10:27:52.679Z"
           },
           "image": {
             "type": "string",
@@ -30934,7 +30934,7 @@
           "scheduledAt": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.104Z"
+            "example": "2026-08-17T10:27:52.517Z"
           },
           "transferNumber": {
             "type": "string"
@@ -32284,12 +32284,12 @@
           "startAt": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.377Z"
+            "example": "2026-08-17T10:27:52.810Z"
           },
           "endAt": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.377Z"
+            "example": "2026-08-17T10:27:52.810Z"
           },
           "displayIntervalHours": {
             "type": "number"
@@ -32374,12 +32374,12 @@
           "startAt": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.377Z"
+            "example": "2026-08-17T10:27:52.810Z"
           },
           "endAt": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.377Z"
+            "example": "2026-08-17T10:27:52.810Z"
           },
           "displayIntervalHours": {
             "type": "number"
@@ -32476,12 +32476,12 @@
           "startDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.370Z"
+            "example": "2026-08-17T10:27:52.802Z"
           },
           "endDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.370Z"
+            "example": "2026-08-17T10:27:52.802Z"
           },
           "paidServiceIds": {
             "description": "Which products count as \"paid\" pieces in this offer.",
@@ -32599,12 +32599,12 @@
           "startDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.370Z"
+            "example": "2026-08-17T10:27:52.802Z"
           },
           "endDate": {
             "format": "date-time",
             "type": "string",
-            "example": "2026-08-17T09:27:11.370Z"
+            "example": "2026-08-17T10:27:52.802Z"
           },
           "paidServiceIds": {
             "description": "Which products count as \"paid\" pieces in this offer.",

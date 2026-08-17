@@ -9,7 +9,8 @@ export function BooleanArrayFilter<Type>(example: Type[]) {
     ApiProperty({ example }),
     IsOptional(),
     Transform(({ value }) => {
-      if (Array.isArray(value)) return value.map((value) => toBoolean(value));
+      if (value === undefined || value === null || value === '') return undefined;
+      if (Array.isArray(value)) return value.map((item) => toBoolean(item));
       return [toBoolean(value)];
     }),
     IsNotEmpty({ each: true }),

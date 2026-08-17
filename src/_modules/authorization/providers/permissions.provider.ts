@@ -313,7 +313,7 @@ export const permissions = [
     name: { en: 'Delivery', ar: 'مندوبي التوصيل' },
     prefix: 'delivery',
     default: false,
-    methods: ['post', 'get', 'patch', 'delete'],
+    methods: ['post', 'get', 'put', 'patch', 'delete'],
   },
   {
     name: { en: 'Driver withdrawals', ar: 'طلبات سحب المندوبين' },

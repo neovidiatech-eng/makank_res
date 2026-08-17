@@ -372,13 +372,13 @@ export class ResponseService {
     locale: string | string[],
     isLocalized: string | string[],
   ) {
-    // Schedule TIME columns → "HH:mm" on every response (localized + raw), before any
-    // locale/+2h handling so schedule fields never pick up the serializer shift.
+    if (!data) return data;
     this.stringifyScheduleTimes(data);
 
-    const Localized = Array.isArray(isLocalized)
-      ? toBoolean(isLocalized[0])
-      : toBoolean(isLocalized);
+    if (!isLocalized) return data;
+
+    const isLoc = Array.isArray(isLocalized) ? isLocalized[0] : isLocalized;
+    const Localized = isLoc != null ? toBoolean(isLoc) : false;
     if (!Localized) {
       return data; // If not localized, return data as is
     }

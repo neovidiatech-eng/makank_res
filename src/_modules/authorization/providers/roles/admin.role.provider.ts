@@ -48,7 +48,7 @@ const adminPermissions: PermissionMap = {
   campaigns: ['post', 'get', 'patch', 'delete'],
   'admin-notifications': ['post', 'get', 'delete'],
   'store-templates': ['post', 'get', 'patch', 'delete'],
-  delivery: ['post', 'get', 'patch', 'delete'],
+  delivery: ['post', 'get', 'put', 'patch', 'delete'],
   'delivery/withdrawals': ['get', 'patch'],
   'delivery/cash-settlements': ['post', 'get'],
   employees: ['post', 'get', 'patch', 'delete'],
