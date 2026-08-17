@@ -68,6 +68,7 @@ export class DeliveryService {
       periodOrdersGrouped,
       activeOrdersGrouped,
       rejectedAssignmentsGrouped,
+      activeOrders,
     ] = await Promise.all([
       this.prisma.order.groupBy({
         by: ['deliveryId', 'status'],
@@ -102,6 +103,34 @@ export class DeliveryService {
           status: { in: [AssignmentStatus.REJECTED, AssignmentStatus.TIMEOUT] },
         },
         _count: { id: true },
+      }),
+      this.prisma.order.findMany({
+        where: {
+          deliveryId: { in: driverIds },
+          status: {
+            in: [
+              OrderStatus.PENDING,
+              OrderStatus.PREPARING,
+              OrderStatus.READY_PICKUP,
+              OrderStatus.ON_THE_WAY,
+            ],
+          },
+        },
+        select: {
+          id: true,
+          status: true,
+          deliveryId: true,
+          date: true,
+          Branch: {
+            select: {
+              Store: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
       }),
     ]);
 
@@ -165,6 +194,18 @@ export class DeliveryService {
       stats.rejectedAssignments = item._count.id;
     }
 
+    const activeOrderMap = new Map<number, any>();
+    for (const order of activeOrders) {
+      if (order.deliveryId) {
+        activeOrderMap.set(order.deliveryId, {
+          id: order.id,
+          status: order.status,
+          storeName: order.Branch?.Store?.name ?? null,
+          date: order.date,
+        });
+      }
+    }
+
     return drivers.map((driver) => {
       if (!driver) return driver;
       const stats = driverStatsMap.get(driver.id) || {
@@ -178,6 +219,7 @@ export class DeliveryService {
       return {
         ...driver,
         orderStats: stats,
+        currentOrder: activeOrderMap.get(driver.id) ?? null,
       };
     });
   }
