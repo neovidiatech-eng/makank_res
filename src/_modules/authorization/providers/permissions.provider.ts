@@ -10,7 +10,7 @@ export const permissions = [
     name: { en: 'Users', ar: 'المستخدمين' },
     prefix: 'users',
     default: false,
-    methods: ['post', 'get', 'delete', 'patch'],
+    methods: ['post', 'get', 'put', 'delete', 'patch'],
   },
   {
     name: { en: 'Roles', ar: 'الادوار' },

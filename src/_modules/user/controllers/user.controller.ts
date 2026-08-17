@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Res,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
@@ -74,6 +75,7 @@ export class UserController {
     });
   }
 
+  @Put('/:id')
   @Patch('/:id')
   @ApiRequiredIdParam()
   async updateUser(

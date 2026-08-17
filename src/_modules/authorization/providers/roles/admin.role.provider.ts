@@ -3,7 +3,7 @@ import { PermissionMap } from '../permissions.provider';
 
 const adminPermissions: PermissionMap = {
   languages: ['post', 'get', 'delete', 'patch'],
-  users: ['post', 'get', 'delete', 'patch'],
+  users: ['post', 'get', 'put', 'delete', 'patch'],
   roles: ['post', 'get', 'delete', 'patch'],
   profile: ['get', 'patch'],
   permissions: ['get', 'patch'],
