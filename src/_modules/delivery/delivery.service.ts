@@ -730,8 +730,8 @@ export class DeliveryService {
     const rawPassword = newPassword || password;
 
     let hashedPassword: string | undefined;
-    if (rawPassword && rawPassword.trim().length > 0) {
-      hashedPassword = await hashPassword(rawPassword.trim());
+    if (rawPassword != null && String(rawPassword).trim().length > 0) {
+      hashedPassword = hashPassword(String(rawPassword).trim());
     }
 
     // Don't allow re-enabling availability while a forced AFK break is active.

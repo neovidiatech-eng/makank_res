@@ -20,7 +20,8 @@ export const validateUserPassword = (
 // ----------------------------------------------------------------------------------------------
 
 export const hashPassword = (password: string) => {
-  const HashedPassword = bcrypt.hashSync(password, +env('HASH_SALT'));
+  const saltRounds = Number(env('HASH_SALT')) || 10;
+  const HashedPassword = bcrypt.hashSync(String(password ?? ''), saltRounds);
   return HashedPassword;
 };
 
