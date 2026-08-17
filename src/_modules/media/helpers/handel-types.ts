@@ -15,9 +15,10 @@ export class HandelFiles {
   }
 
   handelFileTemp(file: UploadedFile) {
+    if (!file?.path) return;
     return renameFile(
-      file?.path,
-      HandelFiles.path(file?.path, this.baseFolder),
+      file.path,
+      HandelFiles.path(file.path, this.baseFolder),
     );
   }
 
@@ -25,6 +26,7 @@ export class HandelFiles {
     filePath: string | undefined,
     baseFolder?: string | number | undefined,
   ) {
+    if (!filePath) return '';
     const tempKey = env('TEMP_FILE_KEY') ?? '';
     const interceptorKey = env('INTERCEPTOR_KEY') ?? '';
 
@@ -52,14 +54,15 @@ export class HandelFiles {
     dto: DTOType,
     parentPath?: string | number,
   ) {
+    if (!files) return;
     for (const key of Object.keys(files)) {
       if (Array.isArray(files[key])) {
         dto[key] = files[key].map((file) => {
-          if (file) return HandelFiles.path(file?.path, parentPath);
+          if (file?.path) return HandelFiles.path(file.path, parentPath);
         });
       } else {
-        if (files[key])
-          dto[key] = HandelFiles.path(files[key]?.path, parentPath);
+        if (files[key]?.path)
+          dto[key] = HandelFiles.path(files[key].path, parentPath);
       }
     }
   }
@@ -68,21 +71,25 @@ export class HandelFiles {
     files: FilesType,
     currentDocs: CurrentDocsType,
   ) {
+    if (!files || !currentDocs) return;
     for (const key of Object.keys(files)) {
       if (Array.isArray(files[key])) {
         files[key].map((file) => {
-          if (file?.path !== currentDocs[key] && currentDocs[key]) {
-            renameFile(file?.path, currentDocs[key]);
+          if (file?.path && currentDocs[key] && file.path !== currentDocs[key]) {
+            renameFile(file.path, currentDocs[key]);
           }
         });
       } else {
-        if (files[key]?.path !== currentDocs[key] && currentDocs[key]) {
-          renameFile(files[key]?.path, currentDocs[key]);
+        if (files[key]?.path && currentDocs[key] && files[key].path !== currentDocs[key]) {
+          renameFile(files[key].path, currentDocs[key]);
         }
       }
     }
   }
   static deleteFile(filePath: string) {
-    fs.unlinkSync(filePath);
+    if (!filePath) return;
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   }
 }

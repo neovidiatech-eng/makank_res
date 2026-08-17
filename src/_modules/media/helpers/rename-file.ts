@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export function renameFile(currentPath: string, distention: string) {
+  if (!currentPath || !distention) return;
   let actualPath = currentPath;
   const interceptorKey = process.env.INTERCEPTOR_KEY || '';
   if (interceptorKey && actualPath.endsWith(interceptorKey)) {
