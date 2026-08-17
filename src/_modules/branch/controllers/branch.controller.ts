@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Res,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
@@ -57,6 +58,7 @@ export class BranchController {
   }
 
   @Patch('/:id')
+  @Put('/:id')
   @ApiRequiredIdParam()
   @Auth({ prefix })
   @CanUserAccessModelRowId({

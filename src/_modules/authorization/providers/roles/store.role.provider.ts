@@ -4,9 +4,7 @@ import { PermissionMap } from '../permissions.provider';
 const storePermissions: PermissionMap = {
   languages: ['get'],
   users: ['post', 'get'],
-  roles: ['post', 'get', 'delete', 'patch'],
-  profile: ['get', 'patch', 'delete'],
-  permissions: ['get'],
+  profile: ['get', 'patch'],
   customers: ['get'],
   banners: ['get'],
   'special-delivery-banners': ['get'],
@@ -37,7 +35,6 @@ const storePermissions: PermissionMap = {
   branches: ['post', 'get', 'patch', 'delete'],
   employees: ['post', 'get', 'patch', 'delete'],
   'payment-verification': ['patch'],
-  logs: ['get'],
 } as const satisfies PermissionMap;
 
 export const StoreRole = {
