@@ -44,6 +44,7 @@ export function handelSucceededTemp(
  * Deletes multiple files
  */
 export async function deleteFiles(files?: UploadedFile[] | any) {
+  if (!Array.isArray(files)) return;
   await Promise.all(files.map((file) => deleteFile(file)));
 }
 
@@ -52,7 +53,7 @@ export async function deleteFiles(files?: UploadedFile[] | any) {
  */
 export async function deleteFile(file?: UploadedFile) {
   if (!file?.path) {
-    throw new Error('Invalid file object: missing path property');
+    return;
   }
 
   const dirPath = path.join(
