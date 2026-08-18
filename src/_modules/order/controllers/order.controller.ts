@@ -268,10 +268,11 @@ export class OrderController {
     }
     if (user?.Role?.roleKey === RolesKeys.STORE) {
       delete filters.userId;
-      if (user.branchId) {
-        filters.branchId = user.branchId;
-      } else if (user.storeId) {
+      if (user.storeId) {
         filters.storeId = user.storeId;
+      }
+      if (user.branchId && !filters.storeId) {
+        filters.branchId = user.branchId;
       }
     } else if (user?.Role?.roleKey === RolesKeys.DELIVERY) {
       delete filters.userId;

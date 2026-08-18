@@ -39,6 +39,8 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'ACCESS') {
       where: { id },
       select: {
         id: true,
+        storeId: true,
+        branchId: true,
         Role: {
           select: {
             id: true,
@@ -70,8 +72,8 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'ACCESS') {
         jti,
         Role,
         permissions: permissions.map((p) => p.Permission),
-        storeId: userExist.Branch?.storeId,
-        branchId: userExist.Branch?.id,
+        storeId: userExist.storeId ?? userExist.Branch?.storeId,
+        branchId: userExist.branchId ?? userExist.Branch?.id,
       };
 
       return serializedUser;

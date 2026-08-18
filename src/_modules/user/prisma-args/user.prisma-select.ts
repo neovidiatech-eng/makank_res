@@ -161,6 +161,8 @@ export const selectUserOBJ = () => {
     email: true,
     phone: true,
     verified: true,
+    storeId: true,
+    branchId: true,
     Branch: {
       select: {
         id: true,
