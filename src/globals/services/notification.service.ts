@@ -275,7 +275,7 @@ export class NotificationService {
       notification: {
         title: localizedTitle,
         body: localizedBody,
-        ...(imageUrl ? { image: imageUrl, imageUrl } : {}),
+        ...(imageUrl ? { imageUrl } : {}),
       },
       data: pushData,
       tokens,
@@ -285,7 +285,6 @@ export class NotificationService {
           sound: 'notification_sound',
           channelId: 'makank_orders_v2',
           priority: 'high' as const,
-          ...(imageUrl ? { image: imageUrl, imageUrl } : {}),
         },
       },
       apns: {
@@ -302,7 +301,6 @@ export class NotificationService {
             ...(imageUrl ? { mutableContent: true } : {}),
           },
         },
-        ...(imageUrl ? { fcmOptions: { imageUrl } } : {}),
       },
     };
     await this.prisma.notification.create({
