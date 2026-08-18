@@ -15,7 +15,7 @@ import { FilterNotificationDTO } from '../dto/notification.dto';
 import { NotificationService } from '../services/notification.service';
 
 const prefix = 'notification';
-@Controller(prefix)
+@Controller(['notification', 'notifications'])
 @ApiTags(tag(prefix))
 @Auth({})
 export class NotificationController {
@@ -24,7 +24,7 @@ export class NotificationController {
     private response: ResponseService,
   ) {}
 
-  @Get('/notifications')
+  @Get(['/notifications', '/', '/all'])
   @Auth()
   @ApiQuery({ type: PartialType(FilterNotificationDTO) })
   async findAll(

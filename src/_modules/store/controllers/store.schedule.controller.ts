@@ -20,6 +20,7 @@ import { ApiRequiredIdParam } from 'src/decorators/api/id-params.decorator';
 import { RequiredIdParam } from 'src/dtos/params/id-param.dto';
 import { tag } from 'src/globals/helpers/tag.helper';
 import { GlobalHelpers } from 'src/globals/services/globalHelpers.service';
+import { PrismaService } from 'src/globals/services/prisma.service';
 import { ResponseService } from 'src/globals/services/response.service';
 import {
   CreateScheduleDTO,
@@ -40,6 +41,7 @@ export class StoreScheduleController {
     private readonly response: ResponseService,
     private readonly helpers: ScheduleHelpersService,
     private readonly globalHelpers: GlobalHelpers,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post('/')
@@ -80,9 +82,17 @@ export class StoreScheduleController {
     @Res() res: Response,
     @CurrentUser() user: CurrentUser,
   ) {
-    if (!user?.branchId) throw new BadRequestException('Branch ID is required');
+    let branchId = user?.branchId;
+    if (!branchId && user?.storeId) {
+      const firstBranch = await this.prisma.branch.findFirst({
+        where: { storeId: user.storeId },
+        select: { id: true },
+      });
+      branchId = firstBranch?.id;
+    }
+    if (!branchId) throw new BadRequestException('Branch ID is required');
     const schedule = await this.globalHelpers.getStoreAvailableDays(
-      user.branchId,
+      branchId,
       true,
     );
     return this.response.success(
