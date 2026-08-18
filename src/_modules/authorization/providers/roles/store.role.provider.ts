@@ -4,6 +4,7 @@ import { PermissionMap } from '../permissions.provider';
 const storePermissions: PermissionMap = {
   languages: ['get'],
   users: ['post', 'get'],
+  roles: ['post', 'get', 'delete', 'patch'],
   profile: ['get', 'patch'],
   customers: ['get'],
   banners: ['get'],
