@@ -11,6 +11,7 @@ import { MapService } from './services/map.service';
 import { ModelHelperService } from './services/modelHelper.service';
 import { PrismaService } from './services/prisma.service';
 import { ResponseService } from './services/response.service';
+import { NotificationService } from './services/notification.service';
 import { PrivateSettingService } from './services/settings.service';
 import { SMSService } from './services/sms.service';
 
@@ -71,6 +72,7 @@ import { SMSService } from './services/sms.service';
     MediaService,
     PrivateSettingService,
     AfkBreakService,
+    NotificationService,
   ],
   exports: [
     ResponseService,
@@ -83,6 +85,7 @@ import { SMSService } from './services/sms.service';
     MediaService,
     PrivateSettingService,
     AfkBreakService,
+    NotificationService,
   ],
 })
 export class GlobalModule {

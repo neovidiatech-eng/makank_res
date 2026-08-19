@@ -1,12 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/globals/services/prisma.service';
+import { NotificationService as GlobalNotificationService } from 'src/globals/services/notification.service';
 import { CreateNotificationDTO } from '../dto/notification.create.dto';
 import { FilterNotificationDTO } from '../dto/notification.dto';
 import { getNotificationArgs } from '../prisma-args/notification.prisma-args';
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly globalNotificationService: GlobalNotificationService,
+  ) {}
+
+  async getHealthCheck() {
+    return this.globalNotificationService.getHealthCheck();
+  }
+
+  async diagnosePushForUser(userId: Id) {
+    return this.globalNotificationService.diagnosePushForUser(userId);
+  }
 
   async findNotification(filters: FilterNotificationDTO) {
     // Defense-in-depth: never run an unscoped query. If userId is missing the

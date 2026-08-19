@@ -14,8 +14,6 @@ import { CreateNotificationDTO } from '../dto/notification.create.dto';
 import { FilterNotificationDTO } from '../dto/notification.dto';
 import { NotificationService } from '../services/notification.service';
 
-import { NotificationService as GlobalNotificationService } from 'src/globals/services/notification.service';
-
 const prefix = 'notification';
 @Controller(['notification', 'notifications'])
 @ApiTags(tag(prefix))
@@ -23,20 +21,19 @@ const prefix = 'notification';
 export class NotificationController {
   constructor(
     private service: NotificationService,
-    private globalNotificationService: GlobalNotificationService,
     private response: ResponseService,
   ) {}
 
   @Get('/health')
   async getHealth(@Res() res: Response) {
-    const health = await this.globalNotificationService.getHealthCheck();
+    const health = await this.service.getHealthCheck();
     return this.response.success(res, 'Notification push health check', health);
   }
 
   @Get('/diagnose/:userId')
   @ApiRequiredIdParam('userId')
   async diagnoseUser(@Res() res: Response, @Param('userId') userId: string) {
-    const diag = await this.globalNotificationService.diagnosePushForUser(+userId);
+    const diag = await this.service.diagnosePushForUser(+userId);
     return this.response.success(res, 'Notification user diagnostics', diag);
   }
 
