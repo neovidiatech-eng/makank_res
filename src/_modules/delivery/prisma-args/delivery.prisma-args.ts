@@ -130,36 +130,55 @@ export const selectDriverDashboardOrderOBJ = () => {
     id: true,
     note: true,
     status: true,
+    type: true,
     createdAt: true,
+    price: true,
     totalPriceAfterDiscount: true,
     shipping: true,
     tip: true,
-    type: true,
+    adminCommission: true,
+    tax: true,
+    packagingFee: true,
+    discountAmount: true,
+    paymentMethod: true,
+    paidWithWallet: true,
     customDeliveryKind: true,
     zoneId: true,
     Zone: {
-      select: { name: true },
+      select: { id: true, name: true },
     },
     Customer: {
       select: {
+        id: true,
         name: true,
         phone: true,
       },
     },
     Branch: {
       select: {
+        id: true,
         name: true,
-        Store: { select: { name: true } },
+        address: true,
+        Store: { select: { id: true, name: true, logo: true } },
+      },
+    },
+    Address: {
+      select: {
+        id: true,
+        title: true,
+        adress: true,
+        lat: true,
+        lng: true,
       },
     },
     OrderItems: {
       select: {
+        id: true,
         quantity: true,
-        Service: { select: { name: true } },
+        price: true,
+        Service: { select: { id: true, name: true, image: true } },
       },
     },
-    // Custom-delivery stops (Purchase/Restaurant/Online) — each carries its own
-    // zone/address, which is the whole "product" this order type has.
     Stations: {
       orderBy: { sequence: 'asc' as const },
       select: {
@@ -169,7 +188,7 @@ export const selectDriverDashboardOrderOBJ = () => {
         lat: true,
         lng: true,
         zoneId: true,
-        Zone: { select: { name: true } },
+        Zone: { select: { id: true, name: true } },
         addressDetails: true,
         contactPhone: true,
       },

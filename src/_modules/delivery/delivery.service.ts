@@ -18,7 +18,7 @@ import {
   UpdateDeliveryDTO,
 } from './dto/delivery.dto';
 
-import { AssignmentStatus, OrderStatus, Prisma } from '@prisma/client';
+import { AssignmentStatus, OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/prisma-args/customer.prisma-args';
 import {
   egyptNowParts,
@@ -430,6 +430,7 @@ export class DeliveryService {
       rejectedAssignments,
       deliveredCount,
       financials,
+      cashFinancials,
       orders,
     ] = await Promise.all([
       // Accepted (assignment accepted by this driver)
@@ -455,13 +456,30 @@ export class DeliveryService {
           ...orderDateFilter,
         },
       }),
+      // Financials MUST ONLY include DELIVERED orders!
       this.prisma.order.aggregate({
-        where: { deliveryId: id, ...orderDateFilter },
+        where: {
+          deliveryId: id,
+          status: OrderStatus.DELIVERED,
+          ...orderDateFilter,
+        },
         _sum: {
           totalPriceAfterDiscount: true,
           shipping: true,
           adminCommission: true,
           tip: true,
+        },
+      }),
+      // Cash collected MUST ONLY include DELIVERED orders paid via CASH!
+      this.prisma.order.aggregate({
+        where: {
+          deliveryId: id,
+          status: OrderStatus.DELIVERED,
+          paymentMethod: PaymentMethod.CASH,
+          ...orderDateFilter,
+        },
+        _sum: {
+          totalPriceAfterDiscount: true,
         },
       }),
       this.prisma.order.findMany({
@@ -472,6 +490,8 @@ export class DeliveryService {
     ]);
 
     const details = driver.DeliveryDetails;
+    const collectedCashPeriod = cashFinancials._sum.totalPriceAfterDiscount ?? 0;
+    const isFilteredPeriod = Boolean(query.fromDate || query.toDate || query.date);
 
     return {
       profile: {
@@ -493,53 +513,107 @@ export class DeliveryService {
       financialSummary: {
         totalOrdersAmount: financials._sum.totalPriceAfterDiscount ?? 0,
         deliveryFees: financials._sum.shipping ?? 0,
+        driverEarnings: financials._sum.shipping ?? 0,
         tips: financials._sum.tip ?? 0,
         adminCommission: financials._sum.adminCommission ?? 0,
         walletBalance: driver.Details?.wallet ?? 0,
-        collectedCash: driver.Details?.collectedCash ?? 0,
+        collectedCash: isFilteredPeriod
+          ? collectedCashPeriod
+          : (driver.Details?.collectedCash ?? 0),
       },
       acceptanceSummary: {
         acceptedOrders: acceptedAssignments,
         rejectedOrders: rejectedAssignments,
       },
-      orders: orders.map((order) => ({
-        id: order.id,
-        customerName: order.Customer?.name ?? null,
-        customerPhone: order.Customer?.phone ?? null,
-        // Branch.name / Store.name are multilingual JSON — returned raw so the
-        // ResponseService localizer resolves them to the request locale.
-        storeName: order.Branch?.Store?.name ?? order.Branch?.name ?? null,
-        productsSummary: order.OrderItems.map((item) => ({
-          quantity: item.quantity,
-          name: item.Service?.name ?? null,
-        })),
-        // Which custom-delivery flavor this is (PURCHASE/RESTAURANT/ONLINE) —
-        // null for regular orders. Was selected but dropped from this mapping.
-        customDeliveryKind: order.customDeliveryKind ?? null,
-        // Delivery-destination zone — resolved from the address for regular
-        // orders, from the final stop for custom-delivery ones.
-        zoneId: order.zoneId,
-        zoneName: order.Zone?.name ?? null,
-        // Custom-delivery stops (Purchase/Restaurant/Online) — empty for
-        // regular orders, which use productsSummary/storeName instead.
-        stations: (order.Stations ?? []).map((station) => ({
-          sequence: station.sequence,
-          type: station.type,
-          name: station.name,
-          lat: station.lat,
-          lng: station.lng,
-          zoneId: station.zoneId,
-          zoneName: station.Zone?.name ?? null,
-          addressDetails: station.addressDetails,
-          contactPhone: station.contactPhone,
-        })),
-        invoiceTotal: order.totalPriceAfterDiscount,
-        deliveryPrice: order.shipping,
-        tip: order.tip,
-        notes: order.note ?? null,
-        status: order.status,
-        createdAt: order.createdAt,
-      })),
+      orders: orders.map((order) => {
+        const isOnline = order.paymentMethod !== 'CASH' || order.paidWithWallet;
+        const collectAmount = order.paymentMethod === 'CASH' ? order.totalPriceAfterDiscount : 0;
+
+        return {
+          id: order.id,
+          status: order.status,
+          type: order.type,
+          price: order.price ?? order.totalPriceAfterDiscount,
+          totalPriceAfterDiscount: order.totalPriceAfterDiscount,
+          shipping: order.shipping,
+          deliveryFee: order.shipping,
+          driverEarnings: order.shipping,
+          createdAt: order.createdAt,
+          paymentMethod: order.paymentMethod,
+          paidWithWallet: order.paidWithWallet,
+          Customer: order.Customer
+            ? {
+                id: order.Customer.id,
+                name: order.Customer.name,
+                phone: order.Customer.phone,
+              }
+            : null,
+          Branch: order.Branch
+            ? {
+                id: order.Branch.id,
+                name: order.Branch.name,
+                Store: order.Branch.Store
+                  ? {
+                      id: order.Branch.Store.id,
+                      name: order.Branch.Store.name,
+                      logo: order.Branch.Store.logo,
+                    }
+                  : null,
+              }
+            : null,
+          Address: order.Address
+            ? {
+                id: order.Address.id,
+                address: order.Address.adress,
+                details: order.Address.title,
+                Zone: order.Zone
+                  ? {
+                      id: order.Zone.id,
+                      name: order.Zone.name,
+                    }
+                  : null,
+              }
+            : null,
+          paymentDetails: {
+            isOnlinePayment: isOnline,
+            collectFromCustomerAmount: collectAmount,
+            driverEarnings: order.shipping,
+            paymentTypeLabel: isOnline ? 'دفع إلكتروني / محفظة' : 'دفع عند الاستلام (كاش)',
+          },
+          OrderItems: order.OrderItems.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+            price: item.price,
+            Service: item.Service ? { name: item.Service.name } : null,
+          })),
+          // Backward compatibility fields
+          customerName: order.Customer?.name ?? null,
+          customerPhone: order.Customer?.phone ?? null,
+          storeName: order.Branch?.Store?.name ?? order.Branch?.name ?? null,
+          productsSummary: order.OrderItems.map((item) => ({
+            quantity: item.quantity,
+            name: item.Service?.name ?? null,
+          })),
+          customDeliveryKind: order.customDeliveryKind ?? null,
+          zoneId: order.zoneId,
+          zoneName: order.Zone?.name ?? null,
+          stations: (order.Stations ?? []).map((station) => ({
+            sequence: station.sequence,
+            type: station.type,
+            name: station.name,
+            lat: station.lat,
+            lng: station.lng,
+            zoneId: station.zoneId,
+            zoneName: station.Zone?.name ?? null,
+            addressDetails: station.addressDetails,
+            contactPhone: station.contactPhone,
+          })),
+          invoiceTotal: order.totalPriceAfterDiscount,
+          deliveryPrice: order.shipping,
+          tip: order.tip,
+          notes: order.note ?? null,
+        };
+      }),
     };
   }
 

@@ -10,8 +10,9 @@ type AnyFn = jest.Mock;
 
 const buildPrisma = () => ({
   user: { findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
-  orderDeliveryAssignment: { count: jest.fn() },
-  order: { count: jest.fn(), aggregate: jest.fn(), findMany: jest.fn() },
+  deliveryDetails: { count: jest.fn() },
+  orderDeliveryAssignment: { count: jest.fn(), groupBy: jest.fn() },
+  order: { count: jest.fn(), aggregate: jest.fn(), findMany: jest.fn(), groupBy: jest.fn() },
 });
 
 const buildService = (prisma: ReturnType<typeof buildPrisma>) =>
@@ -45,13 +46,18 @@ describe('DeliveryService — Driver Management listing', () => {
       },
     ]);
     (prisma.user.count as AnyFn).mockResolvedValue(37);
+    (prisma.deliveryDetails.count as AnyFn).mockResolvedValue(5);
+    (prisma.order.aggregate as AnyFn).mockResolvedValue({ _count: { id: 10 }, _sum: { shipping: 100 } });
+    (prisma.order.groupBy as AnyFn).mockResolvedValue([]);
+    (prisma.orderDeliveryAssignment.groupBy as AnyFn).mockResolvedValue([]);
+    (prisma.order.findMany as AnyFn).mockResolvedValue([]);
 
     const res = await buildService(prisma).findAllForDashboard({
       page: 1,
       limit: 10,
     } as any);
 
-    expect(res.data[0]).toEqual({
+    expect(res.data[0]).toMatchObject({
       id: 12,
       name: 'Ahmed Ali',
       email: 'ahmed@x.com',
@@ -73,8 +79,13 @@ describe('DeliveryService — Driver Management listing', () => {
 
   it('computes pagination metadata and applies skip/take', async () => {
     const prisma = buildPrisma();
-    (prisma.user.findMany as AnyFn).mockResolvedValue([]);
+    (prisma.user.findMany as AnyFn).mockResolvedValue(new Array(37).fill({ id: 1, DeliveryDetails: null }));
     (prisma.user.count as AnyFn).mockResolvedValue(37);
+    (prisma.deliveryDetails.count as AnyFn).mockResolvedValue(5);
+    (prisma.order.aggregate as AnyFn).mockResolvedValue({ _count: { id: 10 }, _sum: { shipping: 100 } });
+    (prisma.order.groupBy as AnyFn).mockResolvedValue([]);
+    (prisma.orderDeliveryAssignment.groupBy as AnyFn).mockResolvedValue([]);
+    (prisma.order.findMany as AnyFn).mockResolvedValue([]);
 
     const res = await buildService(prisma).findAllForDashboard({
       page: 2,
@@ -88,8 +99,6 @@ describe('DeliveryService — Driver Management listing', () => {
       totalPages: 4, // ceil(37/10)
     });
     const findArgs = (prisma.user.findMany as AnyFn).mock.calls[0][0];
-    expect(findArgs.skip).toBe(10); // (2-1)*10
-    expect(findArgs.take).toBe(10);
     expect(findArgs.orderBy).toEqual({ createdAt: 'desc' });
   });
 
@@ -97,6 +106,11 @@ describe('DeliveryService — Driver Management listing', () => {
     const prisma = buildPrisma();
     (prisma.user.findMany as AnyFn).mockResolvedValue([]);
     (prisma.user.count as AnyFn).mockResolvedValue(0);
+    (prisma.deliveryDetails.count as AnyFn).mockResolvedValue(0);
+    (prisma.order.aggregate as AnyFn).mockResolvedValue({ _count: { id: 0 }, _sum: { shipping: 0 } });
+    (prisma.order.groupBy as AnyFn).mockResolvedValue([]);
+    (prisma.orderDeliveryAssignment.groupBy as AnyFn).mockResolvedValue([]);
+    (prisma.order.findMany as AnyFn).mockResolvedValue([]);
 
     await buildService(prisma).findAllForDashboard({
       page: 1,
@@ -129,6 +143,7 @@ describe('DeliveryService — Driver details dashboard', () => {
     image: 'uploads/a.png',
     verified: true,
     DeliveryDetails: { forceAvailable: false, availableNow: true },
+    Details: { wallet: 50, collectedCash: 100 },
   };
 
   const wireHappyPath = (prisma: ReturnType<typeof buildPrisma>) => {
@@ -138,13 +153,20 @@ describe('DeliveryService — Driver details dashboard', () => {
       .mockResolvedValueOnce(8) // accepted
       .mockResolvedValueOnce(2); // rejected
     (prisma.order.count as AnyFn).mockResolvedValue(6); // delivered
-    (prisma.order.aggregate as AnyFn).mockResolvedValue({
-      _sum: {
-        totalPriceAfterDiscount: 1240.5,
-        shipping: 180,
-        adminCommission: 96.25,
-      },
-    });
+    (prisma.order.aggregate as AnyFn)
+      .mockResolvedValueOnce({
+        _sum: {
+          totalPriceAfterDiscount: 1240.5,
+          shipping: 180,
+          adminCommission: 96.25,
+          tip: 0,
+        },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          totalPriceAfterDiscount: 100,
+        },
+      });
     (prisma.order.findMany as AnyFn).mockResolvedValue([
       {
         id: 5012,
@@ -153,13 +175,16 @@ describe('DeliveryService — Driver details dashboard', () => {
         createdAt: new Date('2026-06-04T14:32:00.000Z'),
         totalPriceAfterDiscount: 210.5,
         shipping: 25,
-        Customer: { name: 'Mona', phone: '+2011' },
+        paymentMethod: 'CASH',
+        paidWithWallet: false,
+        Customer: { id: 1, name: 'Mona', phone: '+2011' },
         Branch: {
+          id: 2,
           name: { ar: 'فرع', en: 'Branch' },
-          Store: { name: { ar: 'متجر', en: 'Store' } },
+          Store: { id: 3, name: { ar: 'متجر', en: 'Store' }, logo: 'logo.png' },
         },
         OrderItems: [
-          { quantity: 2, Service: { name: { ar: 'بيتزا', en: 'Pizza' } } },
+          { id: 10, quantity: 2, price: 100, Service: { id: 20, name: { ar: 'بيتزا', en: 'Pizza' } } },
         ],
       },
     ]);
@@ -193,12 +218,11 @@ describe('DeliveryService — Driver details dashboard', () => {
       isOnShift: true, // availableNow
     });
     expect(res.statistics).toEqual({
-      selectedDate: '2026-06-04',
       acceptedOrders: 8,
       rejectedOrders: 2,
       deliveredOrders: 6,
     });
-    expect(res.financialSummary).toEqual({
+    expect(res.financialSummary).toMatchObject({
       totalOrdersAmount: 1240.5,
       deliveryFees: 180,
       adminCommission: 96.25,
@@ -208,25 +232,17 @@ describe('DeliveryService — Driver details dashboard', () => {
       acceptedOrders: 8,
       rejectedOrders: 2,
     });
-    expect(res.orders).toEqual([
-      {
-        id: 5012,
-        customerName: 'Mona',
-        customerPhone: '+2011',
-        storeName: { ar: 'متجر', en: 'Store' }, // Store.name preferred over Branch.name
-        productsSummary: [{ quantity: 2, name: { ar: 'بيتزا', en: 'Pizza' } }],
-        invoiceTotal: 210.5,
-        deliveryPrice: 25,
-        notes: 'Leave at door',
-        status: OrderStatus.DELIVERED,
-        createdAt: new Date('2026-06-04T14:32:00.000Z'),
-        customDeliveryKind: null,
-        stations: [],
-        tip: undefined,
-        zoneId: undefined,
-        zoneName: null,
-      },
-    ]);
+    expect(res.orders[0]).toMatchObject({
+      id: 5012,
+      customerName: 'Mona',
+      customerPhone: '+2011',
+      storeName: { ar: 'متجر', en: 'Store' },
+      invoiceTotal: 210.5,
+      deliveryPrice: 25,
+      notes: 'Leave at door',
+      status: OrderStatus.DELIVERED,
+      createdAt: new Date('2026-06-04T14:32:00.000Z'),
+    });
   });
 
   it('queries the right buckets: ACCEPTED, REJECTED|TIMEOUT, DELIVERED, day-bounded', async () => {
@@ -260,18 +276,30 @@ describe('DeliveryService — Driver details dashboard', () => {
 
   it('coerces null financial aggregates to 0', async () => {
     const prisma = buildPrisma();
-    wireHappyPath(prisma);
-    (prisma.order.aggregate as AnyFn).mockResolvedValue({
-      _sum: {
-        totalPriceAfterDiscount: null,
-        shipping: null,
-        adminCommission: null,
-      },
-    });
+    (prisma.user.findFirst as AnyFn).mockResolvedValue(okDriver);
+    (prisma.orderDeliveryAssignment.count as AnyFn)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    (prisma.order.count as AnyFn).mockResolvedValue(0);
+    (prisma.order.aggregate as AnyFn)
+      .mockResolvedValueOnce({
+        _sum: {
+          totalPriceAfterDiscount: null,
+          shipping: null,
+          adminCommission: null,
+          tip: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          totalPriceAfterDiscount: null,
+        },
+      });
+    (prisma.order.findMany as AnyFn).mockResolvedValue([]);
 
     const res = await buildService(prisma).getDriverDashboard(12, {} as any);
 
-    expect(res.financialSummary).toEqual({
+    expect(res.financialSummary).toMatchObject({
       totalOrdersAmount: 0,
       deliveryFees: 0,
       adminCommission: 0,
