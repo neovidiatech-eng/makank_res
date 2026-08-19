@@ -296,6 +296,14 @@ export class WalletService {
       deliveryFeeEarnings: details?.wallet ?? 0,
       pendingWithdraw: details?.pendingWithdraw ?? 0,
       totalWithdrawn: details?.totalWithdrawn ?? 0,
+      financials: {
+        productsPriceOffline,
+        productsPriceOnline,
+        netProductsPriceTotal: productsPriceOffline + productsPriceOnline,
+        collectedCash: details?.collectedCash ?? 0,
+        deliveryFees: details?.wallet ?? 0,
+        adminCommission: details?.unsettledCommission ?? 0,
+      },
       breakdown: {
         offline: {
           paymentGroup: 'OFFLINE (CASH)',

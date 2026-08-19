@@ -432,6 +432,7 @@ export class DeliveryService {
       financials,
       cashFinancials,
       orders,
+      deliveredOrdersList,
     ] = await Promise.all([
       // Accepted (assignment accepted by this driver)
       this.prisma.orderDeliveryAssignment.count({
@@ -487,11 +488,45 @@ export class DeliveryService {
         select: selectDriverDashboardOrderOBJ(),
         orderBy: { createdAt: 'desc' },
       }),
+      this.prisma.order.findMany({
+        where: {
+          deliveryId: id,
+          status: OrderStatus.DELIVERED,
+          ...orderDateFilter,
+        },
+        select: {
+          totalPriceAfterDiscount: true,
+          shipping: true,
+          adminCommission: true,
+          tax: true,
+          packagingFee: true,
+          paymentMethod: true,
+          paidWithWallet: true,
+        },
+      }),
     ]);
 
     const details = driver.DeliveryDetails;
     const collectedCashPeriod = cashFinancials._sum.totalPriceAfterDiscount ?? 0;
     const isFilteredPeriod = Boolean(query.fromDate || query.toDate || query.date);
+
+    let productsPriceOffline = 0;
+    let productsPriceOnline = 0;
+
+    deliveredOrdersList.forEach((o) => {
+      const isOffline = o.paymentMethod === PaymentMethod.CASH && !o.paidWithWallet;
+      const orderTotal = o.totalPriceAfterDiscount || 0;
+      const productsOnly = Math.max(
+        0,
+        orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
+      );
+
+      if (isOffline) {
+        productsPriceOffline += productsOnly;
+      } else {
+        productsPriceOnline += productsOnly;
+      }
+    });
 
     return {
       profile: {
@@ -511,6 +546,9 @@ export class DeliveryService {
         deliveredOrders: deliveredCount,
       },
       financialSummary: {
+        productsPriceOffline,
+        productsPriceOnline,
+        netProductsPriceTotal: productsPriceOffline + productsPriceOnline,
         totalOrdersAmount: financials._sum.totalPriceAfterDiscount ?? 0,
         deliveryFees: financials._sum.shipping ?? 0,
         driverEarnings: financials._sum.shipping ?? 0,
