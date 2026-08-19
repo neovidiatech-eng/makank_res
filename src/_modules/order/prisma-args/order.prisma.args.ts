@@ -183,6 +183,14 @@ export const selectOrderOBJ = (filters: FilterOrderDTO, userId?: Id) => {
             price: true,
             priceAfterDiscount: true,
             storeId: true,
+            categoryId: true,
+            Category: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
             // Lets a "reorder"/order-history screen gray out a previously-
             // ordered product that's since been disabled or deactivated,
             // instead of the client having no signal at all.
