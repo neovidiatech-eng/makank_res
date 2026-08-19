@@ -7,6 +7,13 @@ enum PaymentStatus {
 enum PaymentMethod {
   CASH
   WALLET
+  CARD
+  ONLINE
+  KASHIER
+  STRIPE
+  INSTAPAY
+  VODAFONE_CASH
+  BANK_TRANSFER
 }
 
 enum OrderStatus {

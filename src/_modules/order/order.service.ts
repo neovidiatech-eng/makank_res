@@ -696,17 +696,12 @@ export class OrderService {
           zoneId: displayZoneId,
           customerSelectedZoneId: data.zoneId ?? null,
           type: data.type || OrderType.DELIVERY,
-          paidWithWallet: data.paidWithWallet,
+          paidWithWallet: Boolean(data.paidWithWallet || data.paymentMethod === PaymentMethod.WALLET),
           isGift: data.isGift ?? false,
-          // paidWithWallet debits the customer's real in-app balance immediately
-          // (verified via deductUserBalance above), so it's genuinely PAID. A
-          // WALLET transferNumber/transferImage is just an unverified claim — it
-          // starts UNPAID and only flips to PAID once an admin/store approves it
-          // via PATCH /orders/:id/verify-payment.
-          paymentStatus: data.paidWithWallet
+          paymentStatus: (data.paidWithWallet || data.paymentMethod === PaymentMethod.WALLET)
             ? PaymentStatus.PAID
             : PaymentStatus.UNPAID,
-          paymentMethod: data.paymentMethod,
+          paymentMethod: data.paymentMethod || (data.paidWithWallet ? PaymentMethod.WALLET : PaymentMethod.CASH),
           transferNumber: data.transferNumber,
           transferImage: data.transferImage,
           transferType: data.transferType,
@@ -2692,7 +2687,7 @@ export class OrderService {
             data.paidWithWallet || data.paymentMethod === PaymentMethod.WALLET
               ? PaymentStatus.PAID
               : PaymentStatus.UNPAID,
-          paymentMethod: data.paymentMethod,
+          paymentMethod: data.paymentMethod || (data.paidWithWallet ? PaymentMethod.WALLET : PaymentMethod.CASH),
           transferNumber: data.transferNumber,
           transferImage: data.transferImage,
           transferType: data.transferType,
@@ -3128,12 +3123,12 @@ export class OrderService {
           zoneId: lastZoneId,
           type: OrderType.CUSTOM_DELIVERY,
           customDeliveryKind: CustomDeliveryKind.ONLINE,
-          paidWithWallet: data.paidWithWallet || false,
+          paidWithWallet: Boolean(data.paidWithWallet || data.paymentMethod === PaymentMethod.WALLET),
           paymentStatus:
             data.paidWithWallet || data.paymentMethod === PaymentMethod.WALLET
               ? PaymentStatus.PAID
               : PaymentStatus.UNPAID,
-          paymentMethod: data.paymentMethod,
+          paymentMethod: data.paymentMethod || (data.paidWithWallet ? PaymentMethod.WALLET : PaymentMethod.CASH),
           note: data.note,
           pickupLat: pickupPoint.lat,
           pickupLng: pickupPoint.lng,
