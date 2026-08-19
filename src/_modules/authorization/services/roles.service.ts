@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { grouped } from 'src/_modules/user/helpers/auth.groupBy.helper';
 import { firstOrMany } from 'src/globals/helpers/first-or-many';
 import { PrismaService } from 'src/globals/services/prisma.service';
@@ -64,6 +64,23 @@ export class RoleService {
 
   async delete(id: Id, user: CurrentUser) {
     await this.helpers.canUserAccessRoleId(user, id);
+
+    const role = await this.prisma.role.findUnique({ where: { id } });
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+    if (role.default) {
+      throw new BadRequestException('لا يمكن حذف أدوار النظام الأساسية');
+    }
+
+    const assignedUsersCount = await this.prisma.user.count({
+      where: { roleId: id },
+    });
+    if (assignedUsersCount > 0) {
+      throw new BadRequestException(
+        `لا يمكن حذف هذا الدور لأنه مسند لـ ${assignedUsersCount} موظف/مستخدم حالياً. يرجى تغيير دور الموظفين أولاً.`,
+      );
+    }
 
     await this.prisma.role.delete({ where: { id } });
   }
