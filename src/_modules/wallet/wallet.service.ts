@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, WithdrawStatus } from '@prisma/client';
+import { OrderStatus, Prisma, WithdrawStatus } from '@prisma/client';
 import { UserService } from '../user/services/user.service';
 @Injectable()
 export class WalletService {
@@ -231,9 +231,8 @@ export class WalletService {
     ]);
   }
 
-  // Driver wallet screen's three numbers: total cash currently held, the
-  // commission/tax portion embedded in it (owed back on settlement), and
-  // cumulative delivery-fee earnings (their own money, withdrawable).
+  // Driver wallet screen: Total cash held, commission/tax owed, withdrawable earnings,
+  // PLUS explicit Offline (CASH) vs Online (CARD/WALLET) breakdown & net products price ONLY.
   async getDriverWalletSummary(userId: number) {
     const details = await this.prisma.details.findUnique({
       where: { userId },
@@ -245,12 +244,406 @@ export class WalletService {
         totalWithdrawn: true,
       },
     });
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        deliveryId: userId,
+        status: OrderStatus.DELIVERED,
+      },
+      select: {
+        id: true,
+        price: true,
+        totalPriceAfterDiscount: true,
+        shipping: true,
+        adminCommission: true,
+        tax: true,
+        packagingFee: true,
+        discountAmount: true,
+        paymentMethod: true,
+        paidWithWallet: true,
+      },
+    });
+
+    let cashOfflineTotal = 0;
+    let onlineTotal = 0;
+    let productsPriceOffline = 0;
+    let productsPriceOnline = 0;
+
+    orders.forEach((o) => {
+      const isOffline = o.paymentMethod === 'CASH';
+      const orderTotal = o.totalPriceAfterDiscount || 0;
+      // Net products price ONLY = order total minus shipping, admin commission, tax, and packaging fee
+      const productsOnly = Math.max(
+        0,
+        orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
+      );
+
+      if (isOffline) {
+        cashOfflineTotal += orderTotal;
+        productsPriceOffline += productsOnly;
+      } else {
+        onlineTotal += orderTotal;
+        productsPriceOnline += productsOnly;
+      }
+    });
+
     return {
       total: details?.collectedCash ?? 0,
+      totalCollectedCash: details?.collectedCash ?? 0,
       commission: details?.unsettledCommission ?? 0,
+      unsettledCommission: details?.unsettledCommission ?? 0,
       delivery: details?.wallet ?? 0,
+      deliveryFeeEarnings: details?.wallet ?? 0,
       pendingWithdraw: details?.pendingWithdraw ?? 0,
       totalWithdrawn: details?.totalWithdrawn ?? 0,
+      breakdown: {
+        offline: {
+          paymentGroup: 'OFFLINE (CASH)',
+          totalOrdersAmount: cashOfflineTotal,
+          productsPriceOnly: productsPriceOffline,
+        },
+        online: {
+          paymentGroup: 'ONLINE (WALLET/CARD)',
+          totalOrdersAmount: onlineTotal,
+          productsPriceOnly: productsPriceOnline,
+        },
+        netProductsPriceTotal: productsPriceOffline + productsPriceOnline,
+      },
+    };
+  }
+
+  // Driver Daily Financial & Order Statistics
+  async getDriverDailyStatistics(userId: number, dateStr?: string) {
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        deliveryId: userId,
+        status: OrderStatus.DELIVERED,
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      select: {
+        id: true,
+        price: true,
+        totalPriceAfterDiscount: true,
+        shipping: true,
+        adminCommission: true,
+        tax: true,
+        packagingFee: true,
+        discountAmount: true,
+        paymentMethod: true,
+        paidWithWallet: true,
+        createdAt: true,
+      },
+    });
+
+    let offlineOrdersCount = 0;
+    let onlineOrdersCount = 0;
+    let productsPriceOffline = 0;
+    let productsPriceOnline = 0;
+    let totalShippingEarnings = 0;
+    let totalAdminCommission = 0;
+    let totalTax = 0;
+    let grandTotalCollected = 0;
+
+    orders.forEach((o) => {
+      const isOffline = o.paymentMethod === 'CASH';
+      const orderTotal = o.totalPriceAfterDiscount || 0;
+      const productsOnly = Math.max(
+        0,
+        orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
+      );
+
+      if (isOffline) {
+        offlineOrdersCount++;
+        productsPriceOffline += productsOnly;
+      } else {
+        onlineOrdersCount++;
+        productsPriceOnline += productsOnly;
+      }
+
+      totalShippingEarnings += o.shipping || 0;
+      totalAdminCommission += o.adminCommission || 0;
+      totalTax += o.tax || 0;
+      grandTotalCollected += orderTotal;
+    });
+
+    return {
+      date: startOfDay.toISOString().split('T')[0],
+      totalOrdersCount: orders.length,
+      offlineOrdersCount,
+      onlineOrdersCount,
+      financialSummary: {
+        productsPriceOffline,
+        productsPriceOnline,
+        totalProductsPriceOnly: productsPriceOffline + productsPriceOnline,
+        totalShippingEarnings,
+        totalAdminCommission,
+        totalTax,
+        grandTotalCollected,
+      },
+    };
+  }
+
+  // List of all delivered orders for the driver today/specified date with itemized costs
+  async getDriverDailyOrders(userId: number, dateStr?: string) {
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        deliveryId: userId,
+        status: OrderStatus.DELIVERED,
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      include: {
+        Address: true,
+        Customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        Branch: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            Store: {
+              select: {
+                id: true,
+                name: true,
+                logo: true,
+              },
+            },
+          },
+        },
+        OrderItems: {
+          include: {
+            Service: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                image: true,
+                Category: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            Size: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+              },
+            },
+            OrderItemAddons: {
+              include: {
+                Addon: {
+                  select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return orders.map((o) => {
+      const isOffline = o.paymentMethod === 'CASH';
+      const orderTotal = o.totalPriceAfterDiscount || 0;
+      const productsOnly = Math.max(
+        0,
+        orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
+      );
+
+      return {
+        orderId: o.id,
+        createdAt: o.createdAt,
+        status: o.status,
+        paymentMethod: o.paymentMethod,
+        paymentGroup: isOffline ? 'OFFLINE' : 'ONLINE',
+        financials: {
+          productsPriceOnly: productsOnly,
+          shippingFee: o.shipping || 0,
+          adminCommission: o.adminCommission || 0,
+          taxFee: o.tax || 0,
+          packagingFee: o.packagingFee || 0,
+          discountAmount: o.discountAmount || 0,
+          totalPriceAfterDiscount: orderTotal,
+        },
+        customer: {
+          id: o.Customer?.id,
+          name: o.Customer?.name,
+          phone: o.Customer?.phone,
+        },
+        store: {
+          id: o.Branch?.Store?.id,
+          name: o.Branch?.Store?.name,
+          logo: o.Branch?.Store?.logo,
+          branchAddress: o.Branch?.address,
+        },
+        itemsCount: o.OrderItems.length,
+        items: o.OrderItems.map((item) => ({
+          itemId: item.id,
+          serviceId: item.serviceId,
+          serviceName: item.Service?.name,
+          categoryName: item.Service?.Category?.name,
+          sizeName: item.Size?.name,
+          price: item.price,
+          quantity: item.quantity,
+          addons: item.OrderItemAddons.map((addon) => ({
+            addonId: addon.addonId,
+            addonName: addon.Addon?.name,
+            price: addon.Addon?.price,
+          })),
+        })),
+      };
+    });
+  }
+
+  // Individual Order Itemized Financial & Product Breakdown
+  async getOrderFinancialBreakdown(orderId: number) {
+    const o = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        Address: true,
+        Customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        Branch: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            Store: {
+              select: {
+                id: true,
+                name: true,
+                logo: true,
+              },
+            },
+          },
+        },
+        OrderItems: {
+          include: {
+            Service: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                image: true,
+                Category: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            Size: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+              },
+            },
+            OrderItemAddons: {
+              include: {
+                Addon: {
+                  select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!o) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const isOffline = o.paymentMethod === 'CASH';
+    const orderTotal = o.totalPriceAfterDiscount || 0;
+    const productsOnly = Math.max(
+      0,
+      orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
+    );
+
+    return {
+      orderId: o.id,
+      createdAt: o.createdAt,
+      status: o.status,
+      paymentMethod: o.paymentMethod,
+      paymentGroup: isOffline ? 'OFFLINE' : 'ONLINE',
+      financials: {
+        productsPriceOnly: productsOnly,
+        shippingFee: o.shipping || 0,
+        adminCommission: o.adminCommission || 0,
+        taxFee: o.tax || 0,
+        packagingFee: o.packagingFee || 0,
+        discountAmount: o.discountAmount || 0,
+        totalPriceAfterDiscount: orderTotal,
+      },
+      customer: {
+        id: o.Customer?.id,
+        name: o.Customer?.name,
+        phone: o.Customer?.phone,
+      },
+      store: {
+        id: o.Branch?.Store?.id,
+        name: o.Branch?.Store?.name,
+        logo: o.Branch?.Store?.logo,
+        branchAddress: o.Branch?.address,
+      },
+      items: o.OrderItems.map((item) => ({
+        itemId: item.id,
+        serviceId: item.serviceId,
+        serviceName: item.Service?.name,
+        categoryName: item.Service?.Category?.name,
+        sizeName: item.Size?.name,
+        price: item.price,
+        quantity: item.quantity,
+        addons: item.OrderItemAddons.map((addon) => ({
+          addonId: addon.addonId,
+          addonName: addon.Addon?.name,
+          price: addon.Addon?.price,
+        })),
+      })),
     };
   }
 

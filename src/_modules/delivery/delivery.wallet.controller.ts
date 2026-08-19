@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Put, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
@@ -28,6 +28,35 @@ export class DeliveryWalletController {
   async getWallet(@Res() res: Response, @CurrentUser('id') userId: number) {
     const wallet = await this.walletService.getDriverWalletSummary(userId);
     return this.response.success(res, 'Wallet returned successfully', wallet);
+  }
+
+  @Get('/daily-statistics')
+  async getDailyStatistics(
+    @Res() res: Response,
+    @CurrentUser('id') userId: number,
+    @Query('date') date?: string,
+  ) {
+    const data = await this.walletService.getDriverDailyStatistics(userId, date);
+    return this.response.success(res, 'Daily statistics fetched successfully', data);
+  }
+
+  @Get('/daily-orders')
+  async getDailyOrders(
+    @Res() res: Response,
+    @CurrentUser('id') userId: number,
+    @Query('date') date?: string,
+  ) {
+    const data = await this.walletService.getDriverDailyOrders(userId, date);
+    return this.response.success(res, 'Daily orders fetched successfully', data);
+  }
+
+  @Get('/orders/:id/financial-breakdown')
+  async getOrderFinancialBreakdown(
+    @Res() res: Response,
+    @Param('id') id: string,
+  ) {
+    const data = await this.walletService.getOrderFinancialBreakdown(+id);
+    return this.response.success(res, 'Order financial breakdown fetched successfully', data);
   }
 
   @Post('/withdraw')
