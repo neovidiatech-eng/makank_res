@@ -270,7 +270,7 @@ export class WalletService {
     let productsPriceOnline = 0;
 
     orders.forEach((o) => {
-      const isOffline = o.paymentMethod === 'CASH';
+      const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
       const orderTotal = o.totalPriceAfterDiscount || 0;
       // Net products price ONLY = order total minus shipping, admin commission, tax, and packaging fee
       const productsOnly = Math.max(
@@ -355,7 +355,7 @@ export class WalletService {
     let grandTotalCollected = 0;
 
     orders.forEach((o) => {
-      const isOffline = o.paymentMethod === 'CASH';
+      const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
       const orderTotal = o.totalPriceAfterDiscount || 0;
       const productsOnly = Math.max(
         0,
@@ -475,7 +475,7 @@ export class WalletService {
     });
 
     return orders.map((o) => {
-      const isOffline = o.paymentMethod === 'CASH';
+      const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
       const orderTotal = o.totalPriceAfterDiscount || 0;
       const productsOnly = Math.max(
         0,
@@ -597,7 +597,7 @@ export class WalletService {
       throw new NotFoundException('Order not found');
     }
 
-    const isOffline = o.paymentMethod === 'CASH';
+    const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
     const orderTotal = o.totalPriceAfterDiscount || 0;
     const productsOnly = Math.max(
       0,
