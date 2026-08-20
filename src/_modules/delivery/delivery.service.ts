@@ -399,6 +399,7 @@ export class DeliveryService {
           select: {
             wallet: true,
             collectedCash: true,
+            unsettledCommission: true,
           },
         },
       },
@@ -546,18 +547,21 @@ export class DeliveryService {
         deliveredOrders: deliveredCount,
       },
       financialSummary: {
+        driverEarnings: driver.Details?.wallet ?? 0,
+        collectedCash: isFilteredPeriod
+          ? collectedCashPeriod
+          : (driver.Details?.collectedCash ?? 0),
+        totalAdminDebt: driver.Details?.unsettledCommission ?? 0,
+        adminCommissionOnly: financials._sum.adminCommission ?? 0,
+        partnerProductsDebt: Math.max(0, (driver.Details?.unsettledCommission ?? 0) - (financials._sum.adminCommission ?? 0)),
         productsPriceOffline,
         productsPriceOnline,
         netProductsPriceTotal: productsPriceOffline + productsPriceOnline,
         totalOrdersAmount: financials._sum.totalPriceAfterDiscount ?? 0,
         deliveryFees: financials._sum.shipping ?? 0,
-        driverEarnings: financials._sum.shipping ?? 0,
         tips: financials._sum.tip ?? 0,
         adminCommission: financials._sum.adminCommission ?? 0,
         walletBalance: driver.Details?.wallet ?? 0,
-        collectedCash: isFilteredPeriod
-          ? collectedCashPeriod
-          : (driver.Details?.collectedCash ?? 0),
       },
       acceptanceSummary: {
         acceptedOrders: acceptedAssignments,

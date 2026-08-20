@@ -288,6 +288,8 @@ export class WalletService {
     let productsPriceOfflinePartner = 0;
     let productsPriceOnlineNormal = 0;
     let productsPriceOnlinePartner = 0;
+    let adminCommissionOnly = 0;
+    let partnerProductsDebt = 0;
 
     orders.forEach((o) => {
       const isPartner = Boolean(o.isPartnerStore || o.Branch?.Store?.isPartner);
@@ -298,12 +300,15 @@ export class WalletService {
         orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
       );
 
+      adminCommissionOnly += (o.adminCommission || 0);
+
       if (isOffline) {
         cashOfflineTotal += orderTotal;
         productsPriceOffline += productsOnly;
         if (isPartner) {
           offlinePartnerTotal += orderTotal;
           productsPriceOfflinePartner += productsOnly;
+          partnerProductsDebt += productsOnly;
         } else {
           offlineNormalTotal += orderTotal;
           productsPriceOfflineNormal += productsOnly;
@@ -316,27 +321,33 @@ export class WalletService {
           productsPriceOnlinePartner += productsOnly;
         } else {
           onlineNormalTotal += orderTotal;
-          productsPriceOnlineNormal += productsOnly;
+          productsPriceOnlinePartner += productsOnly;
         }
       }
     });
 
+    const totalAdminDebt = details?.unsettledCommission ?? (adminCommissionOnly + partnerProductsDebt);
+
     return {
       total: details?.collectedCash ?? 0,
       totalCollectedCash: details?.collectedCash ?? 0,
-      commission: details?.unsettledCommission ?? 0,
-      unsettledCommission: details?.unsettledCommission ?? 0,
+      commission: totalAdminDebt,
+      unsettledCommission: totalAdminDebt,
       delivery: details?.wallet ?? 0,
       deliveryFeeEarnings: details?.wallet ?? 0,
       pendingWithdraw: details?.pendingWithdraw ?? 0,
       totalWithdrawn: details?.totalWithdrawn ?? 0,
       financials: {
+        driverEarnings: details?.wallet ?? 0,
+        collectedCash: details?.collectedCash ?? 0,
+        totalAdminDebt: totalAdminDebt,
+        adminCommissionOnly,
+        partnerProductsDebt,
         productsPriceOffline,
         productsPriceOnline,
         netProductsPriceTotal: productsPriceOffline + productsPriceOnline,
-        collectedCash: details?.collectedCash ?? 0,
         deliveryFees: details?.wallet ?? 0,
-        adminCommission: details?.unsettledCommission ?? 0,
+        adminCommission: totalAdminDebt,
       },
       breakdown: {
         offline: {
