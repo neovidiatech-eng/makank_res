@@ -50,6 +50,7 @@ export const getStoreArgs = (
     filterKey<Store>(filter, 'planId'),
     filterKey<Store>(filter, 'cityId'),
     filterKey<Store>(filter, 'isStoreAccepted'),
+    filterKey<Store>(filter, 'isPartner'),
     filterKey<Store>(filter, 'isVerified'),
     filterKey<Store>(filter, 'isBlocked'),
     (filter?.zeroOrdersOnly || filter?.orderFilter === StoreOrderFilterEnum.ZERO_ORDERS) && {
@@ -215,6 +216,7 @@ export const selectStoreOBJ = (includeBundles = false) => {
     cover: true,
     createdAt: true,
     freeDelivery: true,
+    isPartner: true,
     isVerified: true,
     isBlocked: true,
     isStoreAccepted: true,

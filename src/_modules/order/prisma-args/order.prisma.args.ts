@@ -147,11 +147,19 @@ export const selectOrderOBJ = (filters: FilterOrderDTO, userId?: Id) => {
         status: true,
       },
     },
+    isPartnerStore: true,
     Branch: {
       select: {
         lat: true,
         lng: true,
         storeId: true,
+        Store: {
+          select: {
+            id: true,
+            name: true,
+            isPartner: true,
+          },
+        },
       },
     },
     invoice: true,

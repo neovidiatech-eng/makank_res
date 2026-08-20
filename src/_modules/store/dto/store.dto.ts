@@ -290,6 +290,10 @@ export class FilterStoreDTO extends PaginationParamsDTO {
 
   @Optional()
   @ValidateBoolean()
+  isPartner?: boolean;
+
+  @Optional()
+  @ValidateBoolean()
   isVerified?: boolean;
 
   @Optional()
@@ -447,4 +451,24 @@ export class SetStoreZonePricesDTO {
   @Type(() => StoreZonePriceEntryDTO)
   @ApiProperty({ type: [StoreZonePriceEntryDTO] })
   zonePrices: StoreZonePriceEntryDTO[];
+}
+
+export class ToggleStorePartnerDTO {
+  @Required()
+  @ValidateBoolean()
+  isPartner: boolean;
+}
+
+export class FilterPartnerSettlementsDTO extends PaginationParamsDTO {
+  @Optional()
+  @ValidateString()
+  search?: string;
+
+  @Optional()
+  @ValidateString()
+  fromDate?: string;
+
+  @Optional()
+  @ValidateString()
+  toDate?: string;
 }

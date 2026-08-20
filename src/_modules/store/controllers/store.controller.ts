@@ -40,11 +40,13 @@ import { StoreTemplateService } from '../../store-template/store-template.servic
 import {
   ApplyStoreDiscountDTO,
   CreateStoreDTO,
+  FilterPartnerSettlementsDTO,
   FilterStoreDTO,
   RemoveStoreDiscountDTO,
   SetStoreApprovalDTO,
   SetStoreZonePricesDTO,
   ToggleStoreManagedByAdminDTO,
+  ToggleStorePartnerDTO,
   ToggleStoreZonePricingDTO,
   UpdateBranchStatusDTO,
   UpdateStoreCommissionDTO,
@@ -235,6 +237,37 @@ export class StoreController {
     return this.response.success(
       res,
       'store managed-by-admin flag toggled successfully',
+    );
+  }
+
+  // Admin-only — toggle whether a store is a partner store (isPartner).
+  @Patch('/:id/partner')
+  @ApiRequiredIdParam()
+  @Auth({ prefix: 'store-partner' })
+  async togglePartner(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() { isPartner }: ToggleStorePartnerDTO,
+  ) {
+    await this.service.togglePartner(id, isPartner);
+    return this.response.success(
+      res,
+      'store partner status updated successfully',
+    );
+  }
+
+  // Admin-only — financial settlement summary for all partner stores.
+  @Get('/partner-settlements')
+  @Auth({ prefix: 'store-partner' })
+  async getPartnerSettlements(
+    @Res() res: Response,
+    @Filter({ dto: FilterPartnerSettlementsDTO }) filters: FilterPartnerSettlementsDTO,
+  ) {
+    const data = await this.service.getPartnerStoreSettlements(filters);
+    return this.response.success(
+      res,
+      'partner store settlements fetched successfully',
+      data,
     );
   }
 

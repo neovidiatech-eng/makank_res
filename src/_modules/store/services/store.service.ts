@@ -9,6 +9,7 @@ import { resolveCityForPoint } from 'src/globals/helpers/resolve-city-for-point.
 import { resolveDateRangeFilter } from 'src/_modules/user/_modules/customer/prisma-args/customer.prisma-args';
 import {
   CreateStoreDTO,
+  FilterPartnerSettlementsDTO,
   FilterStoreDTO,
   StoreOrderFilterEnum,
   UpdateStoreDTO,
@@ -767,6 +768,160 @@ export class StoreService {
       where: { id },
       data: { managedByAdmin: enabled },
     });
+  }
+
+  async togglePartner(id: Id, isPartner: boolean) {
+    const store = await this.prisma.store.findUnique({ where: { id } });
+    if (!store) {
+      throw new NotFoundException('Store not found');
+    }
+    return this.prisma.store.update({
+      where: { id },
+      data: { isPartner },
+    });
+  }
+
+  async getPartnerStoreSettlements(filters: FilterPartnerSettlementsDTO) {
+    const dateRange = resolveDateRangeFilter(filters as any);
+    const orderDateFilter = dateRange
+      ? { OR: [{ date: dateRange }, { createdAt: dateRange }] }
+      : {};
+
+    const searchStr = (filters.search || '').trim();
+
+    const partnerStores = await this.prisma.store.findMany({
+      where: {
+        isPartner: true,
+        deletedAt: null,
+        ...(searchStr && {
+          OR: [
+            { name: { path: '$.ar', string_contains: searchStr } },
+            { name: { path: '$.en', string_contains: searchStr } },
+          ],
+        }),
+      },
+      select: {
+        id: true,
+        name: true,
+        logo: true,
+        cover: true,
+        commission: true,
+        commissionType: true,
+        branches: {
+          select: {
+            id: true,
+            address: true,
+            Wallet: {
+              select: {
+                currentBalance: true,
+                pendingWithdraw: true,
+                totalWithdrawn: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const results = await Promise.all(
+      partnerStores.map(async (store) => {
+        const branchIds = store.branches.map((b) => b.id);
+
+        const orders = await this.prisma.order.findMany({
+          where: {
+            branchId: { in: branchIds },
+            isPartnerStore: true,
+            status: OrderStatus.DELIVERED,
+            ...orderDateFilter,
+          },
+          select: {
+            id: true,
+            totalPriceAfterDiscount: true,
+            adminCommission: true,
+            shipping: true,
+            tax: true,
+            packagingFee: true,
+            paymentMethod: true,
+            paidWithWallet: true,
+          },
+        });
+
+        let totalOrdersCount = orders.length;
+        let totalSales = 0;
+        let totalPlatformCommission = 0;
+        let totalStoreEarnings = 0;
+        let totalCashCollectedByDrivers = 0;
+        let onlinePartnerTotal = 0;
+        let offlinePartnerTotal = 0;
+
+        orders.forEach((o) => {
+          const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
+          const orderTotal = o.totalPriceAfterDiscount || 0;
+          const commission = o.adminCommission || 0;
+          const shipping = o.shipping || 0;
+          const storeEarnings = Math.max(0, orderTotal - commission - shipping);
+
+          totalSales += orderTotal;
+          totalPlatformCommission += commission;
+          totalStoreEarnings += storeEarnings;
+
+          if (isOffline) {
+            offlinePartnerTotal += orderTotal;
+            totalCashCollectedByDrivers += orderTotal;
+          } else {
+            onlinePartnerTotal += orderTotal;
+          }
+        });
+
+        const storeWalletBalance = store.branches.reduce(
+          (sum, b) => sum + (b.Wallet?.currentBalance || 0),
+          0,
+        );
+
+        return {
+          storeId: store.id,
+          storeName: store.name,
+          storeLogo: store.logo,
+          totalOrdersCount,
+          totalSales,
+          totalPlatformCommission,
+          totalStoreEarnings,
+          totalCashCollectedByDrivers,
+          offlinePartnerTotal,
+          onlinePartnerTotal,
+          storeWalletBalance,
+        };
+      }),
+    );
+
+    const summary = results.reduce(
+      (acc, s) => {
+        acc.totalPartnerStores += 1;
+        acc.totalOrdersCount += s.totalOrdersCount;
+        acc.totalSales += s.totalSales;
+        acc.totalPlatformCommission += s.totalPlatformCommission;
+        acc.totalStoreEarnings += s.totalStoreEarnings;
+        acc.totalCashCollectedByDrivers += s.totalCashCollectedByDrivers;
+        acc.offlinePartnerTotal += s.offlinePartnerTotal;
+        acc.onlinePartnerTotal += s.onlinePartnerTotal;
+        return acc;
+      },
+      {
+        totalPartnerStores: 0,
+        totalOrdersCount: 0,
+        totalSales: 0,
+        totalPlatformCommission: 0,
+        totalStoreEarnings: 0,
+        totalCashCollectedByDrivers: 0,
+        offlinePartnerTotal: 0,
+        onlinePartnerTotal: 0,
+      },
+    );
+
+    return {
+      summary,
+      stores: results,
+    };
   }
 
   // Applies one discount (percentage or fixed amount) across every service in

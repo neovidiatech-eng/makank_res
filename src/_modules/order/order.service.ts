@@ -678,6 +678,15 @@ export class OrderService {
         data.zoneId,
       );
 
+      let isPartnerStore = false;
+      if (branchId) {
+        const branchWithStore = await tx.branch.findUnique({
+          where: { id: branchId },
+          select: { Store: { select: { isPartner: true } } },
+        });
+        isPartnerStore = branchWithStore?.Store?.isPartner ?? false;
+      }
+
       const order = await tx.order.create({
         data: {
           tip: data.tip ?? 0,
@@ -695,6 +704,7 @@ export class OrderService {
           branchId,
           zoneId: displayZoneId,
           customerSelectedZoneId: data.zoneId ?? null,
+          isPartnerStore,
           type: data.type || OrderType.DELIVERY,
           paidWithWallet: Boolean(data.paidWithWallet || data.paymentMethod === PaymentMethod.WALLET),
           isGift: data.isGift ?? false,
@@ -3734,17 +3744,28 @@ export class OrderService {
     const totalPriceAfterDiscount =
       order.totalPriceAfterDiscount ?? price + shipping;
 
+    const isPartnerStore = Boolean(
+      order.isPartnerStore || order.Branch?.Store?.isPartner,
+    );
+    const partnerStoreNotice = isPartnerStore
+      ? 'مطعم شريك - لا تدفع مبالغ للمطعم عند الاستلام'
+      : null;
+
     const storeNetEarnings = Math.max(
       0,
       totalPriceAfterDiscount - shipping - adminCommission,
     );
+    const payToStoreAmount = isPartnerStore ? 0 : storeNetEarnings;
     const driverEarnings = shipping;
 
     Object.assign(order, {
+      isPartnerStore,
+      partnerStoreNotice,
       paymentDetails: {
         isOnlinePayment,
         isPaid,
         collectFromCustomerAmount,
+        payToStoreAmount,
         paymentTypeLabel,
         paymentMethodName,
         paymentMethod: order.paymentMethod ?? PaymentMethod.CASH,

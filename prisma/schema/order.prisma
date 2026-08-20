@@ -55,6 +55,7 @@ model Order {
   readyMarkedByUserId     Int?                      @map("ready_marked_by_user_id")
   customDeliveryKind      CustomDeliveryKind?       @map("custom_delivery_kind")
   customerSelectedZoneId  Int?                      @map("customer_selected_zone_id")
+  isPartnerStore          Boolean                   @default(false) @map("is_partner_store")
   Complaints              Complaint[]
   DeliveryRating          DeliveryRating[]
   Address                 Address?                  @relation(fields: [addressId], references: [id])

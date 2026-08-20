@@ -109,20 +109,18 @@ export class WalletService {
 
     // 3. Update Delivery Driver Wallet
     if (order.deliveryId) {
-      // `wallet` is now PURE cumulative delivery-fee earnings, regardless of
-      // payment method — never netted against cash the driver is holding. Cash
-      // custody (collectedCash) and the commission embedded in it
-      // (unsettledCommission) are tracked entirely separately and only ever
-      // move via an admin cash settlement (driver-cash-settlement.service.ts),
-      // not via order completion. This is what lets the wallet screen show
-      // "total held / commission owed / delivery earnings" as three independent
-      // numbers instead of one net figure.
+      const isPartnerStore = Boolean(
+        order.isPartnerStore || order.Branch?.Store?.isPartner,
+      );
       const driverUpdateData: any = { wallet: { increment: shipping } };
 
-      if (order.paymentMethod === 'CASH') {
+      if (order.paymentMethod === 'CASH' && !order.paidWithWallet) {
         driverUpdateData.collectedCash = { increment: totalPrice };
+        const commissionDeducted = isPartnerStore
+          ? Math.max(0, totalPrice - shipping)
+          : adminCommission + tax;
         driverUpdateData.unsettledCommission = {
-          increment: adminCommission + tax,
+          increment: commissionDeducted,
         };
       }
 
@@ -132,23 +130,21 @@ export class WalletService {
         create: {
           userId: order.deliveryId,
           wallet: shipping,
-          collectedCash: order.paymentMethod === 'CASH' ? totalPrice : 0,
+          collectedCash:
+            order.paymentMethod === 'CASH' && !order.paidWithWallet
+              ? totalPrice
+              : 0,
           unsettledCommission:
-            order.paymentMethod === 'CASH' ? adminCommission + tax : 0,
+            order.paymentMethod === 'CASH' && !order.paidWithWallet
+              ? isPartnerStore
+                ? Math.max(0, totalPrice - shipping)
+                : adminCommission + tax
+              : 0,
         },
       });
     }
   }
 
-  // Exact inverse of distributeEarnings() — used when an admin force-deletes
-  // an order that had already reached DELIVERED (and so had already been
-  // credited), so cleaning up test data doesn't leave phantom earnings
-  // behind on the admin/branch/driver wallets. Deliberately does NOT clamp
-  // at zero: if a driver already withdrew against these earnings, going
-  // negative here is the accurate signal that admin owes a manual follow-up,
-  // not something to silently hide. Does not touch the Transaction ledger —
-  // that history is left intact on purpose (matches the existing wallet-reset
-  // precedent), only the actual balances used everywhere else are reversed.
   async reverseEarnings(order: any, tx: Prisma.TransactionClient) {
     const adminCommission = order.adminCommission || 0;
     const shipping = order.shipping || 0;
@@ -181,12 +177,18 @@ export class WalletService {
     }
 
     if (order.deliveryId) {
+      const isPartnerStore = Boolean(
+        order.isPartnerStore || order.Branch?.Store?.isPartner,
+      );
       const driverUpdateData: any = { wallet: { decrement: shipping } };
 
-      if (order.paymentMethod === 'CASH') {
+      if (order.paymentMethod === 'CASH' && !order.paidWithWallet) {
         driverUpdateData.collectedCash = { decrement: totalPrice };
+        const commissionDeducted = isPartnerStore
+          ? Math.max(0, totalPrice - shipping)
+          : adminCommission + tax;
         driverUpdateData.unsettledCommission = {
-          decrement: adminCommission + tax,
+          decrement: commissionDeducted,
         };
       }
 
@@ -261,18 +263,36 @@ export class WalletService {
         discountAmount: true,
         paymentMethod: true,
         paidWithWallet: true,
+        isPartnerStore: true,
+        Branch: {
+          select: {
+            Store: {
+              select: {
+                isPartner: true,
+              },
+            },
+          },
+        },
       },
     });
 
     let cashOfflineTotal = 0;
     let onlineTotal = 0;
+    let offlineNormalTotal = 0;
+    let offlinePartnerTotal = 0;
+    let onlineNormalTotal = 0;
+    let onlinePartnerTotal = 0;
     let productsPriceOffline = 0;
     let productsPriceOnline = 0;
+    let productsPriceOfflineNormal = 0;
+    let productsPriceOfflinePartner = 0;
+    let productsPriceOnlineNormal = 0;
+    let productsPriceOnlinePartner = 0;
 
     orders.forEach((o) => {
+      const isPartner = Boolean(o.isPartnerStore || o.Branch?.Store?.isPartner);
       const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
       const orderTotal = o.totalPriceAfterDiscount || 0;
-      // Net products price ONLY = order total minus shipping, admin commission, tax, and packaging fee
       const productsOnly = Math.max(
         0,
         orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
@@ -281,9 +301,23 @@ export class WalletService {
       if (isOffline) {
         cashOfflineTotal += orderTotal;
         productsPriceOffline += productsOnly;
+        if (isPartner) {
+          offlinePartnerTotal += orderTotal;
+          productsPriceOfflinePartner += productsOnly;
+        } else {
+          offlineNormalTotal += orderTotal;
+          productsPriceOfflineNormal += productsOnly;
+        }
       } else {
         onlineTotal += orderTotal;
         productsPriceOnline += productsOnly;
+        if (isPartner) {
+          onlinePartnerTotal += orderTotal;
+          productsPriceOnlinePartner += productsOnly;
+        } else {
+          onlineNormalTotal += orderTotal;
+          productsPriceOnlineNormal += productsOnly;
+        }
       }
     });
 
@@ -309,11 +343,31 @@ export class WalletService {
           paymentGroup: 'OFFLINE (CASH)',
           totalOrdersAmount: cashOfflineTotal,
           productsPriceOnly: productsPriceOffline,
+          normal: {
+            label: 'كاش غير شريك',
+            totalOrdersAmount: offlineNormalTotal,
+            productsPriceOnly: productsPriceOfflineNormal,
+          },
+          partner: {
+            label: 'أوفلاين شريك (كاش شريك)',
+            totalOrdersAmount: offlinePartnerTotal,
+            productsPriceOnly: productsPriceOfflinePartner,
+          },
         },
         online: {
           paymentGroup: 'ONLINE (WALLET/CARD)',
           totalOrdersAmount: onlineTotal,
           productsPriceOnly: productsPriceOnline,
+          normal: {
+            label: 'أونلاين غير شريك',
+            totalOrdersAmount: onlineNormalTotal,
+            productsPriceOnly: productsPriceOnlineNormal,
+          },
+          partner: {
+            label: 'أونلاين شريك',
+            totalOrdersAmount: onlinePartnerTotal,
+            productsPriceOnly: productsPriceOnlinePartner,
+          },
         },
         netProductsPriceTotal: productsPriceOffline + productsPriceOnline,
       },
@@ -438,6 +492,7 @@ export class WalletService {
                 id: true,
                 name: true,
                 logo: true,
+                isPartner: true,
               },
             },
           },
@@ -483,6 +538,7 @@ export class WalletService {
     });
 
     return orders.map((o) => {
+      const isPartner = Boolean(o.isPartnerStore || o.Branch?.Store?.isPartner);
       const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
       const orderTotal = o.totalPriceAfterDiscount || 0;
       const productsOnly = Math.max(
@@ -490,12 +546,33 @@ export class WalletService {
         orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
       );
 
+      const paymentGroup = isOffline
+        ? isPartner
+          ? 'OFFLINE_PARTNER'
+          : 'OFFLINE_NORMAL'
+        : isPartner
+          ? 'ONLINE_PARTNER'
+          : 'ONLINE_NORMAL';
+
+      const paymentGroupLabel = isOffline
+        ? isPartner
+          ? 'أوفلاين شريك (كاش شريك)'
+          : 'كاش غير شريك'
+        : isPartner
+          ? 'أونلاين شريك'
+          : 'أونلاين غير شريك';
+
       return {
         orderId: o.id,
         createdAt: o.createdAt,
         status: o.status,
         paymentMethod: o.paymentMethod,
-        paymentGroup: isOffline ? 'OFFLINE' : 'ONLINE',
+        paymentGroup,
+        paymentGroupLabel,
+        isPartnerStore: isPartner,
+        partnerStoreNotice: isPartner
+          ? 'مطعم شريك - لا تدفع مبالغ للمطعم عند الاستلام'
+          : null,
         financials: {
           productsPriceOnly: productsOnly,
           shippingFee: o.shipping || 0,
@@ -504,6 +581,7 @@ export class WalletService {
           packagingFee: o.packagingFee || 0,
           discountAmount: o.discountAmount || 0,
           totalPriceAfterDiscount: orderTotal,
+          payToStoreAmount: isPartner ? 0 : Math.max(0, orderTotal - (o.shipping || 0) - (o.adminCommission || 0)),
         },
         customer: {
           id: o.Customer?.id,
@@ -515,6 +593,7 @@ export class WalletService {
           name: o.Branch?.Store?.name,
           logo: o.Branch?.Store?.logo,
           branchAddress: o.Branch?.address,
+          isPartner,
         },
         itemsCount: o.OrderItems.length,
         items: o.OrderItems.map((item) => ({
@@ -558,6 +637,7 @@ export class WalletService {
                 id: true,
                 name: true,
                 logo: true,
+                isPartner: true,
               },
             },
           },
@@ -605,6 +685,7 @@ export class WalletService {
       throw new NotFoundException('Order not found');
     }
 
+    const isPartner = Boolean((o as any).isPartnerStore || o.Branch?.Store?.isPartner);
     const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
     const orderTotal = o.totalPriceAfterDiscount || 0;
     const productsOnly = Math.max(
@@ -612,12 +693,33 @@ export class WalletService {
       orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
     );
 
+    const paymentGroup = isOffline
+      ? isPartner
+        ? 'OFFLINE_PARTNER'
+        : 'OFFLINE_NORMAL'
+      : isPartner
+        ? 'ONLINE_PARTNER'
+        : 'ONLINE_NORMAL';
+
+    const paymentGroupLabel = isOffline
+      ? isPartner
+        ? 'أوفلاين شريك (كاش شريك)'
+        : 'كاش غير شريك'
+      : isPartner
+        ? 'أونلاين شريك'
+        : 'أونلاين غير شريك';
+
     return {
       orderId: o.id,
       createdAt: o.createdAt,
       status: o.status,
       paymentMethod: o.paymentMethod,
-      paymentGroup: isOffline ? 'OFFLINE' : 'ONLINE',
+      paymentGroup,
+      paymentGroupLabel,
+      isPartnerStore: isPartner,
+      partnerStoreNotice: isPartner
+        ? 'مطعم شريك - لا تدفع مبالغ للمطعم عند الاستلام'
+        : null,
       financials: {
         productsPriceOnly: productsOnly,
         shippingFee: o.shipping || 0,
@@ -626,6 +728,7 @@ export class WalletService {
         packagingFee: o.packagingFee || 0,
         discountAmount: o.discountAmount || 0,
         totalPriceAfterDiscount: orderTotal,
+        payToStoreAmount: isPartner ? 0 : Math.max(0, orderTotal - (o.shipping || 0) - (o.adminCommission || 0)),
       },
       customer: {
         id: o.Customer?.id,
@@ -637,6 +740,7 @@ export class WalletService {
         name: o.Branch?.Store?.name,
         logo: o.Branch?.Store?.logo,
         branchAddress: o.Branch?.address,
+        isPartner,
       },
       items: o.OrderItems.map((item) => ({
         itemId: item.id,

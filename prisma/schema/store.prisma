@@ -17,6 +17,7 @@ model Store {
   planId               Int?
   cityId               Int?
   freeDelivery         Boolean                    @default(false) @map("free_delivery")
+  isPartner            Boolean                    @default(false) @map("is_partner")
   isVerified           Boolean                    @default(false) @map("is_verified")
   walletId             Int?
   dashboardPeriodStartAt DateTime?                @map("dashboard_period_start_at")

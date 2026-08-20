@@ -79,3 +79,7 @@ google-services-*.json
 firebase-service-account.json
 firebase-adminsdk-*.json
 *-firebase-adminsdk-*.json
+
+# Integration Documentation Files
+DASHBOARD_PARTNER_INTEGRATION.md
+DRIVER_APP_PARTNER_INTEGRATION.md
