@@ -617,10 +617,10 @@ export class StoreService {
       ? { OR: [{ date: dateRange }, { createdAt: dateRange }] }
       : {};
 
-    const branches = await this.prisma.branch.findMany({
+    const branches = (await this.prisma.branch?.findMany({
       where: { storeId: { in: storeIds }, deletedAt: null },
       select: { id: true, storeId: true },
-    });
+    })) ?? [];
 
     const branchToStoreMap = new Map<number, number>();
     const branchIds: number[] = [];
@@ -640,12 +640,12 @@ export class StoreService {
     >();
 
     if (branchIds.length > 0) {
-      const statsGrouped = await this.prisma.order.groupBy({
+      const statsGrouped = (await this.prisma.order?.groupBy({
         by: ['branchId', 'status'],
         where: { branchId: { in: branchIds }, ...orderDateFilter },
         _count: { id: true },
         _sum: { totalPriceAfterDiscount: true },
-      });
+      })) ?? [];
 
       for (const item of statsGrouped) {
         if (!item.branchId) continue;
