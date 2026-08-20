@@ -28,9 +28,9 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prepare": "husky install || true",
-    "db:sync": "npx prisma db push",
-    "db:generate": "npx prisma generate",
+    "prepare": "husky install || cd .",
+    "db:sync": "node ./node_modules/prisma/build/index.js db push --schema=prisma/schema",
+    "db:generate": "node ./node_modules/prisma/build/index.js generate --schema=prisma/schema",
     "locale": "node translate.ts",
     "compare:swagger": "ts-node scripts/swagger-compare.ts",
     "find-corrupt-images": "ts-node -r tsconfig-paths/register scripts/find-corrupt-images.ts"
