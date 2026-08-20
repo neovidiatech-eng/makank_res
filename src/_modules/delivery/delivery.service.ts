@@ -612,10 +612,20 @@ export class DeliveryService {
                   : null,
               }
             : null,
+          isPartnerStore: Boolean(order.isPartnerStore || order.Branch?.Store?.isPartner),
+          partnerStoreNotice: (order.isPartnerStore || order.Branch?.Store?.isPartner)
+            ? 'مطعم شريك - لا تدفع مبالغ للمطعم عند الاستلام'
+            : null,
           paymentDetails: {
             isOnlinePayment: isOnline,
             collectFromCustomerAmount: collectAmount,
             driverEarnings: order.shipping,
+            payToStoreAmount: (order.isPartnerStore || order.Branch?.Store?.isPartner)
+              ? 0
+              : Math.max(0, order.totalPriceAfterDiscount - (order.shipping || 0) - (order.adminCommission || 0)),
+            paymentGroup: !isOnline
+              ? (order.isPartnerStore || order.Branch?.Store?.isPartner) ? 'OFFLINE_PARTNER' : 'OFFLINE'
+              : (order.isPartnerStore || order.Branch?.Store?.isPartner) ? 'ONLINE_PARTNER' : 'ONLINE',
             paymentTypeLabel: isOnline ? 'دفع إلكتروني / محفظة' : 'دفع عند الاستلام (كاش)',
           },
           OrderItems: order.OrderItems.map((item) => ({

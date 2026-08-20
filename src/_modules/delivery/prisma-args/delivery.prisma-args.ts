@@ -142,6 +142,7 @@ export const selectDriverDashboardOrderOBJ = () => {
     discountAmount: true,
     paymentMethod: true,
     paidWithWallet: true,
+    isPartnerStore: true,
     customDeliveryKind: true,
     zoneId: true,
     Zone: {
@@ -159,7 +160,7 @@ export const selectDriverDashboardOrderOBJ = () => {
         id: true,
         name: true,
         address: true,
-        Store: { select: { id: true, name: true, logo: true } },
+        Store: { select: { id: true, name: true, logo: true, isPartner: true } },
       },
     },
     Address: {

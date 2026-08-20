@@ -137,14 +137,26 @@ export class AssignmentService {
 
     // Notify delivery person (skipped for bulk assigns, which send one aggregated push)
     if (notify) {
+      const orderData = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: { totalPriceAfterDiscount: true },
+      });
+      const orderTotal = orderData?.totalPriceAfterDiscount ?? 0;
+
       await this.notificationService.sendLocalizedNotification(
         deliveryId,
         { ar: 'طلب جديد', en: 'New Order' },
         {
-          ar: 'لديك طلب جديد في انتظار القبول',
-          en: 'You have a new order waiting for acceptance',
+          ar: `لديك طلب جديد (#${orderId}) بقيمة ${orderTotal} ج.م في انتظار القبول`,
+          en: `You have a new order (#${orderId}) total ${orderTotal} EGP waiting for acceptance`,
         },
-        { resourceId: `${orderId}`, type: 'NEW_ORDER_ASSIGNMENT' },
+        {
+          resourceId: `${orderId}`,
+          orderId: `${orderId}`,
+          totalPriceAfterDiscount: `${orderTotal}`,
+          total: `${orderTotal}`,
+          type: 'NEW_ORDER_ASSIGNMENT',
+        },
       );
     }
 
