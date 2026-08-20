@@ -268,6 +268,12 @@ export const permissions = [
     methods: ['patch'],
   },
   {
+    name: { en: 'Store Partner Management', ar: 'إدارة المطاعم الشريكة' },
+    prefix: 'store-partner',
+    default: true,
+    methods: ['get', 'patch'],
+  },
+  {
     name: { en: 'Rating', ar: 'التقييم' },
     prefix: 'rating',
     default: false,
