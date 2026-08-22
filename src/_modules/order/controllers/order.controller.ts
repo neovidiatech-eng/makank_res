@@ -271,7 +271,7 @@ export class OrderController {
       if (user.storeId) {
         filters.storeId = user.storeId;
       }
-      if (user.branchId && !filters.storeId) {
+      if (user.branchId) {
         filters.branchId = user.branchId;
       }
     } else if (user?.Role?.roleKey === RolesKeys.DELIVERY) {

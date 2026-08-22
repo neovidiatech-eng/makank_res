@@ -6,6 +6,7 @@ import { CreateRoleDTO, UpdateRoleDTO } from '../dto/role.dto';
 import { selectAllRolesOBJ } from '../prisma-args/role.prisma-select';
 import { RolesKeys } from '../providers/roles';
 import { HelpersService } from './helpers.service';
+import { STORE_ALLOWED_PREFIXES } from './permissions.service';
 
 @Injectable()
 export class RoleService {
@@ -16,15 +17,14 @@ export class RoleService {
 
   async getRoles(user: CurrentUser, id?: Id) {
     const selectArgs = selectAllRolesOBJ();
+    const isSuper = user?.Role?.roleKey === RolesKeys.ADMIN;
+
     const roles = await this.prisma.role[firstOrMany(id)]({
       select: selectArgs,
       where: {
+        id: id ?? undefined,
         default: false,
-        OR: [
-          {
-            storeId: user?.storeId || undefined,
-          },
-        ],
+        ...(isSuper ? {} : { storeId: user?.storeId }),
       },
     });
     let data = undefined;
@@ -32,9 +32,12 @@ export class RoleService {
       const permissions = await this.prisma.permission.findMany({
         where: { RolePermission: { some: { roleId: id } } },
       });
+      const filteredPermissions = isSuper
+        ? permissions
+        : permissions.filter((p) => STORE_ALLOWED_PREFIXES.has(p.prefix));
       data = {
         ...roles,
-        Permissions: grouped(permissions),
+        Permissions: grouped(filteredPermissions),
       };
     } else {
       data = roles;
@@ -45,15 +48,29 @@ export class RoleService {
   async update(id: Id, data: UpdateRoleDTO, user: CurrentUser) {
     await this.helpers.canUserAccessRoleId(user, id);
     const { permissionIds, ...rest } = data;
+    const isSuper = user?.Role?.roleKey === RolesKeys.ADMIN;
+
     await this.prisma.$transaction(async (tx) => {
       await tx.role.update({
         where: { id },
         data: rest,
       });
       await tx.rolePermission.deleteMany({ where: { roleId: id } });
-      if (permissionIds?.length) {
+
+      let validPermissionIds = permissionIds || [];
+      if (validPermissionIds.length && !isSuper) {
+        const allowedPermissions = await tx.permission.findMany({
+          where: { id: { in: validPermissionIds } },
+          select: { id: true, prefix: true },
+        });
+        validPermissionIds = allowedPermissions
+          .filter((p) => STORE_ALLOWED_PREFIXES.has(p.prefix))
+          .map((p) => p.id);
+      }
+
+      if (validPermissionIds.length) {
         await tx.rolePermission.createMany({
-          data: permissionIds.map((permissionId: Id) => ({
+          data: validPermissionIds.map((permissionId: Id) => ({
             roleId: id,
             permissionId,
           })),
@@ -87,21 +104,31 @@ export class RoleService {
 
   async post(data: CreateRoleDTO, user: CurrentUser) {
     const { permissionIds, ...rest } = data;
+    const isSuper = user?.Role?.roleKey === RolesKeys.ADMIN;
+
     await this.prisma.$transaction(async (tx) => {
       const role = await tx.role.create({
         data: {
           ...rest,
-          roleKey:
-            user.Role.roleKey === RolesKeys.ADMIN
-              ? RolesKeys.ADMIN
-              : RolesKeys.STORE,
-          storeId:
-            user.Role.roleKey === RolesKeys.ADMIN ? undefined : user.storeId,
+          roleKey: isSuper ? RolesKeys.ADMIN : RolesKeys.STORE,
+          storeId: isSuper ? undefined : user.storeId,
         },
       });
-      if (permissionIds?.length) {
+
+      let validPermissionIds = permissionIds || [];
+      if (validPermissionIds.length && !isSuper) {
+        const allowedPermissions = await tx.permission.findMany({
+          where: { id: { in: validPermissionIds } },
+          select: { id: true, prefix: true },
+        });
+        validPermissionIds = allowedPermissions
+          .filter((p) => STORE_ALLOWED_PREFIXES.has(p.prefix))
+          .map((p) => p.id);
+      }
+
+      if (validPermissionIds.length) {
         await tx.rolePermission.createMany({
-          data: permissionIds.map((permissionId: Id) => ({
+          data: validPermissionIds.map((permissionId: Id) => ({
             roleId: role.id,
             permissionId,
           })),

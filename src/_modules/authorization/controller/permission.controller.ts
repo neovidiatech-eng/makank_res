@@ -32,8 +32,11 @@ export class PermissionController {
       },
     ]),
   )
-  async getSystemPermissions(@Res() res: Response) {
-    const permissions = await this.service.getSystemPermissions();
+  async getSystemPermissions(
+    @Res() res: Response,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    const permissions = await this.service.getSystemPermissions(user);
     return this.responses.success(
       res,
       'Permissions retrieved successfully',
