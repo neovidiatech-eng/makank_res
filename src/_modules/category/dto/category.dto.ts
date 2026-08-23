@@ -54,6 +54,10 @@ export class FilterCategoryDTO extends PaginationParamsDTO {
   @ValidateNumber()
   storeId?: Id;
 
+  @Optional()
+  @ValidateNumber()
+  branchId?: Id;
+
   /**
    * true  → فئات المتاجر فقط (storeId IS NOT NULL)
    * false → فئات القوالب فقط  (storeId IS NULL)

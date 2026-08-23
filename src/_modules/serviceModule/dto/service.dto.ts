@@ -118,6 +118,10 @@ export class FilterServiceDTO extends PaginationParamsDTO {
 
   @Optional()
   @ValidateNumber()
+  branchId?: Id;
+
+  @Optional()
+  @ValidateNumber()
   categoryId?: Id;
 
   @Optional()

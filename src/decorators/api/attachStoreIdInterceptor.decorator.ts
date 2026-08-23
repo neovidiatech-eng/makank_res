@@ -46,7 +46,6 @@ export class AttachStoreIdInterceptor implements NestInterceptor {
     if (method === 'GET' && !this.ignoreGet) {
       if (user.Role.roleKey == RolesKeys.STORE) {
         if (user.storeId) filters.storeId = user.storeId;
-        if (user.branchId && !filters.branchId) filters.branchId = user.branchId;
       }
     }
 
