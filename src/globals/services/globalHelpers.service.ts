@@ -30,16 +30,21 @@ export class GlobalHelpers {
     if (!resource) {
       throw new NotFoundException('Resource not found');
     }
+    const userStoreId = user?.storeId;
+    const isStoreMatch =
+      userStoreId &&
+      (resource?.storeId === userStoreId ||
+        resource?.[ownerFieldName] === userStoreId);
+
+    const isOwner =
+      resource?.[ownerFieldName] === user?.[ownerCurrentUserField] || isStoreMatch;
+
     const hasPermission = validatePermissions(
       `${prefix}_manage`,
       user.permissions as any[],
     );
 
-    if (
-      resource?.[ownerFieldName] !== user?.[ownerCurrentUserField] &&
-      !hasPermission &&
-      !indirectRelation
-    ) {
+    if (!isOwner && !hasPermission && !indirectRelation) {
       throw new ForbiddenException('You do not have access to this resource');
     }
     if (indirectRelation) {

@@ -10,8 +10,11 @@ export class PermissionAndTypeGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    // Super Admin bypass: ADMIN role possesses full system authority
-    if (user?.Role?.roleKey === RolesKeys.ADMIN) {
+    // Super Admin bypass & default Store Owner bypass
+    if (
+      user?.Role?.roleKey === RolesKeys.ADMIN ||
+      (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default === true)
+    ) {
       return true;
     }
 
