@@ -36,9 +36,13 @@ export type FlattenedUser = {
       logo: string;
     };
   };
+  storeId?: number;
+  branchId?: number;
+  permissionIds?: number[];
   Role?: {
     id: number;
     name: string;
+    roleKey?: string;
   };
   Permissions?: {
     name: string;
@@ -77,6 +81,7 @@ export const transformFlattenUser = (data: any | any[]): any => {
       Role?: {
         id: number;
         name: string;
+        roleKey?: string;
         RolePermission?: {
           id: number;
           Permission: {
@@ -112,6 +117,8 @@ export const transformFlattenUser = (data: any | any[]): any => {
             },
           }
         : undefined,
+      storeId: user.storeId ?? user.Branch?.Store?.id,
+      branchId: user.branchId ?? user.Branch?.id,
       verified: user.verified,
       active: user.active,
       Details: {
@@ -130,17 +137,24 @@ export const transformFlattenUser = (data: any | any[]): any => {
       flatUser.Role = {
         id: user?.Role?.id,
         name: user.Role.name,
+        roleKey: user.Role.roleKey,
       };
 
       if (user?.Role?.RolePermission) {
-        flatUser.Permissions = grouped(
-          user?.Role?.RolePermission.map((rp: any) => ({
-            id: rp.Permission.id,
-            name: rp.Permission.name,
-            prefix: rp.Permission.prefix,
-            method: rp.Permission.method,
-          })),
-        ) as { name: string; prefix: string; method: string[] }[];
+        const rawPermissions = user.Role.RolePermission.map((rp: any) => ({
+          id: rp.Permission.id,
+          name: rp.Permission.name,
+          prefix: rp.Permission.prefix,
+          method: rp.Permission.method,
+        }));
+        (flatUser as any).permissionIds = Array.from(
+          new Set(rawPermissions.map((p) => p.id)),
+        );
+        flatUser.Permissions = grouped(rawPermissions) as {
+          name: string;
+          prefix: string;
+          method: string[];
+        }[];
       }
     }
 
@@ -222,6 +236,7 @@ export const selectUserWithRoleAndPermissionsOBJ = () => {
       select: {
         id: true,
         name: true,
+        roleKey: true,
         RolePermission: {
           select: {
             id: true,

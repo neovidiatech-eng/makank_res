@@ -37,6 +37,7 @@ export class RoleService {
         : permissions.filter((p) => STORE_ALLOWED_PREFIXES.has(p.prefix));
       data = {
         ...roles,
+        permissionIds: filteredPermissions.map((p) => p.id),
         Permissions: grouped(filteredPermissions),
       };
     } else {
