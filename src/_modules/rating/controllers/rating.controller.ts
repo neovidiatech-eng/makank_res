@@ -13,7 +13,7 @@ import { FilterRatingDTO, ReplyRatingDTO } from '../dto/rating.dto';
 import { RatingService } from '../services/rating.service';
 
 @ApiTags('Rating')
-@Controller('rating')
+@Controller(['rating', 'storerating'])
 @Auth({ prefix: 'rating' })
 export class RatingController {
   constructor(

@@ -9,7 +9,7 @@ import { ResponseService } from 'src/globals/services/response.service';
 
 const prefix = 'stores/me';
 
-@Controller(prefix)
+@Controller([prefix, 'store/me'])
 @ApiTags(tag('Stores'))
 @Auth({ prefix: 'wallet' })
 export class StoreWalletController {
@@ -17,7 +17,7 @@ export class StoreWalletController {
     private readonly response: ResponseService,
     private readonly walletService: WalletService,
   ) {}
-  @Get('/wallet')
+  @Get(['/wallet', 'wallet'])
   async getWallet(
     @Res() res: Response,
     @CurrentUser() currentUser: CurrentUser,
