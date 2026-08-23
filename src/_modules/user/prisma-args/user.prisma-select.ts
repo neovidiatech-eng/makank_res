@@ -36,6 +36,7 @@ export type FlattenedUser = {
       logo: string;
     };
   };
+  roleId?: number;
   storeId?: number;
   branchId?: number;
   permissionIds?: number[];
@@ -43,6 +44,8 @@ export type FlattenedUser = {
     id: number;
     name: string;
     roleKey?: string;
+    permissionIds?: number[];
+    Permissions?: any[];
   };
   Permissions?: {
     name: string;
@@ -54,6 +57,7 @@ export type FlattenedUser = {
 export const transformFlattenUser = (data: any | any[]): any => {
   const transform = (
     user: User & {
+      roleId?: number;
       Details: {
         wallet: number;
         points: number;
@@ -99,6 +103,7 @@ export const transformFlattenUser = (data: any | any[]): any => {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      roleId: user.roleId ?? user.Role?.id,
       Branch: user.Branch
         ? {
             id: user.Branch.id,
@@ -134,28 +139,34 @@ export const transformFlattenUser = (data: any | any[]): any => {
     };
 
     if (user?.Role) {
+      const rawPermissions = user.Role.RolePermission
+        ? user.Role.RolePermission.map((rp: any) => ({
+            id: rp.Permission.id,
+            name: rp.Permission.name,
+            prefix: rp.Permission.prefix,
+            method: rp.Permission.method,
+          }))
+        : [];
+
+      const permissionIds = Array.from(
+        new Set(rawPermissions.map((p) => p.id)),
+      );
+      const groupedPermissions = grouped(rawPermissions);
+
       flatUser.Role = {
-        id: user?.Role?.id,
+        id: user.Role.id,
         name: user.Role.name,
         roleKey: user.Role.roleKey,
+        permissionIds,
+        Permissions: groupedPermissions,
       };
 
-      if (user?.Role?.RolePermission) {
-        const rawPermissions = user.Role.RolePermission.map((rp: any) => ({
-          id: rp.Permission.id,
-          name: rp.Permission.name,
-          prefix: rp.Permission.prefix,
-          method: rp.Permission.method,
-        }));
-        (flatUser as any).permissionIds = Array.from(
-          new Set(rawPermissions.map((p) => p.id)),
-        );
-        flatUser.Permissions = grouped(rawPermissions) as {
-          name: string;
-          prefix: string;
-          method: string[];
-        }[];
-      }
+      (flatUser as any).permissionIds = permissionIds;
+      flatUser.Permissions = groupedPermissions as {
+        name: string;
+        prefix: string;
+        method: string[];
+      }[];
     }
 
     return flatUser;
