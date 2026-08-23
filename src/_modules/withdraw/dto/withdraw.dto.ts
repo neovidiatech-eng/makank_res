@@ -42,13 +42,22 @@ export class CreateWithdrawDTO {
   payoutMethod: PayoutMethod;
 
   @Required()
+  @Transform(({ value }) => {
+    if (typeof value === 'object' && value !== null) {
+      if (value.accountNumber) {
+        return value.name ? `${value.accountNumber} - ${value.name}` : String(value.accountNumber);
+      }
+      return JSON.stringify(value);
+    }
+    return value ? String(value) : '';
+  })
   @ValidateString()
   @ApiProperty({ example: '01012345678' })
   payoutDetails: string;
 
-  @Required()
-  @ValidateNumber()
-  branchId: number;
+  @Optional()
+  @Transform(({ value }) => (value ? +value : undefined))
+  branchId?: number;
 
   @OptionalSwagger()
   storeId?: number;

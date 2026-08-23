@@ -29,19 +29,37 @@ export class WithdrawService {
   ) {}
 
   async create(body: CreateWithdrawDTO) {
-    await this.checkBalance(body.amount, body.branchId);
+    let branchId = body.branchId;
+    if (!branchId && body.storeId) {
+      const firstBranch = await this.prisma.branch.findFirst({
+        where: { storeId: body.storeId },
+        select: { id: true },
+      });
+      branchId = firstBranch?.id;
+    }
+
+    if (!branchId) {
+      throw new BadRequestException('branchId is required');
+    }
+
+    await this.checkBalance(body.amount, branchId);
+
+    const detailsStr =
+      typeof body.payoutDetails === 'object' && body.payoutDetails !== null
+        ? JSON.stringify(body.payoutDetails)
+        : String(body.payoutDetails || '');
 
     await this.prisma.withdraw.create({
       data: {
-        branchId: body.branchId,
+        branchId,
         amount: body.amount,
         payoutMethod: body.payoutMethod,
-        payoutDetails: body.payoutDetails,
+        payoutDetails: detailsStr,
       },
     });
     await this.prisma.wallet.update({
       where: {
-        branchId: body.branchId,
+        branchId,
       },
       data: {
         pendingWithdraw: {
