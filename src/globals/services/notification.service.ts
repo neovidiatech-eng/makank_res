@@ -170,66 +170,29 @@ export class NotificationService {
   }
 
   /**
-   * Real HTTP Accessibility validation for Image URLs (8-second timeout).
-   * Verifies that the URL is absolute HTTPS/HTTP, publicly accessible, and returns HTTP 200/2xx/3xx
-   * before sending it to FCM (prevents mobile notification rendering drops).
+   * Resolves and normalizes the image path into an absolute public HTTPS/HTTP URL.
+   * Ensures the client receives the complete media URL in both notification payload and data payload.
    */
-  async validateImageUrlAccessibility(rawImage?: string): Promise<string | undefined> {
-    if (!rawImage || rawImage === 'null') return undefined;
+  resolveImageUrl(rawImage?: string): string | undefined {
+    if (!rawImage || rawImage === 'null' || !rawImage.trim()) return undefined;
 
-    let imageUrl: string = rawImage;
-    if (!imageUrl.startsWith('http')) {
+    let imageUrl: string = rawImage.trim();
+    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
       const baseUrl = env('MAIN_URL') || 'https://mlk.alzikr-academy.com';
       imageUrl = `${baseUrl.replace(/\/$/, '')}/api/media?media=${imageUrl.replace(/^\//, '')}`;
     }
 
     try {
       const parsed = new URL(imageUrl);
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        this.logger.warn(`[push-image-val] ⚠️ Protocol "${parsed.protocol}" invalid for image — dropping`);
-        return undefined;
-      }
-
-      // Check HTTP HEAD with 8s timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-      const response = await fetch(imageUrl, {
-        method: 'HEAD',
-        signal: controller.signal,
-      }).catch(() => null);
-
-      clearTimeout(timeoutId);
-
-      if (response && response.ok) {
-        this.logger.log(`[push-image-val] ✅ Image URL HEAD check passed: "${imageUrl}"`);
+      if (['http:', 'https:'].includes(parsed.protocol)) {
         return imageUrl;
       }
-
-      // Fallback: try GET with Range header
-      const getController = new AbortController();
-      const getTimeout = setTimeout(() => getController.abort(), 8000);
-      const getResponse = await fetch(imageUrl, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-10' },
-        signal: getController.signal,
-      }).catch(() => null);
-
-      clearTimeout(getTimeout);
-
-      if (getResponse && getResponse.ok) {
-        this.logger.log(`[push-image-val] ✅ Image URL GET check passed: "${imageUrl}"`);
-        return imageUrl;
-      }
-
-      this.logger.warn(
-        `[push-image-val] ⚠️ Image URL HTTP check failed (status=${response?.status ?? getResponse?.status ?? 'unreachable'}) — dropping image from payload to ensure text push delivery`,
-      );
-      return undefined;
-    } catch (err: any) {
-      this.logger.warn(`[push-image-val] ⚠️ Image URL validation error (${err.message}) — dropping image`);
+    } catch (_) {
+      this.logger.warn(`[push-image-val] ⚠️ Invalid image URL: "${imageUrl}"`);
       return undefined;
     }
+
+    return undefined;
   }
 
   /**
@@ -249,7 +212,7 @@ export class NotificationService {
     const pushData: Record<string, string> = {
       ...(data ?? {}),
       ...(clickTargetData ?? {}),
-      ...(imageUrl ? { image: imageUrl, imageUrl } : {}),
+      ...(imageUrl ? { image: imageUrl, imageUrl, bigPicture: imageUrl } : {}),
     };
 
     return {
@@ -347,7 +310,7 @@ export class NotificationService {
         `Firebase initialized=${this.firebaseInitialized}`,
     );
 
-    const imageUrl = await this.validateImageUrlAccessibility(image);
+    const imageUrl = this.resolveImageUrl(image);
 
     // Save in DB
     await this.prisma.notification.create({
