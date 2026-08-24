@@ -4,6 +4,7 @@ import {
   NotificationTargetType,
   NotificationType,
   Prisma,
+  SessionType,
 } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import {
@@ -86,6 +87,12 @@ export class AdminNotificationService {
   //   STORE          → store users only (optionally narrowed to storeIds)
   //   DELIVERY       → drivers only
   //   SELECTED_USERS → the given ids, still subject to the safety filters
+  //
+  // We additionally require that each resolved user has at least one active
+  // session holding a valid FCM token. Users with no token will receive the
+  // notification the next time they open the app via the DB inbox — there is
+  // no point dispatching a push attempt that will be silently skipped by
+  // sendLocalizedNotification anyway (saves CPU + avoids log noise).
   private async resolveRecipients(
     targetType: TargetType,
     dto: CreateAdminNotificationDto,
@@ -94,6 +101,14 @@ export class AdminNotificationService {
       active: true,
       deletedAt: null,
       allowNotification: { not: false },
+      // Only include users who have at least one session with a valid FCM token.
+      // This avoids dispatching notifications for users who cannot receive push.
+      Sessions: {
+        some: {
+          type: SessionType.ACCESS,
+          fcmToken: { not: null },
+        },
+      },
     };
 
     switch (targetType) {
@@ -125,8 +140,16 @@ export class AdminNotificationService {
         });
       case TargetType.SELECTED_USERS:
         if (!dto.targetUserIds || dto.targetUserIds.length === 0) return [];
+        // For SELECTED_USERS we do NOT filter by FCM token — the admin explicitly
+        // chose these users and the notification must still be saved to their DB
+        // inbox even if they have no token right now.
         return this.prisma.user.findMany({
-          where: { ...safety, id: { in: dto.targetUserIds } },
+          where: {
+            active: true,
+            deletedAt: null,
+            allowNotification: { not: false },
+            id: { in: dto.targetUserIds },
+          },
           select: { id: true },
         });
       default:

@@ -44,11 +44,13 @@ export class BaseAuthenticationController {
     @Res() res: Response,
     @CurrentUser('id') userId: Id,
     @CurrentUser('languageId') languageId: string,
+    @Body() body?: { fcm?: string },
   ) {
     const { user, AccessToken, RefreshToken } = await this.service.refreshToken(
       ip,
       userId,
       languageId,
+      body?.fcm,
     );
 
     res.cookie(env('ACCESS_TOKEN_COOKIE_KEY'), AccessToken, cookieConfig);

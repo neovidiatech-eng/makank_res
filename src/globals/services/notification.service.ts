@@ -170,7 +170,7 @@ export class NotificationService {
   }
 
   /**
-   * Real HTTP Accessibility validation for Image URLs (3-second timeout).
+   * Real HTTP Accessibility validation for Image URLs (8-second timeout).
    * Verifies that the URL is absolute HTTPS/HTTP, publicly accessible, and returns HTTP 200/2xx/3xx
    * before sending it to FCM (prevents mobile notification rendering drops).
    */
@@ -190,9 +190,9 @@ export class NotificationService {
         return undefined;
       }
 
-      // Check HTTP HEAD with 3s timeout
+      // Check HTTP HEAD with 8s timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const response = await fetch(imageUrl, {
         method: 'HEAD',
@@ -208,7 +208,7 @@ export class NotificationService {
 
       // Fallback: try GET with Range header
       const getController = new AbortController();
-      const getTimeout = setTimeout(() => getController.abort(), 3000);
+      const getTimeout = setTimeout(() => getController.abort(), 8000);
       const getResponse = await fetch(imageUrl, {
         method: 'GET',
         headers: { Range: 'bytes=0-10' },

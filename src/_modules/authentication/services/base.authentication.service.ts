@@ -350,19 +350,19 @@ export class BaseAuthenticationService {
     }
   }
 
-  async refreshToken(ip: string, userId: Id, locale?: string) {
+  async refreshToken(ip: string, userId: Id, locale?: string, fcm?: string) {
     const data = await this.userService.getProfile(userId);
     const AccessToken = await this.tokenService.generateToken(
       userId,
       ip,
-      undefined,
+      fcm,
       SessionType.ACCESS,
       locale,
     );
     const RefreshToken = await this.tokenService.generateToken(
       userId,
       ip,
-      undefined,
+      fcm,
       SessionType.REFRESH,
       locale,
     );
