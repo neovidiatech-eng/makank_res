@@ -311,9 +311,10 @@ export class NotificationService {
     );
 
     const imageUrl = this.resolveImageUrl(image);
+    const baseData = data ? data : resourceId ? { resourceId: `${resourceId}` } : undefined;
 
-    // Save in DB
-    await this.prisma.notification.create({
+    // Run DB record creation and FCM push dispatch in parallel for ultra-fast throughput
+    const dbSavePromise = this.prisma.notification.create({
       data: {
         title,
         body,
@@ -335,15 +336,15 @@ export class NotificationService {
 
     if (!tokens.length) {
       this.logger.warn(`[push] ⏭️ userId=${userId} — saved to DB, push skipped (no FCM tokens).`);
+      await dbSavePromise;
       return;
     }
 
     if (!this.firebaseInitialized || !admin.apps.length) {
       this.logger.error(`[push] ❌ userId=${userId} — Firebase Admin SDK not initialized. Push aborted.`);
+      await dbSavePromise;
       return;
     }
-
-    const baseData = data ? data : resourceId ? { resourceId: `${resourceId}` } : undefined;
 
     const messageTemplate = this.buildNotificationMessage({
       title: localizedTitle,
@@ -361,66 +362,73 @@ export class NotificationService {
     this.metrics.totalAttempts += tokens.length;
     this.metrics.lastAttemptAt = new Date();
 
-    for (let batchIndex = 0; batchIndex < tokenBatches.length; batchIndex++) {
-      const batchTokens = tokenBatches[batchIndex];
-      const batchMessage = {
-        ...messageTemplate,
-        tokens: batchTokens,
-      };
+    const fcmSendPromise = Promise.all(
+      tokenBatches.map(async (batchTokens, batchIndex) => {
+        const batchMessage = {
+          ...messageTemplate,
+          tokens: batchTokens,
+        };
 
-      try {
-        const response = await admin.messaging().sendEachForMulticast(batchMessage);
+        try {
+          const response = await admin.messaging().sendEachForMulticast(batchMessage);
 
-        this.metrics.acceptedByFcm += response.successCount;
-        this.metrics.failedAtFcm += response.failureCount;
+          this.metrics.acceptedByFcm += response.successCount;
+          this.metrics.failedAtFcm += response.failureCount;
 
-        if (response.successCount > 0) this.metrics.lastSuccessAt = new Date();
-        if (response.failureCount > 0) this.metrics.lastFailureAt = new Date();
+          if (response.successCount > 0) this.metrics.lastSuccessAt = new Date();
+          if (response.failureCount > 0) this.metrics.lastFailureAt = new Date();
 
-        response.responses.forEach((r, i) => {
-          const t = batchTokens[i];
-          const tokenPrefix = t ? t.slice(0, 10) + '…' : 'unknown';
+          response.responses.forEach((r, i) => {
+            const t = batchTokens[i];
+            const tokenPrefix = t ? t.slice(0, 10) + '…' : 'unknown';
 
-          if (r.success) {
-            this.logger.log(`[push] ✅ ACCEPTED_BY_FCM batch#${batchIndex} token#${i} (${tokenPrefix}) userId=${userId}`);
-          } else {
-            const errCode = (r.error?.code || '').toLowerCase();
-            const errMessage = (r.error?.message || '').toLowerCase();
+            if (r.success) {
+              this.logger.log(`[push] ✅ ACCEPTED_BY_FCM batch#${batchIndex} token#${i} (${tokenPrefix}) userId=${userId}`);
+            } else {
+              const errCode = (r.error?.code || '').toLowerCase();
+              const errMessage = (r.error?.message || '').toLowerCase();
 
-            this.logger.error(
-              `[push] ❌ FAILED_AT_FCM batch#${batchIndex} token#${i} (${tokenPrefix}) userId=${userId} ` +
-                `code=${r.error?.code ?? 'unknown'} msg=${r.error?.message ?? ''}`,
-            );
+              this.logger.error(
+                `[push] ❌ FAILED_AT_FCM batch#${batchIndex} token#${i} (${tokenPrefix}) userId=${userId} ` +
+                  `code=${r.error?.code ?? 'unknown'} msg=${r.error?.message ?? ''}`,
+              );
 
-            if (
-              errCode.includes('registration-token-not-registered') ||
-              errCode.includes('invalid-registration-token') ||
-              errCode.includes('mismatched-credential') ||
-              errCode.includes('sender-id-mismatch') ||
-              errCode.includes('not-registered') ||
-              errMessage.includes('notregistered') ||
-              errMessage.includes('invalidregistration') ||
-              errMessage.includes('not registered')
-            ) {
-              if (t) staleTokens.push(t);
+              if (
+                errCode.includes('registration-token-not-registered') ||
+                errCode.includes('invalid-registration-token') ||
+                errCode.includes('mismatched-credential') ||
+                errCode.includes('sender-id-mismatch') ||
+                errCode.includes('not-registered') ||
+                errMessage.includes('notregistered') ||
+                errMessage.includes('invalidregistration') ||
+                errMessage.includes('not registered')
+              ) {
+                if (t) staleTokens.push(t);
+              }
             }
-          }
-        });
-      } catch (batchErr: any) {
-        this.metrics.failedAtFcm += batchTokens.length;
-        this.metrics.lastFailureAt = new Date();
-        this.logger.error(`[push] ❌ Batch #${batchIndex} multicast error for userId=${userId}: ${batchErr.message}`);
-      }
-    }
+          });
+        } catch (batchErr: any) {
+          this.metrics.failedAtFcm += batchTokens.length;
+          this.metrics.lastFailureAt = new Date();
+          this.logger.error(`[push] ❌ Batch #${batchIndex} multicast error for userId=${userId}: ${batchErr.message}`);
+        }
+      }),
+    );
+
+    await Promise.all([dbSavePromise, fcmSendPromise]);
 
     if (staleTokens.length > 0) {
       const uniqueStale = [...new Set(staleTokens)];
-      await this.prisma.session.updateMany({
-        where: { fcmToken: { in: uniqueStale } },
-        data: { fcmToken: null },
-      });
-      this.metrics.invalidTokensCleaned += uniqueStale.length;
-      this.logger.log(`[push-cleanup] 🧹 Cleaned up ${uniqueStale.length} stale/invalid FCM token(s) from DB for userId=${userId}`);
+      this.prisma.session
+        .updateMany({
+          where: { fcmToken: { in: uniqueStale } },
+          data: { fcmToken: null },
+        })
+        .then(() => {
+          this.metrics.invalidTokensCleaned += uniqueStale.length;
+          this.logger.log(`[push-cleanup] 🧹 Cleaned up ${uniqueStale.length} stale FCM token(s)`);
+        })
+        .catch(() => {});
     }
   }
 

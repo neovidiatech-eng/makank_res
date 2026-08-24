@@ -17,9 +17,8 @@ import {
   TargetType,
 } from '../dto/create-admin-notification.dto';
 
-// Bounded concurrency: notify this many users in parallel per chunk, then move
-// to the next chunk. Never Promise.all over the entire recipient set.
-const CHUNK_SIZE = 50;
+// Bounded concurrency: notify this many users in parallel per chunk
+const CHUNK_SIZE = 100;
 
 @Injectable()
 export class AdminNotificationService {
