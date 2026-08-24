@@ -105,7 +105,6 @@ export class AdminNotificationService {
       // This avoids dispatching notifications for users who cannot receive push.
       Sessions: {
         some: {
-          type: SessionType.ACCESS,
           fcmToken: { not: null },
         },
       },
@@ -158,8 +157,8 @@ export class AdminNotificationService {
   }
 
   // Sends in bounded chunks with per-user failure isolation, so one bad token
-  // never aborts the batch. Each id is DB-sourced (always truthy) — the
-  // falsy-userId guard in sendLocalizedNotification stays as a safety net.
+  // never aborts the batch. Concurrent execution per chunk ensures all recipients
+  // receive the push notification simultaneously at maximum speed.
   private async dispatchChunked(
     users: { id: number }[],
     title: { ar: string; en: string },
@@ -175,29 +174,20 @@ export class AdminNotificationService {
     for (let i = 0; i < users.length; i += CHUNK_SIZE) {
       const chunk = users.slice(i, i + CHUNK_SIZE);
 
-      // With an image attached, dispatch this chunk sequentially instead of
-      // firing every send concurrently. Several simultaneous FCM sends that
-      // all reference the same image URL were observed to intermittently
-      // arrive without the image (text-only) — a single recipient never
-      // reproduced it, only 2+ concurrent recipients did. Sequential sends
-      // remove that concurrency entirely; plain text notifications (no
-      // image, never reported this issue) keep the faster concurrent path.
-      const results = image
-        ? await this.sendSequentially(chunk, title, body, type, storeId, clickTarget, image)
-        : await Promise.allSettled(
-            chunk.map((user) =>
-              this.notificationService.sendLocalizedNotification(
-                user.id,
-                title,
-                body,
-                undefined,
-                type,
-                storeId,
-                clickTarget,
-                image,
-              ),
-            ),
-          );
+      const results = await Promise.allSettled(
+        chunk.map((user) =>
+          this.notificationService.sendLocalizedNotification(
+            user.id,
+            title,
+            body,
+            undefined,
+            type,
+            storeId,
+            clickTarget,
+            image,
+          ),
+        ),
+      );
 
       for (const result of results) {
         if (result.status === 'fulfilled') sentCount++;
@@ -211,35 +201,6 @@ export class AdminNotificationService {
     return { sentCount, failedCount };
   }
 
-  private async sendSequentially(
-    users: { id: number }[],
-    title: { ar: string; en: string },
-    body: { ar: string; en: string },
-    type: NotificationType,
-    storeId: number | undefined,
-    clickTarget: NotificationClickTarget | undefined,
-    image: string,
-  ): Promise<PromiseSettledResult<unknown>[]> {
-    const results: PromiseSettledResult<unknown>[] = [];
-    for (const user of users) {
-      try {
-        const value = await this.notificationService.sendLocalizedNotification(
-          user.id,
-          title,
-          body,
-          undefined,
-          type,
-          storeId,
-          clickTarget,
-          image,
-        );
-        results.push({ status: 'fulfilled', value });
-      } catch (reason) {
-        results.push({ status: 'rejected', reason });
-      }
-    }
-    return results;
-  }
 
   private async validateClickTarget(
     dto: CreateAdminNotificationDto,

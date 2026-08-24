@@ -100,13 +100,13 @@ export class TokenService {
     }
 
     if (normalizedFcmToken) {
-      // A given FCM token belongs to exactly one device / one currently-logged-in user.
-      // Detach it from ALL sessions (any user) before attaching it to the new one, so a
-      // shared device can never leave its token registered under a previous account —
-      // which would cause that account's push notifications to reach the wrong user.
+      // Detach this FCM token from any OTHER user's sessions before attaching it to
+      // the new one, so a shared device can never leave its token registered under
+      // a previous account. Only wipe sessions for different users.
       await this.prisma.session.updateMany({
         where: {
           fcmToken: normalizedFcmToken,
+          userId: { not: userId },
         },
         data: {
           fcmToken: null,

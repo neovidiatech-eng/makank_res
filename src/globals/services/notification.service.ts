@@ -277,7 +277,7 @@ export class NotificationService {
     const sessions = await this.prisma.session.findMany({
       where: {
         userId,
-        type: SessionType.ACCESS,
+        fcmToken: { not: null },
       },
       orderBy: { createdAt: 'desc' },
       select: {
