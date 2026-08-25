@@ -20,6 +20,44 @@ export class SettingsController {
     private readonly responses: ResponseService,
   ) {}
 
+  @Get('/app-status')
+  async getAppStatus(@Res() res: Response) {
+    const data = await this.settingsService.getAppStatus();
+    return this.responses.success(
+      res,
+      'App status retrieved successfully',
+      data,
+    );
+  }
+
+  @Patch('/app-status')
+  @Auth({ prefix })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        isMaintenance: { type: 'boolean', example: true },
+        isOpen: { type: 'boolean', example: false },
+        messageAr: {
+          type: 'string',
+          example: 'التطبيق مغلق حالياً لأعمال الصيانة والتحديث، سنعود قريباً!',
+        },
+        messageEn: {
+          type: 'string',
+          example: 'The app is currently under maintenance, we will be back soon!',
+        },
+      },
+    },
+  })
+  async updateAppStatus(@Res() res: Response, @Req() req: Request) {
+    const data = await this.settingsService.updateAppStatus(req.body);
+    return this.responses.success(
+      res,
+      'App status updated successfully',
+      data,
+    );
+  }
+
   @Get(['/'])
   @ApiFilter(SettingFilter)
   async get(

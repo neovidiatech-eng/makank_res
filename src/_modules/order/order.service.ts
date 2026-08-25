@@ -557,6 +557,12 @@ export class OrderService {
   }
 
   private async createInternal(data: CreateOrderDTO, skipArchiving = false) {
+    const { maintenance } = await this.settingService.getSettings([
+      'maintenance',
+    ]);
+    if (maintenance === true) {
+      throw new BadRequestException('errors.appInMaintenance');
+    }
     if (
       data.category === OrderCategory.SCHEDULED &&
       data.bundleSelections?.length
@@ -2560,12 +2566,14 @@ export class OrderService {
   private async createCustomDeliveryOrderInternal(
     data: CreateCustomDeliveryOrderDTO,
   ) {
-    const { customDeliveryEnabled } = await this.settingService.getSettings([
-      'customDeliveryEnabled',
-    ]);
-    // getSettings() converts BOOLEAN-type settings to a real JS boolean, not the
-    // string 'false' — comparing against the string here meant this check could
-    // never fire, so the toggle silently never blocked anything.
+    const { customDeliveryEnabled, maintenance } =
+      await this.settingService.getSettings([
+        'customDeliveryEnabled',
+        'maintenance',
+      ]);
+    if (maintenance === true) {
+      throw new BadRequestException('errors.appInMaintenance');
+    }
     if (customDeliveryEnabled === false) {
       throw new BadRequestException('خدمة المندوب الخاص مغلقة حالياً');
     }
@@ -3030,9 +3038,14 @@ export class OrderService {
   private async createOnlineDeliveryOrderInternal(
     data: CreateOnlineDeliveryOrderDTO,
   ) {
-    const { onlineDeliveryEnabled } = await this.settingService.getSettings([
-      'onlineDeliveryEnabled',
-    ]);
+    const { onlineDeliveryEnabled, maintenance } =
+      await this.settingService.getSettings([
+        'onlineDeliveryEnabled',
+        'maintenance',
+      ]);
+    if (maintenance === true) {
+      throw new BadRequestException('errors.appInMaintenance');
+    }
     if (onlineDeliveryEnabled === false) {
       throw new BadRequestException(
         'خدمة توصيل البائعين الأونلاين مغلقة حالياً',

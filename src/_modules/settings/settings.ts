@@ -54,12 +54,24 @@ export const settingTypes = [
     type: DataType.TEXTAREA,
   },
 
-  // {
-  //     setting: 'maintenance',
-  //     domain: SettingDomain.BUSINESS,
-  //     value: 'true',
-  //     type: DataType.BOOLEAN,
-  //   },
+  {
+    setting: 'maintenance',
+    domain: SettingDomain.BUSINESS,
+    value: 'false',
+    type: DataType.BOOLEAN,
+  },
+  {
+    setting: 'maintenanceMessageAr',
+    domain: SettingDomain.BUSINESS,
+    value: 'التطبيق مغلق حالياً لأعمال الصيانة والتحديث، سنعود قريباً!',
+    type: DataType.STRING,
+  },
+  {
+    setting: 'maintenanceMessageEn',
+    domain: SettingDomain.BUSINESS,
+    value: 'The app is currently under maintenance, we will be back soon!',
+    type: DataType.STRING,
+  },
 
   // order
 

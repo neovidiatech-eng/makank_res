@@ -261,5 +261,6 @@
   "Minimum order amount for this reward is {property}": "Minimum order amount for this reward is {property}",
   "Maximum order amount for this reward is {property}": "Maximum order amount for this reward is {property}",
   "This reward cannot be applied: order has no delivery fee": "This reward cannot be applied: order has no delivery fee",
-  "This reward type cannot be redeemed at checkout": "This reward type cannot be redeemed at checkout"
+  "This reward type cannot be redeemed at checkout": "This reward type cannot be redeemed at checkout",
+  "errors.appInMaintenance": "The app is currently under maintenance, we will be back soon!"
 }

@@ -264,5 +264,6 @@
   "Minimum order amount for this reward is {property}": "الحد الأدنى لقيمة الطلب لهذه المكافأة هو {property}",
   "Maximum order amount for this reward is {property}": "الحد الأقصى لقيمة الطلب لهذه المكافأة هو {property}",
   "This reward cannot be applied: order has no delivery fee": "لا يمكن تطبيق هذه المكافأة: الطلب لا يحتوي على رسوم توصيل",
-  "This reward type cannot be redeemed at checkout": "لا يمكن استرداد هذا النوع من المكافآت عند الدفع"
+  "This reward type cannot be redeemed at checkout": "لا يمكن استرداد هذا النوع من المكافآت عند الدفع",
+  "errors.appInMaintenance": "التطبيق مغلق حالياً لأعمال الصيانة والتحديث، سنعود قريباً!"
 }
