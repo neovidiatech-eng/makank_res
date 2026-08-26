@@ -209,6 +209,7 @@ export class UserService {
 
   async create(data: CreateUserDTO, user: CurrentUser) {
     const creatorIsAdmin = user.Role.roleKey === RolesKeys.ADMIN;
+    const roleIdNum = Number(data.roleId);
 
     // Resolve the role we actually assign.
     // - Admin: honor the explicitly chosen data.roleId (validated to exist by the
@@ -218,11 +219,8 @@ export class UserService {
     //   be used to mint Store/Customer/Delivery accounts.
     // - Store owner: ignore the client roleId and force the seeded Store role;
     //   store owners must only ever create Store-scoped users.
-    // (Previously this always did findFirst({ where: { roleKey } }), which for any
-    //  admin creator resolved to the default Admin role id 1 and silently granted
-    //  full super-admin permissions regardless of the role that was selected.)
     const role = creatorIsAdmin
-      ? await this.prisma.role.findUnique({ where: { id: data.roleId } })
+      ? await this.prisma.role.findUnique({ where: { id: roleIdNum } })
       : await this.prisma.role.findFirst({
           where: { roleKey: RolesKeys.STORE },
         });
@@ -238,11 +236,12 @@ export class UserService {
     });
 
     const hashedPassword = hashPassword(data.password);
-    data.password = hashedPassword;
+    const { roleId: _ignored, ...rest } = data;
     await this.prisma.user.create({
       data: {
-        ...data,
-        roleId: role.id,
+        ...rest,
+        password: hashedPassword,
+        roleId: Number(role.id),
         roleKey: role.roleKey,
         // Dashboard-created users (by admin or store owner) skip the OTP step
         // and are verified immediately so they can log in instantly.
@@ -399,9 +398,13 @@ export class UserService {
   }
 
   async update(id: Id, data: UpdateUserDTO) {
+    const { roleId, ...rest } = data;
     await this.prisma.user.update({
-      where: { id },
-      data,
+      where: { id: Number(id) },
+      data: {
+        ...rest,
+        ...(roleId ? { roleId: Number(roleId) } : {}),
+      },
     });
   }
 
