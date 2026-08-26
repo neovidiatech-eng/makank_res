@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
+import { isSuperAdmin } from 'src/globals/helpers/is-super-admin.helper';
 import { validatePermissions } from 'src/globals/helpers/validatePermissions.helper';
 
 @Injectable()
@@ -12,7 +13,7 @@ export class PermissionAndTypeGuard implements CanActivate {
 
     // Super Admin bypass & default Store Owner bypass
     if (
-      user?.Role?.roleKey === RolesKeys.ADMIN ||
+      isSuperAdmin(user) ||
       (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default === true)
     ) {
       return true;
