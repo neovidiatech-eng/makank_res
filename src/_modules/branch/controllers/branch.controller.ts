@@ -58,7 +58,6 @@ export class BranchController {
   }
 
   @Patch('/:id')
-  @Put('/:id')
   @ApiRequiredIdParam()
   @Auth({ prefix })
   @CanUserAccessModelRowId({
@@ -68,6 +67,24 @@ export class BranchController {
     ownerFieldName: 'storeId',
   })
   async update(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() body: UpdateBranchDTO,
+  ) {
+    await this.service.update(id, body);
+    return this.response.success(res, 'branch updated successfully');
+  }
+
+  @Put('/:id')
+  @ApiRequiredIdParam()
+  @Auth({ prefix })
+  @CanUserAccessModelRowId({
+    prefix,
+    modelName: 'branch',
+    ownerCurrentUserField: 'storeId',
+    ownerFieldName: 'storeId',
+  })
+  async updatePut(
     @Res() res: Response,
     @Param() { id }: RequiredIdParam,
     @Body() body: UpdateBranchDTO,

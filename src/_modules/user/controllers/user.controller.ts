@@ -75,10 +75,20 @@ export class UserController {
     });
   }
 
-  @Put('/:id')
   @Patch('/:id')
   @ApiRequiredIdParam()
   async updateUser(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() dto: UpdateUserDTO,
+  ) {
+    await this.userService.update(id, dto);
+    return this.responses.success(res, 'User updated successfully');
+  }
+
+  @Put('/:id')
+  @ApiRequiredIdParam()
+  async updateUserPut(
     @Res() res: Response,
     @Param() { id }: RequiredIdParam,
     @Body() dto: UpdateUserDTO,
