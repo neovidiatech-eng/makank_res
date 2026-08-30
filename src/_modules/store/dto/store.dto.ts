@@ -81,6 +81,22 @@ export class CreateStoreDTO {
   @Required()
   @ValidateObject(CreateStoreUserDTO)
   User: CreateStoreUserDTO;
+
+  @Optional()
+  @ValidateNumber()
+  prepTimeMinutes?: number;
+
+  @Optional()
+  @ValidateNumber()
+  deliveryTimeMinMinutes?: number;
+
+  @Optional()
+  @ValidateNumber()
+  deliveryTimeMaxMinutes?: number;
+
+  @Optional()
+  @ValidateNumber()
+  minOrderAmount?: number;
 }
 // Every field optional, unlike CreateStoreUserDTO — PartialType(CreateStoreDTO)
 // only makes the `User` property itself optional, it does NOT deep-partial the
