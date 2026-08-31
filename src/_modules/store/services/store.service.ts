@@ -441,9 +441,90 @@ export class StoreService {
       'shippingKMCharge',
     ]);
 
+    const storeIds = storesArray.map((s: any) => s?.id).filter(Boolean);
+    const discountedServices =
+      storeIds.length > 0
+        ? await this.prisma.service.findMany({
+            where: {
+              storeId: { in: storeIds },
+              deletedAt: null,
+              status: 'ACTIVE',
+              available: true,
+              priceAfterDiscount: {
+                not: null,
+                gt: 0,
+              },
+            },
+            select: {
+              storeId: true,
+              price: true,
+              priceAfterDiscount: true,
+            },
+          })
+        : [];
+
+    const discountedServicesMap = new Map<
+      number,
+      Array<{ price: number; priceAfterDiscount: number | null }>
+    >();
+    for (const ds of discountedServices) {
+      const list = discountedServicesMap.get(ds.storeId) || [];
+      list.push(ds);
+      discountedServicesMap.set(ds.storeId, list);
+    }
+
     let processedData = await Promise.all(
       storesArray.map(async (store: any) => {
         const storeCoupon = store.StoreCoupons?.[0]?.Coupon;
+        const storeDiscountedServices =
+          discountedServicesMap.get(store.id) || [];
+        let maxDiscountPercent = 0;
+        let maxDiscountAmount = 0;
+        let hasDiscount = false;
+        let discountBadge: any = null;
+        let discountType: string | null = null;
+        let discountValue = 0;
+
+        // 1. Check Store Coupon
+        if (storeCoupon && storeCoupon.discountValue > 0) {
+          hasDiscount = true;
+          discountType = storeCoupon.discountType;
+          discountValue = storeCoupon.discountValue;
+          if (storeCoupon.discountType === 'PERCENTAGE') {
+            maxDiscountPercent = storeCoupon.discountValue;
+            discountBadge = {
+              ar: `خصم ${storeCoupon.discountValue}%`,
+              en: `${storeCoupon.discountValue}% OFF`,
+            };
+          } else {
+            maxDiscountAmount = storeCoupon.discountValue;
+            discountBadge = {
+              ar: `خصم ${storeCoupon.discountValue} ج.م`,
+              en: `${storeCoupon.discountValue} EGP OFF`,
+            };
+          }
+        }
+
+        // 2. Check Discounted Services / Products of this Store
+        for (const service of storeDiscountedServices) {
+          const price = Number(service.price) || 0;
+          const priceAfterDiscount =
+            service.priceAfterDiscount != null
+              ? Number(service.priceAfterDiscount)
+              : null;
+          if (
+            priceAfterDiscount != null &&
+            priceAfterDiscount > 0 &&
+            priceAfterDiscount < price &&
+            price > 0
+          ) {
+            hasDiscount = true;
+            const diff = price - priceAfterDiscount;
+            const percent = Math.round((diff / price) * 100);
+            if (percent > maxDiscountPercent) maxDiscountPercent = percent;
+            if (diff > maxDiscountAmount) maxDiscountAmount = diff;
+          }
+        }
 
         // Select the nearest branch: either from previous results or the closest in the fetched list
         let nearestBranch = nearestBranchMap.get(store.id);
@@ -498,6 +579,49 @@ export class StoreService {
         const mappedTopServices = await this.serviceModuleHelper.mapServices(
           topServices || [],
         );
+
+        // Also check mappedTopServices for discounts
+        if (mappedTopServices && mappedTopServices.length > 0) {
+          for (const service of mappedTopServices) {
+            const price = Number(service.price) || 0;
+            const priceAfterDiscount =
+              service.priceAfterDiscount != null
+                ? Number(service.priceAfterDiscount)
+                : null;
+            if (
+              priceAfterDiscount != null &&
+              priceAfterDiscount > 0 &&
+              priceAfterDiscount < price &&
+              price > 0
+            ) {
+              hasDiscount = true;
+              const diff = price - priceAfterDiscount;
+              const percent = Math.round((diff / price) * 100);
+              if (percent > maxDiscountPercent) maxDiscountPercent = percent;
+              if (diff > maxDiscountAmount) maxDiscountAmount = diff;
+            }
+          }
+        }
+
+        // If no coupon badge was set, but services have discounts:
+        if (!discountBadge && hasDiscount) {
+          if (maxDiscountPercent > 0) {
+            discountType = 'PERCENTAGE';
+            discountValue = maxDiscountPercent;
+            discountBadge = {
+              ar: `خصم حتى ${maxDiscountPercent}%`,
+              en: `Up to ${maxDiscountPercent}% OFF`,
+            };
+          } else if (maxDiscountAmount > 0) {
+            discountType = 'AMOUNT';
+            discountValue = maxDiscountAmount;
+            discountBadge = {
+              ar: `خصم يصل إلى ${Math.round(maxDiscountAmount)} ج.م`,
+              en: `Up to ${Math.round(maxDiscountAmount)} EGP OFF`,
+            };
+          }
+        }
+
         const response = {
           ...storeRest,
           branchId: branchData.branchId || branchData.id,
@@ -520,6 +644,12 @@ export class StoreService {
           Coupon: storeCoupon || globalCoupons[0] || null,
           isFavourite: branchData.isAddedToFavorite === 1 ? true : false,
           topServices: mappedTopServices,
+          hasDiscount,
+          discountType,
+          discountValue,
+          maxDiscountPercent: maxDiscountPercent > 0 ? maxDiscountPercent : null,
+          maxDiscountAmount: maxDiscountAmount > 0 ? maxDiscountAmount : null,
+          discountBadge: discountBadge || null,
         };
 
         delete response.branches;
