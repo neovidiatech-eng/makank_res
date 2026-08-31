@@ -507,6 +507,9 @@ export class StoreService {
           }
         } else {
           // 2. Only if no store coupon, check Discounted Services / Products of this Store
+          const diffs: number[] = [];
+          const percents: number[] = [];
+
           for (const service of storeDiscountedServices) {
             const price = Number(service.price) || 0;
             const priceAfterDiscount =
@@ -522,8 +525,62 @@ export class StoreService {
               hasDiscount = true;
               const diff = price - priceAfterDiscount;
               const percent = Math.round((diff / price) * 100);
-              if (percent > maxDiscountPercent) maxDiscountPercent = percent;
-              if (diff > maxDiscountAmount) maxDiscountAmount = diff;
+              diffs.push(diff);
+              percents.push(percent);
+            }
+          }
+
+          if (diffs.length > 0) {
+            // Check if all items share the exact same fixed discount amount (e.g. 5 EGP off every item)
+            const isUniformDiff = diffs.every(
+              (d) => Math.abs(d - diffs[0]) < 0.01,
+            );
+            // Check if all items share the exact same percentage (e.g. 20% off every item)
+            const isUniformPercent = percents.every(
+              (p) => Math.abs(p - percents[0]) <= 1,
+            );
+
+            if (isUniformDiff && diffs[0] > 0) {
+              const amt = Math.round(diffs[0]);
+              discountType = 'AMOUNT';
+              discountValue = amt;
+              maxDiscountAmount = amt;
+              maxDiscountPercent = 0;
+              discountBadge = {
+                ar: `خصم ${amt} ج.م`,
+                en: `${amt} EGP OFF`,
+              };
+            } else if (isUniformPercent && percents[0] > 0) {
+              const pct = percents[0];
+              discountType = 'PERCENTAGE';
+              discountValue = pct;
+              maxDiscountPercent = pct;
+              maxDiscountAmount = 0;
+              discountBadge = {
+                ar: `خصم ${pct}%`,
+                en: `${pct}% OFF`,
+              };
+            } else {
+              const maxP = Math.max(...percents, 0);
+              const maxD = Math.max(...diffs, 0);
+              if (maxP > 0) {
+                discountType = 'PERCENTAGE';
+                discountValue = maxP;
+                maxDiscountPercent = maxP;
+                discountBadge = {
+                  ar: `خصم حتى ${maxP}%`,
+                  en: `Up to ${maxP}% OFF`,
+                };
+              } else if (maxD > 0) {
+                const roundedD = Math.round(maxD);
+                discountType = 'AMOUNT';
+                discountValue = roundedD;
+                maxDiscountAmount = roundedD;
+                discountBadge = {
+                  ar: `خصم يصل إلى ${roundedD} ج.م`,
+                  en: `Up to ${roundedD} EGP OFF`,
+                };
+              }
             }
           }
         }
@@ -582,8 +639,10 @@ export class StoreService {
           topServices || [],
         );
 
-        // Also check mappedTopServices for discounts only if no store coupon was found
-        if (!storeCoupon && mappedTopServices && mappedTopServices.length > 0) {
+        // Also check mappedTopServices for discounts only if no store coupon and no badge was found
+        if (!discountBadge && mappedTopServices && mappedTopServices.length > 0) {
+          const topDiffs: number[] = [];
+          const topPercents: number[] = [];
           for (const service of mappedTopServices) {
             const price = Number(service.price) || 0;
             const priceAfterDiscount =
@@ -599,28 +658,51 @@ export class StoreService {
               hasDiscount = true;
               const diff = price - priceAfterDiscount;
               const percent = Math.round((diff / price) * 100);
-              if (percent > maxDiscountPercent) maxDiscountPercent = percent;
-              if (diff > maxDiscountAmount) maxDiscountAmount = diff;
+              topDiffs.push(diff);
+              topPercents.push(percent);
             }
           }
-        }
 
-        // If no coupon badge was set, but services have discounts:
-        if (!discountBadge && hasDiscount) {
-          if (maxDiscountPercent > 0) {
-            discountType = 'PERCENTAGE';
-            discountValue = maxDiscountPercent;
-            discountBadge = {
-              ar: `خصم حتى ${maxDiscountPercent}%`,
-              en: `Up to ${maxDiscountPercent}% OFF`,
-            };
-          } else if (maxDiscountAmount > 0) {
-            discountType = 'AMOUNT';
-            discountValue = maxDiscountAmount;
-            discountBadge = {
-              ar: `خصم يصل إلى ${Math.round(maxDiscountAmount)} ج.م`,
-              en: `Up to ${Math.round(maxDiscountAmount)} EGP OFF`,
-            };
+          if (topDiffs.length > 0) {
+            const isUniformTopDiff = topDiffs.every(
+              (d) => Math.abs(d - topDiffs[0]) < 0.01,
+            );
+            const isUniformTopPercent = topPercents.every(
+              (p) => Math.abs(p - topPercents[0]) <= 1,
+            );
+
+            if (isUniformTopDiff && topDiffs[0] > 0) {
+              const amt = Math.round(topDiffs[0]);
+              discountType = 'AMOUNT';
+              discountValue = amt;
+              maxDiscountAmount = amt;
+              maxDiscountPercent = 0;
+              discountBadge = {
+                ar: `خصم ${amt} ج.م`,
+                en: `${amt} EGP OFF`,
+              };
+            } else if (isUniformTopPercent && topPercents[0] > 0) {
+              const pct = topPercents[0];
+              discountType = 'PERCENTAGE';
+              discountValue = pct;
+              maxDiscountPercent = pct;
+              maxDiscountAmount = 0;
+              discountBadge = {
+                ar: `خصم ${pct}%`,
+                en: `${pct}% OFF`,
+              };
+            } else {
+              const maxP = Math.max(...topPercents, 0);
+              if (maxP > 0) {
+                discountType = 'PERCENTAGE';
+                discountValue = maxP;
+                maxDiscountPercent = maxP;
+                discountBadge = {
+                  ar: `خصم حتى ${maxP}%`,
+                  en: `Up to ${maxP}% OFF`,
+                };
+              }
+            }
           }
         }
 
