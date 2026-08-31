@@ -492,37 +492,39 @@ export class StoreService {
           discountValue = storeCoupon.discountValue;
           if (storeCoupon.discountType === 'PERCENTAGE') {
             maxDiscountPercent = storeCoupon.discountValue;
+            maxDiscountAmount = 0;
             discountBadge = {
               ar: `خصم ${storeCoupon.discountValue}%`,
               en: `${storeCoupon.discountValue}% OFF`,
             };
           } else {
             maxDiscountAmount = storeCoupon.discountValue;
+            maxDiscountPercent = 0;
             discountBadge = {
               ar: `خصم ${storeCoupon.discountValue} ج.م`,
               en: `${storeCoupon.discountValue} EGP OFF`,
             };
           }
-        }
-
-        // 2. Check Discounted Services / Products of this Store
-        for (const service of storeDiscountedServices) {
-          const price = Number(service.price) || 0;
-          const priceAfterDiscount =
-            service.priceAfterDiscount != null
-              ? Number(service.priceAfterDiscount)
-              : null;
-          if (
-            priceAfterDiscount != null &&
-            priceAfterDiscount > 0 &&
-            priceAfterDiscount < price &&
-            price > 0
-          ) {
-            hasDiscount = true;
-            const diff = price - priceAfterDiscount;
-            const percent = Math.round((diff / price) * 100);
-            if (percent > maxDiscountPercent) maxDiscountPercent = percent;
-            if (diff > maxDiscountAmount) maxDiscountAmount = diff;
+        } else {
+          // 2. Only if no store coupon, check Discounted Services / Products of this Store
+          for (const service of storeDiscountedServices) {
+            const price = Number(service.price) || 0;
+            const priceAfterDiscount =
+              service.priceAfterDiscount != null
+                ? Number(service.priceAfterDiscount)
+                : null;
+            if (
+              priceAfterDiscount != null &&
+              priceAfterDiscount > 0 &&
+              priceAfterDiscount < price &&
+              price > 0
+            ) {
+              hasDiscount = true;
+              const diff = price - priceAfterDiscount;
+              const percent = Math.round((diff / price) * 100);
+              if (percent > maxDiscountPercent) maxDiscountPercent = percent;
+              if (diff > maxDiscountAmount) maxDiscountAmount = diff;
+            }
           }
         }
 
@@ -580,8 +582,8 @@ export class StoreService {
           topServices || [],
         );
 
-        // Also check mappedTopServices for discounts
-        if (mappedTopServices && mappedTopServices.length > 0) {
+        // Also check mappedTopServices for discounts only if no store coupon was found
+        if (!storeCoupon && mappedTopServices && mappedTopServices.length > 0) {
           for (const service of mappedTopServices) {
             const price = Number(service.price) || 0;
             const priceAfterDiscount =
