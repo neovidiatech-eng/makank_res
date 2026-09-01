@@ -411,9 +411,14 @@ export class DeliveryService {
 
     let dateFilter: any = undefined;
     if (query.fromDate || query.toDate) {
+      const gte = query.fromDate ? new Date(query.fromDate) : undefined;
+      if (gte) gte.setHours(0, 0, 0, 0);
+      const lte = query.toDate ? new Date(query.toDate) : undefined;
+      if (lte) lte.setHours(23, 59, 59, 999);
+
       dateFilter = {
-        ...(query.fromDate && { gte: new Date(query.fromDate) }),
-        ...(query.toDate && { lte: new Date(query.toDate) }),
+        ...(gte && { gte }),
+        ...(lte && { lte }),
       };
     } else if (query.date) {
       const { start, end } = this.dayRange(query.date);
@@ -424,7 +429,9 @@ export class DeliveryService {
     }
 
     const assignedAtFilter = dateFilter ? { assignedAt: dateFilter } : {};
-    const orderDateFilter = dateFilter ? { date: dateFilter } : {};
+    const orderDateFilter = dateFilter
+      ? { OR: [{ date: dateFilter }, { createdAt: dateFilter }] }
+      : {};
 
     const [
       acceptedAssignments,
@@ -547,7 +554,7 @@ export class DeliveryService {
         deliveredOrders: deliveredCount,
       },
       financialSummary: {
-        driverEarnings: driver.Details?.wallet ?? 0,
+        driverEarnings: financials._sum.shipping ?? 0,
         collectedCash: isFilteredPeriod
           ? collectedCashPeriod
           : (driver.Details?.collectedCash ?? 0),

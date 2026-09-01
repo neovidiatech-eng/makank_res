@@ -334,4 +334,125 @@ describe('DeliveryService — Driver details dashboard', () => {
       productsSummary: [],
     });
   });
+
+  it('DAILY TEST: correctly applies 00:00:00 to 23:59:59 bounds for a specific day', async () => {
+    const prisma = buildPrisma();
+    wireHappyPath(prisma);
+
+    const specificDate = new Date('2026-09-01T14:30:00.000Z');
+    await buildService(prisma).getDriverDashboard(12, {
+      date: specificDate,
+    } as any);
+
+    const orderWhere = (prisma.order.count as AnyFn).mock.calls[0][0].where;
+    expect(orderWhere.deliveryId).toBe(12);
+    expect(orderWhere.status).toBe(OrderStatus.DELIVERED);
+
+    const assignedWhere = (prisma.orderDeliveryAssignment.count as AnyFn).mock.calls[0][0].where;
+    expect(assignedWhere.assignedAt.gte.getHours()).toBe(0);
+    expect(assignedWhere.assignedAt.gte.getMinutes()).toBe(0);
+    expect(assignedWhere.assignedAt.lte.getHours()).toBe(23);
+    expect(assignedWhere.assignedAt.lte.getMinutes()).toBe(59);
+  });
+
+  it('WEEKLY TEST: correctly includes full start and end of week (from Saturday to today)', async () => {
+    const prisma = buildPrisma();
+    wireHappyPath(prisma);
+
+    await buildService(prisma).getDriverDashboard(12, {
+      fromDate: new Date('2026-08-29T00:00:00.000Z'),
+      toDate: new Date('2026-09-01T00:00:00.000Z'),
+    } as any);
+
+    const assignedWhere = (prisma.orderDeliveryAssignment.count as AnyFn).mock.calls[0][0].where;
+    expect(assignedWhere.assignedAt.gte.getHours()).toBe(0);
+    expect(assignedWhere.assignedAt.gte.getMinutes()).toBe(0);
+    // End of week must be 23:59:59.999 so orders today/on end date are NOT excluded!
+    expect(assignedWhere.assignedAt.lte.getHours()).toBe(23);
+    expect(assignedWhere.assignedAt.lte.getMinutes()).toBe(59);
+    expect(assignedWhere.assignedAt.lte.getSeconds()).toBe(59);
+  });
+
+  it('MONTHLY TEST: correctly covers full month bounds including the last day', async () => {
+    const prisma = buildPrisma();
+    wireHappyPath(prisma);
+
+    await buildService(prisma).getDriverDashboard(12, {
+      fromDate: new Date('2026-08-01T00:00:00.000Z'),
+      toDate: new Date('2026-08-31T00:00:00.000Z'),
+    } as any);
+
+    const assignedWhere = (prisma.orderDeliveryAssignment.count as AnyFn).mock.calls[0][0].where;
+    expect(assignedWhere.assignedAt.gte.getHours()).toBe(0);
+    expect(assignedWhere.assignedAt.gte.getMinutes()).toBe(0);
+    expect(assignedWhere.assignedAt.lte.getHours()).toBe(23);
+    expect(assignedWhere.assignedAt.lte.getMinutes()).toBe(59);
+    expect(assignedWhere.assignedAt.lte.getSeconds()).toBe(59);
+  });
+
+  it('CUSTOM DATE RANGE TEST: accurately computes online/offline product breakdown for selected period', async () => {
+    const prisma = buildPrisma();
+    (prisma.user.findFirst as AnyFn).mockResolvedValue(okDriver);
+    (prisma.orderDeliveryAssignment.count as AnyFn)
+      .mockResolvedValueOnce(5)
+      .mockResolvedValueOnce(1);
+    (prisma.order.count as AnyFn).mockResolvedValue(4);
+    (prisma.order.aggregate as AnyFn)
+      .mockResolvedValueOnce({
+        _sum: {
+          totalPriceAfterDiscount: 800,
+          shipping: 120,
+          adminCommission: 50,
+          tip: 10,
+        },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          totalPriceAfterDiscount: 500,
+        },
+      });
+
+    // Delivered orders for custom date range with mixed online and offline payment
+    (prisma.order.findMany as AnyFn)
+      .mockResolvedValueOnce([]) // orders list
+      .mockResolvedValueOnce([  // deliveredOrdersList
+        {
+          totalPriceAfterDiscount: 500,
+          shipping: 60,
+          adminCommission: 25,
+          tax: 0,
+          packagingFee: 0,
+          paymentMethod: 'CASH',
+          paidWithWallet: false,
+        },
+        {
+          totalPriceAfterDiscount: 300,
+          shipping: 60,
+          adminCommission: 25,
+          tax: 0,
+          packagingFee: 0,
+          paymentMethod: 'ONLINE',
+          paidWithWallet: true,
+        },
+      ]);
+
+    const res = await buildService(prisma).getDriverDashboard(12, {
+      fromDate: new Date('2026-07-15T00:00:00.000Z'),
+      toDate: new Date('2026-07-20T00:00:00.000Z'),
+    } as any);
+
+    expect(res.statistics).toEqual({
+      acceptedOrders: 5,
+      rejectedOrders: 1,
+      deliveredOrders: 4,
+    });
+    // Offline product subtotal: 500 - 60 - 25 = 415
+    expect(res.financialSummary.productsPriceOffline).toBe(415);
+    // Online product subtotal: 300 - 60 - 25 = 215
+    expect(res.financialSummary.productsPriceOnline).toBe(215);
+    expect(res.financialSummary.netProductsPriceTotal).toBe(630);
+    expect(res.financialSummary.deliveryFees).toBe(120);
+    expect(res.financialSummary.driverEarnings).toBe(120);
+    expect(res.financialSummary.collectedCash).toBe(500);
+  });
 });
