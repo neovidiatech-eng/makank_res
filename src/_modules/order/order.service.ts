@@ -3716,14 +3716,27 @@ export class OrderService {
     }
 
     const isPaid = order.paymentStatus === PaymentStatus.PAID;
-    const isOnlinePayment =
-      isPaid ||
-      order.paymentMethod === PaymentMethod.WALLET ||
-      !!order.transferType ||
-      !!order.transferImage;
+    const isCash =
+      order.paymentMethod === PaymentMethod.CASH &&
+      !order.paidWithWallet &&
+      !order.transferType &&
+      !order.transferImage;
 
-    let paymentTypeLabel = 'الدفع عند الاستلام (CASH)';
-    let paymentMethodName = 'CASH';
+    const isOnlinePayment =
+      !isCash &&
+      (order.paymentMethod === PaymentMethod.WALLET ||
+        order.paidWithWallet === true ||
+        order.paymentMethod === (PaymentMethod as any).CARD ||
+        (order.paymentMethod as any) === 'ONLINE' ||
+        (order.paymentMethod as any) === 'KASHIER' ||
+        (order.paymentMethod as any) === 'STRIPE' ||
+        !!order.transferType ||
+        !!order.transferImage);
+
+    let paymentTypeLabel = isPaid
+      ? 'دفع كاش (تم التحصيل)'
+      : 'الدفع عند الاستلام (CASH)';
+    let paymentMethodName = order.paymentMethod ?? 'CASH';
 
     if (order.transferType === 'INSTAPAY') {
       paymentTypeLabel = 'دفع إلكتروني (InstaPay)';
