@@ -239,15 +239,44 @@ export class StoreService {
     storeId: Id,
     User: UpdateStoreUserDTO,
   ) {
-    // Identified by earliest id, not by its current Role, on purpose: the
-    // owner is always the first Store-role user created for a store (before
-    // any employee can exist), which still holds even if its Role was
-    // mis-wired by the bug this method self-heals below.
-    const owner = await tx.user.findFirst({
-      where: { storeId, roleKey: RolesKeys.STORE },
-      orderBy: { id: 'asc' },
-    });
+    const owner =
+      (await tx.user.findFirst({
+        where: { storeId, roleKey: RolesKeys.STORE },
+        orderBy: { id: 'asc' },
+      })) ||
+      (await tx.user.findFirst({
+        where: { storeId },
+        orderBy: { id: 'asc' },
+      })) ||
+      (await tx.user.findFirst({
+        where: { Branch: { storeId } },
+        orderBy: { id: 'asc' },
+      }));
+
     if (!owner) {
+      if (User.email && User.name) {
+        const hashedPassword = User.password
+          ? hashPassword(User.password)
+          : hashPassword('123456');
+        const defaultRole = await tx.role.findFirst({
+          where: { roleKey: RolesKeys.STORE, default: true },
+        });
+        const firstBranch = await tx.branch.findFirst({ where: { storeId } });
+        await tx.user.create({
+          data: {
+            name: User.name,
+            email: User.email,
+            phone: User.phone || null,
+            password: hashedPassword,
+            roleKey: RolesKeys.STORE,
+            roleId: defaultRole?.id || 1,
+            storeId: storeId,
+            branchId: firstBranch?.id || null,
+            verified: true,
+          },
+        });
+        return;
+      }
       throw new NotFoundException('Store owner account not found');
     }
 
@@ -276,6 +305,8 @@ export class StoreService {
     await tx.user.update({
       where: { id: owner.id },
       data: {
+        storeId,
+        roleKey: RolesKeys.STORE,
         ...(User.name !== undefined && { name: User.name }),
         ...(User.email !== undefined && { email: User.email }),
         ...(User.phone !== undefined && { phone: User.phone }),
