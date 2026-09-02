@@ -131,6 +131,7 @@ export const selectDriverDashboardOrderOBJ = () => {
     note: true,
     status: true,
     type: true,
+    date: true,
     createdAt: true,
     price: true,
     totalPriceAfterDiscount: true,

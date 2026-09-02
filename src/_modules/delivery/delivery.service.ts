@@ -576,18 +576,32 @@ export class DeliveryService {
       },
       orders: orders.map((order) => {
         const isOnline = order.paymentMethod !== 'CASH' || order.paidWithWallet;
-        const collectAmount = order.paymentMethod === 'CASH' ? order.totalPriceAfterDiscount : 0;
+        const totalAmount = order.totalPriceAfterDiscount || order.price || 0;
+        const shippingFee = order.shipping || 0;
+        const adminCommission = order.adminCommission || 0;
+        const collectAmount = isOnline ? 0 : totalAmount;
+        const isPartner = Boolean(order.isPartnerStore || order.Branch?.Store?.isPartner);
+        const payToStore = isPartner
+          ? 0
+          : Math.max(0, totalAmount - shippingFee - adminCommission - (order.tax || 0) - (order.packagingFee || 0));
 
         return {
           id: order.id,
           status: order.status,
           type: order.type,
-          price: order.price ?? order.totalPriceAfterDiscount,
-          totalPriceAfterDiscount: order.totalPriceAfterDiscount,
-          shipping: order.shipping,
-          deliveryFee: order.shipping,
-          driverEarnings: order.shipping,
+          price: order.price ?? totalAmount,
+          totalPriceAfterDiscount: totalAmount,
+          shipping: shippingFee,
+          deliveryFee: shippingFee,
+          deliveryPrice: shippingFee,
+          driverEarnings: shippingFee,
+          tip: order.tip ?? 0,
+          adminCommission,
+          tax: order.tax ?? 0,
+          packagingFee: order.packagingFee ?? 0,
+          discountAmount: order.discountAmount ?? 0,
           createdAt: order.createdAt,
+          date: order.date ?? order.createdAt,
           paymentMethod: order.paymentMethod,
           paidWithWallet: order.paidWithWallet,
           Customer: order.Customer
@@ -601,11 +615,13 @@ export class DeliveryService {
             ? {
                 id: order.Branch.id,
                 name: order.Branch.name,
+                address: order.Branch.address,
                 Store: order.Branch.Store
                   ? {
                       id: order.Branch.Store.id,
                       name: order.Branch.Store.name,
                       logo: order.Branch.Store.logo,
+                      isPartner: order.Branch.Store.isPartner,
                     }
                   : null,
               }
@@ -615,6 +631,8 @@ export class DeliveryService {
                 id: order.Address.id,
                 address: order.Address.adress,
                 details: order.Address.title,
+                lat: order.Address.lat,
+                lng: order.Address.lng,
                 Zone: order.Zone
                   ? {
                       id: order.Zone.id,
@@ -623,33 +641,43 @@ export class DeliveryService {
                   : null,
               }
             : null,
-          isPartnerStore: Boolean(order.isPartnerStore || order.Branch?.Store?.isPartner),
-          partnerStoreNotice: (order.isPartnerStore || order.Branch?.Store?.isPartner)
+          isPartnerStore: isPartner,
+          partnerStoreNotice: isPartner
             ? 'مطعم شريك - لا تدفع مبالغ للمطعم عند الاستلام'
             : null,
           paymentDetails: {
             isOnlinePayment: isOnline,
+            isPaid: isOnline,
             collectFromCustomerAmount: collectAmount,
-            driverEarnings: order.shipping,
-            payToStoreAmount: (order.isPartnerStore || order.Branch?.Store?.isPartner)
-              ? 0
-              : Math.max(0, order.totalPriceAfterDiscount - (order.shipping || 0) - (order.adminCommission || 0)),
+            driverEarnings: shippingFee,
+            payToStoreAmount: payToStore,
+            paymentMethodName: order.paymentMethod,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: isOnline ? 'PAID' : 'PENDING',
             paymentGroup: !isOnline
-              ? (order.isPartnerStore || order.Branch?.Store?.isPartner) ? 'OFFLINE_PARTNER' : 'OFFLINE'
-              : (order.isPartnerStore || order.Branch?.Store?.isPartner) ? 'ONLINE_PARTNER' : 'ONLINE',
+              ? (isPartner ? 'OFFLINE_PARTNER' : 'OFFLINE')
+              : (isPartner ? 'ONLINE_PARTNER' : 'ONLINE'),
             paymentTypeLabel: isOnline ? 'دفع إلكتروني / محفظة' : 'دفع عند الاستلام (كاش)',
           },
-          OrderItems: order.OrderItems.map((item) => ({
+          financialBreakdown: {
+            totalPriceAfterDiscount: totalAmount,
+            productSubtotal: Math.max(0, totalAmount - shippingFee - adminCommission),
+            shippingFee: shippingFee,
+            driverEarnings: shippingFee,
+            adminCommission,
+            storeNetEarnings: payToStore,
+            payToStoreAmount: payToStore,
+          },
+          OrderItems: (order.OrderItems ?? []).map((item) => ({
             id: item.id,
             quantity: item.quantity,
             price: item.price,
-            Service: item.Service ? { name: item.Service.name } : null,
+            Service: item.Service ? { id: item.Service.id, name: item.Service.name, image: item.Service.image } : null,
           })),
-          // Backward compatibility fields
           customerName: order.Customer?.name ?? null,
           customerPhone: order.Customer?.phone ?? null,
           storeName: order.Branch?.Store?.name ?? order.Branch?.name ?? null,
-          productsSummary: order.OrderItems.map((item) => ({
+          productsSummary: (order.OrderItems ?? []).map((item) => ({
             quantity: item.quantity,
             name: item.Service?.name ?? null,
           })),
@@ -667,9 +695,7 @@ export class DeliveryService {
             addressDetails: station.addressDetails,
             contactPhone: station.contactPhone,
           })),
-          invoiceTotal: order.totalPriceAfterDiscount,
-          deliveryPrice: order.shipping,
-          tip: order.tip,
+          invoiceTotal: totalAmount,
           notes: order.note ?? null,
         };
       }),
