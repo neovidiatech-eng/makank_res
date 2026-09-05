@@ -273,6 +273,12 @@ export class OrderService {
   }
 
   async calculateOrder(data: CalculateOrderDTO) {
+    console.log('[OrderService/Checkout] calculateOrder called:', {
+      userId: data?.userId,
+      branchId: data?.branchId,
+      type: data?.type,
+      itemsCount: data?.items?.length,
+    });
     if (data.type === OrderType.PICKUP) {
       const { pickupEnabled } = await this.settingService.getSettings([
         'pickupEnabled',
@@ -515,6 +521,13 @@ export class OrderService {
     // Admin/platform earning = global commission + the store-commission markup.
     const adminCommission = globalCommission + totalStoreCommission;
 
+    console.log('[OrderService/Checkout] calculateOrder completed:', {
+      subtotal,
+      finalTotal,
+      tax,
+      shipping: adjustedDeliveryPrice,
+    });
+
     return {
       price: subtotal,
       subtotal,
@@ -557,6 +570,13 @@ export class OrderService {
   }
 
   private async createInternal(data: CreateOrderDTO, skipArchiving = false) {
+    console.log('[OrderService/Checkout] createInternal called:', {
+      userId: data?.userId,
+      branchId: data?.branchId,
+      paymentMethod: data?.paymentMethod,
+      type: data?.type,
+      itemsCount: data?.items?.length,
+    });
     const { maintenance } = await this.settingService.getSettings([
       'maintenance',
     ]);
@@ -915,6 +935,11 @@ export class OrderService {
       },
     });
     await this.notifyStore(order);
+    console.log('[OrderService/Checkout] order created successfully:', {
+      orderId: order?.id,
+      branchId: order?.branchId,
+      status: order?.status,
+    });
 
     return order;
   }
@@ -1400,6 +1425,11 @@ export class OrderService {
     }
   }
   async findAll(filters: FilterOrderDTO, user: CurrentUser) {
+    console.log('[OrderService] findAll called:', {
+      userRole: user?.Role?.roleKey,
+      userId: user?.id,
+      filters,
+    });
     const languages = await this.languages.getCashedLanguages();
     if (user && filters.id && user.Role.roleKey === RolesKeys.DELIVERY) {
       filters.userId = undefined;
