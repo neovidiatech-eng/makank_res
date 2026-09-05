@@ -3323,6 +3323,9 @@ export class OrderService {
       });
       const order = await tx.order.findUnique({
         where: { id: resolvedOrderId },
+        include: {
+          Branch: { select: { storeId: true } },
+        },
       });
 
       const nextStatus =
@@ -3341,6 +3344,15 @@ export class OrderService {
           status: nextStatus,
         },
       });
+
+      // Notify the store in real-time that a driver accepted/updated the order
+      if (order?.Branch?.storeId) {
+        this.orderTrackingGateway.broadcastOrderStatusChanged(
+          order.Branch.storeId,
+          resolvedOrderId,
+          nextStatus,
+        );
+      }
 
       // Custom-delivery orders begin their station journey: the first stop
       // becomes the active step the moment a driver takes the order.
