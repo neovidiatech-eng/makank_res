@@ -94,8 +94,8 @@ describe('StoreService.create - template-driven store creation', () => {
 describe('StoreService.applyStoreDiscount', () => {
   it('resolves categoryId by querying the Category table for both ID and templateCategoryId', async () => {
     const tx = {
-      service: { update: jest.fn() },
-      serviceSize: { update: jest.fn() },
+      service: { updateMany: jest.fn() },
+      serviceSize: { updateMany: jest.fn() },
     };
     const prisma = {
       category: { findMany: jest.fn().mockResolvedValue([{ id: 640 }]) },
@@ -127,12 +127,12 @@ describe('StoreService.applyStoreDiscount', () => {
         },
       },
     });
-    expect(tx.service.update).toHaveBeenCalledWith({
-      where: { id: 1 },
+    expect(tx.service.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: [1] } },
       data: { priceAfterDiscount: 50 },
     });
-    expect(tx.serviceSize.update).toHaveBeenCalledWith({
-      where: { id: 10 },
+    expect(tx.serviceSize.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: [10] } },
       data: { priceAfterDiscount: 25 },
     });
     expect(result).toEqual({

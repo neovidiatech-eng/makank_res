@@ -26,6 +26,7 @@ describe('Bundle checkout pricing', () => {
     size: { id: 1, name, price: basePrice },
     addons: addonsPrice ? [{ id: 9, price: addonsPrice }] : [],
     basePrice,
+    originalBasePrice: basePrice,
     addonsPrice,
     totalPrice: basePrice + addonsPrice,
   });

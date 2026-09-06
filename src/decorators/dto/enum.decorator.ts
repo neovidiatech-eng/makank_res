@@ -25,7 +25,7 @@ export function ValidateEnum(
     ApiProperty({ enum: enumType, isArray: isArray }),
     Transform(({ value }) => {
       if (Array.isArray(value)) value = value?.at(-1);
-      if (matchCase) return value;
+      if (matchCase || typeof value !== 'string') return value;
       return value.toUpperCase();
     }),
     IsEnum(enumType),

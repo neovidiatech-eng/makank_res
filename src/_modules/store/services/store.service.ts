@@ -1242,40 +1242,58 @@ export class StoreService {
     const skipped: { serviceId: Id; sizeId?: Id }[] = [];
     let appliedCount = 0;
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const service of services) {
-        const discounted = computeDiscounted(service.price);
+    const serviceUpdatesByDiscount = new Map<number, Id[]>();
+    const sizeUpdatesByDiscount = new Map<number, Id[]>();
+
+    for (const service of services) {
+      const discounted = computeDiscounted(service.price);
+      if (
+        this.serviceModuleHelper.hasValidDiscount(service.price, discounted)
+      ) {
+        const list = serviceUpdatesByDiscount.get(discounted) ?? [];
+        list.push(service.id);
+        serviceUpdatesByDiscount.set(discounted, list);
+        appliedCount++;
+      } else {
+        skipped.push({ serviceId: service.id });
+      }
+
+      for (const size of service.Sizes) {
+        const sizeDiscounted = computeDiscounted(size.price);
         if (
-          this.serviceModuleHelper.hasValidDiscount(service.price, discounted)
+          this.serviceModuleHelper.hasValidDiscount(
+            size.price,
+            sizeDiscounted,
+          )
         ) {
-          await tx.service.update({
-            where: { id: service.id },
-            data: { priceAfterDiscount: discounted },
-          });
+          const list = sizeUpdatesByDiscount.get(sizeDiscounted) ?? [];
+          list.push(size.id);
+          sizeUpdatesByDiscount.set(sizeDiscounted, list);
           appliedCount++;
         } else {
-          skipped.push({ serviceId: service.id });
-        }
-
-        for (const size of service.Sizes) {
-          const sizeDiscounted = computeDiscounted(size.price);
-          if (
-            this.serviceModuleHelper.hasValidDiscount(
-              size.price,
-              sizeDiscounted,
-            )
-          ) {
-            await tx.serviceSize.update({
-              where: { id: size.id },
-              data: { priceAfterDiscount: sizeDiscounted },
-            });
-            appliedCount++;
-          } else {
-            skipped.push({ serviceId: service.id, sizeId: size.id });
-          }
+          skipped.push({ serviceId: service.id, sizeId: size.id });
         }
       }
-    });
+    }
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        for (const [discounted, ids] of serviceUpdatesByDiscount) {
+          await tx.service.updateMany({
+            where: { id: { in: ids } },
+            data: { priceAfterDiscount: discounted },
+          });
+        }
+
+        for (const [discounted, ids] of sizeUpdatesByDiscount) {
+          await tx.serviceSize.updateMany({
+            where: { id: { in: ids } },
+            data: { priceAfterDiscount: discounted },
+          });
+        }
+      },
+      { maxWait: 10000, timeout: 60000 },
+    );
 
     return { appliedCount, skipped };
   }
