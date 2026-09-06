@@ -26,6 +26,17 @@ export class MapUploadsInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<Request>();
 
     const files = request.file || request.files;
+    console.log('🔄 [MapUploadsInterceptor] Files received on request:', {
+      hasFile: !!request.file,
+      hasFiles: !!request.files,
+      count: flattenUploadedFiles(files).length,
+      files: flattenUploadedFiles(files).map((f) => ({
+        fieldname: f.fieldname,
+        originalname: f.originalname,
+        mimetype: f.mimetype,
+        size: f.size,
+      })),
+    });
 
     // Reject truncated image uploads immediately (visible error to the
     // uploader) instead of silently persisting a file that later fails to

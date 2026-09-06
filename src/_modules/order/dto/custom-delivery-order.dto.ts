@@ -259,12 +259,22 @@ export class CreateCustomDeliveryOrderDTO extends CalculateCustomDeliveryOrderDT
 export class UploadStationImagesDTO {
   @ApiProperty({ type: [String], format: 'binary', required: true })
   @Transform(({ value }) => {
-    if (!Array.isArray(value)) return value;
+    console.log('📸 [UploadStationImagesDTO] Raw value received:', value);
+    if (!Array.isArray(value)) {
+      if (typeof value === 'string' && value.trim().length > 0) {
+        value = [value];
+      } else {
+        console.warn('⚠️ [UploadStationImagesDTO] Value is not an array or valid string:', typeof value, value);
+        return value;
+      }
+    }
     const key = env('INTERCEPTOR_KEY');
-    return value
-      .filter((v) => typeof v === 'string' && v.includes(key))
-      .map((v) => v.replaceAll(key, '').trim())
+    const transformed = (value as any[])
+      .filter((v) => typeof v === 'string' && v.trim().length > 0)
+      .map((v) => (key ? v.replaceAll(key, '').trim() : v.trim()))
       .filter((v) => v !== '');
+    console.log('📸 [UploadStationImagesDTO] Transformed images count:', transformed.length, transformed);
+    return transformed;
   })
   @IsArray()
   @ArrayNotEmpty({ message: 'يجب إرفاق صورة واحدة على الأقل' })

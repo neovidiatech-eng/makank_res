@@ -397,10 +397,14 @@ export class OrderController {
     @Body() body: UploadStationImagesDTO,
     @CurrentUser() user: CurrentUser,
   ) {
+    console.log('📸 [UploadStationImages] Controller received request for user:', user?.id);
+    console.log('📸 [UploadStationImages] Uploaded image paths in body:', body?.images);
+
     const imageIds = await this.service.createStationImageUploads(
       user.id,
       body.images,
     );
+    console.log('✅ [UploadStationImages] Generated imageIds:', imageIds);
     return this.response.created(res, 'images uploaded successfully', {
       imageIds,
     });

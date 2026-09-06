@@ -34,11 +34,17 @@ export const uploadOptions = (
   const uploadOptions = {
     fileFilter: (
       _req: any,
-      file: { fieldname: string; mimetype: string },
+      file: { fieldname: string; mimetype: string; originalname?: string },
       callback: (error: Error | null, acceptFile: boolean) => void,
     ) => {
       fileKey = file.fieldname;
+      console.log('📥 [Multer FileFilter] Checking file:', {
+        fieldname: file.fieldname,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+      });
       if (disallowedTypes && disallowedTypes.includes(file.mimetype)) {
+        console.warn('❌ [Multer FileFilter] Disallowed type:', file.mimetype);
         return callback(
           new BadRequestException('invalidFileType', {
             cause: { fieldname: file.fieldname },
@@ -47,11 +53,13 @@ export const uploadOptions = (
         );
       }
       if (fileType && !file.mimetype.startsWith(fileType)) {
+        console.warn(`❌ [Multer FileFilter] Type mismatch: required "${fileType}", received "${file.mimetype}"`);
         return callback(
           new BadRequestException('File type is not supported'),
           false,
         );
       }
+      console.log('✅ [Multer FileFilter] File accepted:', file.originalname);
       callback(null, true);
     },
 
