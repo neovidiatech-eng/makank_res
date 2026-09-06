@@ -380,6 +380,7 @@ export class OrderService {
         this.serviceHelper.applyStoreCommission(
           selected.basePrice,
           service.Store,
+          selected.originalBasePrice,
         );
       const unitPrice = clientFacingPrice + selected.addonsPrice;
 

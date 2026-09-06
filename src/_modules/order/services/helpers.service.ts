@@ -294,6 +294,7 @@ export class HelpersService {
       // Net base price for the unit: the selected size's (discounted) price, or the
       // service price when no size is chosen. Store commission applies to this base only.
       basePrice,
+      originalBasePrice: size.price,
       // Add-ons are additive and never receive commission.
       addonsPrice,
       // Kept for backward compatibility (base + addons, pre-commission).
@@ -445,6 +446,7 @@ export class HelpersService {
         baseWithCommission = this.serviceHelper.applyStoreCommission(
           selected.basePrice,
           service.Store,
+          selected.originalBasePrice,
         );
       }
 

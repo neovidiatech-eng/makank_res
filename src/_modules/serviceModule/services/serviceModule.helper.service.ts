@@ -62,13 +62,21 @@ export class ServiceModuleHelper {
       : price;
   }
 
-  applyStoreCommission(basePrice: number, store?: StoreCommissionInput) {
+  applyStoreCommission(
+    basePrice: number,
+    store?: StoreCommissionInput,
+    originalBasePrice?: number,
+  ) {
     const commission = store?.commission ?? 0;
     const type = store?.commissionType ?? CommissionType.FIXED;
+    const commissionBase =
+      originalBasePrice != null && originalBasePrice > 0
+        ? originalBasePrice
+        : basePrice;
     const storeCommissionPerUnit =
       type === CommissionType.FIXED
         ? commission
-        : (basePrice * commission) / 100;
+        : (commissionBase * commission) / 100;
     return {
       clientFacingPrice: basePrice + storeCommissionPerUnit,
       storeCommissionPerUnit,
@@ -152,8 +160,10 @@ export class ServiceModuleHelper {
             store,
           ).clientFacingPrice;
           // Discounted commission-inclusive price, or null when no valid discount.
+          // Store commission is based on original list price (rawPrice), so discounts come off
+          // the store's cut, keeping platform commission stable.
           const priceAfterDiscount = hasDiscount
-            ? this.applyStoreCommission(rawPad, store).clientFacingPrice
+            ? this.applyStoreCommission(rawPad, store, rawPrice).clientFacingPrice
             : null;
           return {
             id: s.id ?? 0,
@@ -211,7 +221,7 @@ export class ServiceModuleHelper {
       store,
     );
     const basePriceAfterDiscount = baseHasDiscount
-      ? this.applyStoreCommission(rawBasePad, store).clientFacingPrice
+      ? this.applyStoreCommission(rawBasePad, store, rawBasePrice).clientFacingPrice
       : null;
     // Derived from the two values already computed — commission is never reapplied.
     const baseEffectivePrice = basePriceAfterDiscount ?? clientFacingPrice;

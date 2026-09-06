@@ -97,16 +97,16 @@ describe('Service price-after-discount', () => {
       expect(res.priceWithDefaultOptions).toBe(110);
     });
 
-    it('base discount 150->120 @ 10%: price 165, effective 132, pad 132', () => {
+    it('base discount 150->120 @ 10%: price 165, effective 135, pad 135 (commission based on original price)', () => {
       const res = mapService(
         { price: 150, priceAfterDiscount: 120, Sizes: [] },
         pctStore(10),
       );
-      expect(res.price).toBe(165); // 150 * 1.1
-      expect(res.effectivePrice).toBe(132); // 120 * 1.1
-      expect(res.priceAfterDiscount).toBe(132);
+      expect(res.price).toBe(165); // 150 + 15 (10% of 150)
+      expect(res.effectivePrice).toBe(135); // 120 + 15 (commission preserved from original)
+      expect(res.priceAfterDiscount).toBe(135);
       expect(res.hasDiscount).toBe(true);
-      expect(res.priceWithDefaultOptions).toBe(132);
+      expect(res.priceWithDefaultOptions).toBe(135);
     });
 
     it('size discount drives priceWithDefaultOptions (default size on sale)', () => {
@@ -121,9 +121,9 @@ describe('Service price-after-discount', () => {
         pctStore(10),
       );
       const def = res.Sizes[0];
-      expect(def.price).toBe(220); // original list price (commission-inclusive)
-      expect(def.effectivePrice).toBe(165); // 150 * 1.1
-      expect(def.priceAfterDiscount).toBe(165);
+      expect(def.price).toBe(220); // original list price (commission-inclusive: 200 + 20)
+      expect(def.effectivePrice).toBe(170); // 150 + 20 (commission preserved from original)
+      expect(def.priceAfterDiscount).toBe(170);
       expect(def.hasDiscount).toBe(true);
       // non-discounted second size is unchanged
       expect(res.Sizes[1].price).toBe(330);
@@ -131,7 +131,7 @@ describe('Service price-after-discount', () => {
       expect(res.Sizes[1].hasDiscount).toBe(false);
       expect(res.Sizes[1].priceAfterDiscount).toBeNull();
       // headline reflects the discounted default size
-      expect(res.priceWithDefaultOptions).toBe(165);
+      expect(res.priceWithDefaultOptions).toBe(170);
     });
 
     it('service with sizes and no base discount sets top-level price equal to default size price (prevents fake mobile app discount badge)', () => {
@@ -384,7 +384,7 @@ describe('Service price-after-discount', () => {
       // The base service-level fields still expose the headline discount as a starting
       // price — that is fine; it is NOT the purchasable default-options price.
       expect(listView.price).toBe(165);
-      expect(listView.effectivePrice).toBe(132);
+      expect(listView.effectivePrice).toBe(135);
       expect(listView.hasDiscount).toBe(true);
     });
   });
