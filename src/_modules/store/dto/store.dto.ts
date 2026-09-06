@@ -97,6 +97,10 @@ export class CreateStoreDTO {
   @Optional()
   @ValidateNumber()
   minOrderAmount?: number;
+
+  @Optional()
+  @ValidateString()
+  announcement?: string;
 }
 // Every field optional, unlike CreateStoreUserDTO — PartialType(CreateStoreDTO)
 // only makes the `User` property itself optional, it does NOT deep-partial the
@@ -183,6 +187,11 @@ export class UpdateStoreDTO extends OmitType(PartialType(CreateStoreDTO), [
   @Optional()
   @ValidateNumber()
   minOrderAmount: number;
+
+  // Custom notice/announcement set by admin, shown to customers on the store page.
+  @Optional()
+  @ValidateString()
+  announcement?: string;
 }
 
 export class UpdateBranchStatusDTO {

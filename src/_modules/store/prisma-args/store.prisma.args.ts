@@ -228,6 +228,7 @@ export const selectStoreOBJ = (includeBundles = false) => {
     deliveryTimeMinMinutes: true,
     deliveryTimeMaxMinutes: true,
     minOrderAmount: true,
+    announcement: true,
     zonePricingEnabled: true,
     ZonePrices: {
       select: {

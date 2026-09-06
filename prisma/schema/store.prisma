@@ -39,6 +39,8 @@ model Store {
   // instead, so "new order" notifications route to Admin users too (see
   // OrderService.notifyStore). False = normal store, staff notified as usual.
   managedByAdmin       Boolean                    @default(false) @map("managed_by_admin")
+  // Custom notice/announcement set by admin or store, shown to customers on store page
+  announcement         String?                    @map("announcement") @db.Text
   Specialist           Specialist[]
   bank_accounts        bank_accounts[]
   Banner               Banner[]                   @relation("BannerToStore")
