@@ -18,6 +18,8 @@ export type FlattenedUser = {
     wallet: number;
     points: number;
     male: boolean;
+    collectedCash?: number;
+    unsettledCommission?: number;
   };
   availableNow?: boolean;
   Branch?: {
@@ -62,6 +64,8 @@ export const transformFlattenUser = (data: any | any[]): any => {
         wallet: number;
         points: number;
         male: boolean;
+        collectedCash?: number;
+        unsettledCommission?: number;
       };
       DeliveryDetails?: {
         availableNow: boolean;
@@ -130,6 +134,8 @@ export const transformFlattenUser = (data: any | any[]): any => {
         wallet: user.Details?.wallet ?? 0,
         points: user.Details?.points ?? 0,
         male: user.Details?.male ?? false,
+        collectedCash: (user.Details as any)?.collectedCash ?? 0,
+        unsettledCommission: (user.Details as any)?.unsettledCommission ?? 0,
       },
       image: user.image,
       createdAt: user.createdAt,
@@ -214,6 +220,8 @@ export const selectUserOBJ = () => {
       select: {
         wallet: true,
         points: true,
+        collectedCash: true,
+        unsettledCommission: true,
       },
     },
     DeliveryDetails: {

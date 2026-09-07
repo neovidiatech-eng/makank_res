@@ -111,6 +111,13 @@ export const selectDriverCardOBJ = () => {
         forceAvailable: true,
       },
     },
+    Details: {
+      select: {
+        wallet: true,
+        collectedCash: true,
+        unsettledCommission: true,
+      },
+    },
   } satisfies Prisma.UserSelect;
 };
 

@@ -273,6 +273,7 @@ export class DeliveryService {
 
     let data = allDriversRows.map((row) => {
       const details = row.DeliveryDetails;
+      const userDetails = (row as any).Details;
       return {
         id: row.id,
         name: row.name,
@@ -285,6 +286,18 @@ export class DeliveryService {
         isAvailable: details?.forceAvailable ?? false,
         // "شغال النهاردة" — live shift status (availableNow)
         isOnShift: details?.availableNow ?? false,
+        wallet: userDetails?.wallet ?? 0,
+        collectedCash: userDetails?.collectedCash ?? 0,
+        unsettledCommission: userDetails?.unsettledCommission ?? 0,
+        totalAdminDebt: userDetails?.unsettledCommission ?? 0,
+        Details: userDetails
+          ? {
+              wallet: userDetails.wallet ?? 0,
+              collectedCash: userDetails.collectedCash ?? 0,
+              unsettledCommission: userDetails.unsettledCommission ?? 0,
+              totalAdminDebt: userDetails.unsettledCommission ?? 0,
+            }
+          : null,
         createdAt: row.createdAt,
       };
     });
@@ -553,12 +566,20 @@ export class DeliveryService {
         rejectedOrders: rejectedAssignments,
         deliveredOrders: deliveredCount,
       },
+      unsettledCommission: driver.Details?.unsettledCommission ?? 0,
+      totalAdminDebt: driver.Details?.unsettledCommission ?? 0,
+      collectedCash: isFilteredPeriod
+        ? collectedCashPeriod
+        : (driver.Details?.collectedCash ?? 0),
+      wallet: driver.Details?.wallet ?? 0,
+      Details: driver.Details ?? null,
       financialSummary: {
         driverEarnings: financials._sum.shipping ?? 0,
         collectedCash: isFilteredPeriod
           ? collectedCashPeriod
           : (driver.Details?.collectedCash ?? 0),
         totalAdminDebt: driver.Details?.unsettledCommission ?? 0,
+        unsettledCommission: driver.Details?.unsettledCommission ?? 0,
         adminCommissionOnly: financials._sum.adminCommission ?? 0,
         partnerProductsDebt: Math.max(0, (driver.Details?.unsettledCommission ?? 0) - (financials._sum.adminCommission ?? 0)),
         productsPriceOffline,
@@ -880,6 +901,7 @@ export class DeliveryService {
     const delivery = await this.prisma.user.findFirst({
       where: { id, roleKey: RolesKeys.DELIVERY },
       include: {
+        Details: true,
         DeliveryDetails: {
           include: {
             Schedule: true,
