@@ -138,6 +138,8 @@ export const selectDriverDashboardOrderOBJ = () => {
     shipping: true,
     tip: true,
     adminCommission: true,
+    storeCommission: true,
+    globalCommission: true,
     tax: true,
     packagingFee: true,
     discountAmount: true,

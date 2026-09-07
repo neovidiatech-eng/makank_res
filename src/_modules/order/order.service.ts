@@ -3847,13 +3847,18 @@ export class OrderService {
       financialBreakdown: {
         totalPriceAfterDiscount,
         productSubtotal: price,
+        productsPriceOnly: storeNetEarnings,
         shippingFee: shipping,
         adminCommission,
         storeCommission,
+        serviceFee: order.globalCommission ?? 0,
+        globalCommission: order.globalCommission ?? 0,
         packagingFee,
         tax,
+        taxFee: tax,
         discountAmount,
         storeNetEarnings,
+        payToStoreAmount,
         driverEarnings,
       },
     });
