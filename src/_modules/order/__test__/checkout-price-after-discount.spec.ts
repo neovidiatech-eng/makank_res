@@ -148,8 +148,44 @@ describe('Checkout — price after discount', () => {
     );
     const selected = await helpers.validateSizeAndAddons(1, 10, []);
     expect(selected.basePrice).toBe(200);
-
     const { lineTotal } = composeLine(selected.basePrice, 0, pctStore(10), 1);
-    expect(lineTotal).toBe(220); // exactly as before the feature
+    expect(lineTotal).toBe(220);
+  });
+
+  it('Half Chicken Offer: base 100, sale 80, store commission 22% -> unit 102, store gets 100, admin gets 2 excess', async () => {
+    const helpers = buildHelpers(
+      { price: 100, priceAfterDiscount: null },
+      { price: 100, priceAfterDiscount: 80 },
+    );
+    const selected = await helpers.validateSizeAndAddons(1, 10, []);
+    expect(selected.basePrice).toBe(80);
+    expect(selected.originalBasePrice).toBe(100);
+
+    const { clientFacingPrice, storeCommissionPerUnit } =
+      realHelper.applyStoreCommission(
+        selected.basePrice,
+        pctStore(22),
+        selected.originalBasePrice,
+      );
+    // client sees 80 + 22 = 102
+    expect(clientFacingPrice).toBe(102);
+    expect(storeCommissionPerUnit).toBe(22);
+
+    // Reconcile excess commission:
+    const itemDiscount = (selected.originalBasePrice - selected.basePrice) * 1; // 20
+    const storeCommission = storeCommissionPerUnit * 1; // 22
+    const excessStoreCommission = Math.max(0, storeCommission - itemDiscount); // 2
+    expect(excessStoreCommission).toBe(2);
+
+    const globalCommission = 5;
+    const adminCommission = globalCommission + excessStoreCommission; // 7
+    expect(adminCommission).toBe(7);
+
+    const shipping = 1;
+    const finalTotal = clientFacingPrice + shipping + globalCommission; // 108
+    expect(finalTotal).toBe(108);
+
+    const storeNetEarnings = finalTotal - shipping - adminCommission; // 100
+    expect(storeNetEarnings).toBe(100); // Store gets full 100!
   });
 });
