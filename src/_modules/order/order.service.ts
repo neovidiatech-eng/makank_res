@@ -3822,7 +3822,7 @@ export class OrderService {
 
     const storeNetEarnings = Math.max(
       0,
-      totalPriceAfterDiscount - shipping - adminCommission,
+      totalPriceAfterDiscount - shipping - adminCommission - tax - packagingFee,
     );
     const payToStoreAmount = isPartnerStore ? 0 : storeNetEarnings;
     const driverEarnings = shipping;
