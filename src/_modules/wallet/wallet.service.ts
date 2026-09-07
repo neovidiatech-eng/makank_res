@@ -660,6 +660,7 @@ export class WalletService {
                 id: true,
                 name: true,
                 price: true,
+                priceAfterDiscount: true,
                 image: true,
                 Category: {
                   select: {
@@ -674,6 +675,7 @@ export class WalletService {
                 id: true,
                 name: true,
                 price: true,
+                priceAfterDiscount: true,
               },
             },
             OrderItemAddons: {
@@ -697,12 +699,46 @@ export class WalletService {
     }
 
     const isPartner = Boolean((o as any).isPartnerStore || o.Branch?.Store?.isPartner);
+    const isCustom = o.type === 'CUSTOM_DELIVERY' || Boolean((o as any).customDeliveryKind);
     const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
     const orderTotal = o.totalPriceAfterDiscount || 0;
-    const productsOnly = Math.max(
-      0,
-      orderTotal - (o.shipping || 0) - (o.adminCommission || 0) - (o.tax || 0) - (o.packagingFee || 0),
-    );
+
+    let itemDiscounts = 0;
+    if (Array.isArray(o.OrderItems)) {
+      for (const item of o.OrderItems) {
+        const orig = Number(
+          item.Size?.price ?? item.Service?.price ?? item.price ?? 0,
+        );
+        const pad = Number(
+          item.Size?.priceAfterDiscount ??
+            item.Service?.priceAfterDiscount ??
+            orig,
+        );
+        if (orig > pad) {
+          itemDiscounts += (orig - pad) * (item.quantity ?? 1);
+        }
+      }
+    }
+    const totalDiscount = Math.max(o.discountAmount ?? 0, itemDiscounts);
+    const storeCommission = o.storeCommission ?? 0;
+    const globalCommission = o.globalCommission ?? 0;
+    const excessStoreCommission = Math.max(0, storeCommission - totalDiscount);
+    const effectiveAdminCommission =
+      storeCommission > 0 || globalCommission > 0
+        ? globalCommission + excessStoreCommission
+        : (o.adminCommission ?? 0);
+
+    const productsOnly =
+      isPartner || isCustom
+        ? 0
+        : Math.max(
+            0,
+            orderTotal -
+              (o.shipping || 0) -
+              effectiveAdminCommission -
+              (o.tax || 0) -
+              (o.packagingFee || 0),
+          );
 
     const paymentGroup = isOffline
       ? isPartner
@@ -736,18 +772,18 @@ export class WalletService {
         productSubtotal: o.price ?? productsOnly,
         shippingFee: o.shipping || 0,
         driverEarnings: o.shipping || 0,
-        adminCommission: o.adminCommission || 0,
+        adminCommission: effectiveAdminCommission,
         storeCommission: o.storeCommission || 0,
         serviceFee: o.globalCommission || 0,
         globalCommission: o.globalCommission || 0,
         taxFee: o.tax || 0,
         tax: o.tax || 0,
         packagingFee: o.packagingFee || 0,
-        discountAmount: o.discountAmount || 0,
+        discountAmount: totalDiscount,
         totalPriceAfterDiscount: orderTotal,
         totalAmount: orderTotal,
         storeNetEarnings: productsOnly,
-        payToStoreAmount: isPartner ? 0 : productsOnly,
+        payToStoreAmount: isPartner || isCustom ? 0 : productsOnly,
       },
       customer: {
         id: o.Customer?.id,

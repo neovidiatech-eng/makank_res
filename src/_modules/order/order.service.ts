@@ -361,6 +361,7 @@ export class OrderService {
 
     let totalPrice = 0;
     let totalStoreCommission = 0;
+    let totalItemDiscount = 0;
     const validatedItems = [];
 
     for (const item of items) {
@@ -387,6 +388,11 @@ export class OrderService {
       const itemStoreCommission = storeCommissionPerUnit * item.quantity;
       const finalItemPrice = unitPrice * item.quantity;
 
+      const origBase = selected.originalBasePrice ?? selected.basePrice;
+      if (origBase > selected.basePrice) {
+        totalItemDiscount += (origBase - selected.basePrice) * item.quantity;
+      }
+
       totalPrice += finalItemPrice; // Subtotal includes store commission, excludes global.
       totalStoreCommission += itemStoreCommission;
 
@@ -405,6 +411,7 @@ export class OrderService {
       bundleStoreId,
     );
     for (const bundle of pricedBundles) {
+      totalItemDiscount += bundle.freeDiscountAmount ?? 0;
       for (const paidItem of bundle.paidItems) {
         totalPrice += paidItem.itemTotalPrice;
         totalStoreCommission += paidItem.storeCommission;
@@ -513,20 +520,30 @@ export class OrderService {
     }
 
     const combinedDiscount = discountValue + rewardDiscount;
+    const totalOrderDiscount = totalItemDiscount + combinedDiscount;
     const discountedSubtotal = Math.max(0, subtotal - combinedDiscount);
 
     // Global commission is added ON TOP of the subtotal; store commission is already inside it.
     const finalTotal =
       discountedSubtotal + tax + adjustedDeliveryPrice + globalCommission;
 
-    // Admin/platform earning = global commission + the store-commission markup.
-    const adminCommission = globalCommission + totalStoreCommission;
+    // The store commission markup covers customer discounts up to its full amount.
+    // Platform earning = global commission + excess store commission over discounts.
+    const excessStoreCommission = Math.max(
+      0,
+      totalStoreCommission - totalOrderDiscount,
+    );
+    const adminCommission = globalCommission + excessStoreCommission;
 
     console.log('[OrderService/Checkout] calculateOrder completed:', {
       subtotal,
       finalTotal,
       tax,
       shipping: adjustedDeliveryPrice,
+      totalStoreCommission,
+      totalOrderDiscount,
+      excessStoreCommission,
+      adminCommission,
     });
 
     return {
@@ -535,7 +552,9 @@ export class OrderService {
       totalPrice: finalTotal,
       priceAfterDiscount: Math.max(0, totalAfterDiscount - rewardDiscount),
       priceAfterTax: subtotal + tax,
-      discountValue: combinedDiscount,
+      discountValue: totalOrderDiscount,
+      couponDiscount: combinedDiscount,
+      itemDiscount: totalItemDiscount,
       globalCommission,
       storeCommission: totalStoreCommission,
       adminCommission,
@@ -3805,26 +3824,61 @@ export class OrderService {
 
     const price = order.price ?? 0;
     const shipping = order.shipping ?? 0;
-    const adminCommission = order.adminCommission ?? 0;
     const storeCommission = order.storeCommission ?? 0;
     const packagingFee = order.packagingFee ?? 0;
     const tax = order.tax ?? 0;
-    const discountAmount = order.discountAmount ?? 0;
+    const globalCommission = order.globalCommission ?? 0;
     const totalPriceAfterDiscount =
       order.totalPriceAfterDiscount ?? price + shipping;
 
     const isPartnerStore = Boolean(
       order.isPartnerStore || order.Branch?.Store?.isPartner,
     );
+    const isCustomDelivery =
+      order.type === OrderType.CUSTOM_DELIVERY ||
+      Boolean(order.customDeliveryKind);
+
     const partnerStoreNotice = isPartnerStore
       ? 'مطعم شريك - لا تدفع مبالغ للمطعم عند الاستلام'
       : null;
 
-    const storeNetEarnings = Math.max(
-      0,
-      totalPriceAfterDiscount - shipping - adminCommission - tax - packagingFee,
-    );
-    const payToStoreAmount = isPartnerStore ? 0 : storeNetEarnings;
+    let itemDiscounts = 0;
+    if (Array.isArray(order.OrderItems)) {
+      for (const item of order.OrderItems) {
+        const orig = Number(
+          item.Size?.price ?? item.Service?.price ?? item.price ?? 0,
+        );
+        const pad = Number(
+          item.Size?.priceAfterDiscount ??
+            item.Service?.priceAfterDiscount ??
+            orig,
+        );
+        if (orig > pad) {
+          itemDiscounts += (orig - pad) * (item.quantity ?? 1);
+        }
+      }
+    }
+
+    const totalDiscount = Math.max(order.discountAmount ?? 0, itemDiscounts);
+    const excessStoreCommission = Math.max(0, storeCommission - totalDiscount);
+    const effectiveAdminCommission =
+      storeCommission > 0 || globalCommission > 0
+        ? globalCommission + excessStoreCommission
+        : (order.adminCommission ?? 0);
+
+    const storeNetEarnings =
+      isPartnerStore || isCustomDelivery
+        ? 0
+        : Math.max(
+            0,
+            totalPriceAfterDiscount -
+              shipping -
+              effectiveAdminCommission -
+              tax -
+              packagingFee,
+          );
+    const payToStoreAmount =
+      isPartnerStore || isCustomDelivery ? 0 : storeNetEarnings;
     const driverEarnings = shipping;
 
     Object.assign(order, {
@@ -3849,14 +3903,14 @@ export class OrderService {
         productSubtotal: price,
         productsPriceOnly: storeNetEarnings,
         shippingFee: shipping,
-        adminCommission,
+        adminCommission: effectiveAdminCommission,
         storeCommission,
-        serviceFee: order.globalCommission ?? 0,
-        globalCommission: order.globalCommission ?? 0,
+        serviceFee: globalCommission,
+        globalCommission,
         packagingFee,
         tax,
         taxFee: tax,
-        discountAmount,
+        discountAmount: totalDiscount,
         storeNetEarnings,
         payToStoreAmount,
         driverEarnings,

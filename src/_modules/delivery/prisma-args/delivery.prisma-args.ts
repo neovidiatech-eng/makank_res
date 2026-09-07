@@ -187,7 +187,23 @@ export const selectDriverDashboardOrderOBJ = () => {
         id: true,
         quantity: true,
         price: true,
-        Service: { select: { id: true, name: true, image: true } },
+        Service: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            price: true,
+            priceAfterDiscount: true,
+          },
+        },
+        Size: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            priceAfterDiscount: true,
+          },
+        },
       },
     },
     Stations: {

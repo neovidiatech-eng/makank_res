@@ -599,10 +599,35 @@ export class DeliveryService {
         const isOnline = order.paymentMethod !== 'CASH' || order.paidWithWallet;
         const totalAmount = order.totalPriceAfterDiscount || order.price || 0;
         const shippingFee = order.shipping || 0;
-        const adminCommission = order.adminCommission || 0;
         const collectAmount = isOnline ? 0 : totalAmount;
         const isPartner = Boolean(order.isPartnerStore || order.Branch?.Store?.isPartner);
-        const payToStore = isPartner
+        const isCustom = order.type === 'CUSTOM_DELIVERY' || Boolean(order.customDeliveryKind);
+
+        let itemDiscounts = 0;
+        if (Array.isArray(order.OrderItems)) {
+          for (const item of order.OrderItems) {
+            const orig = Number(
+              item.Size?.price ?? item.Service?.price ?? item.price ?? 0,
+            );
+            const pad = Number(
+              item.Size?.priceAfterDiscount ??
+                item.Service?.priceAfterDiscount ??
+                orig,
+            );
+            if (orig > pad) {
+              itemDiscounts += (orig - pad) * (item.quantity ?? 1);
+            }
+          }
+        }
+        const totalDiscount = Math.max(order.discountAmount ?? 0, itemDiscounts);
+        const storeCommission = order.storeCommission ?? 0;
+        const globalCommission = order.globalCommission ?? 0;
+        const excessStoreCommission = Math.max(0, storeCommission - totalDiscount);
+        const adminCommission = (storeCommission > 0 || globalCommission > 0)
+          ? globalCommission + excessStoreCommission
+          : (order.adminCommission ?? 0);
+
+        const payToStore = (isPartner || isCustom)
           ? 0
           : Math.max(0, totalAmount - shippingFee - adminCommission - (order.tax || 0) - (order.packagingFee || 0));
 
@@ -695,7 +720,7 @@ export class DeliveryService {
             tax: order.tax ?? 0,
             taxFee: order.tax ?? 0,
             packagingFee: order.packagingFee ?? 0,
-            discountAmount: order.discountAmount ?? 0,
+            discountAmount: totalDiscount,
             storeNetEarnings: payToStore,
             payToStoreAmount: payToStore,
           },
