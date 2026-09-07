@@ -619,7 +619,7 @@ export class DeliveryService {
             }
           }
         }
-        const totalDiscount = Math.max(order.discountAmount ?? 0, itemDiscounts);
+        const totalDiscount = itemDiscounts + (order.discountAmount ?? 0);
         const storeCommission = order.storeCommission ?? 0;
         const globalCommission = order.globalCommission ?? 0;
         const excessStoreCommission = Math.max(0, storeCommission - totalDiscount);

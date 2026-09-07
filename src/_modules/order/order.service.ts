@@ -552,7 +552,8 @@ export class OrderService {
       totalPrice: finalTotal,
       priceAfterDiscount: Math.max(0, totalAfterDiscount - rewardDiscount),
       priceAfterTax: subtotal + tax,
-      discountValue: totalOrderDiscount,
+      discountValue: combinedDiscount,
+      totalDiscount: totalOrderDiscount,
       couponDiscount: combinedDiscount,
       itemDiscount: totalItemDiscount,
       globalCommission,
@@ -3859,7 +3860,7 @@ export class OrderService {
       }
     }
 
-    const totalDiscount = Math.max(order.discountAmount ?? 0, itemDiscounts);
+    const totalDiscount = itemDiscounts + (order.discountAmount ?? 0);
     const excessStoreCommission = Math.max(0, storeCommission - totalDiscount);
     const effectiveAdminCommission =
       storeCommission > 0 || globalCommission > 0

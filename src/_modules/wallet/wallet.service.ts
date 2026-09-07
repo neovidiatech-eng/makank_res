@@ -719,7 +719,7 @@ export class WalletService {
         }
       }
     }
-    const totalDiscount = Math.max(o.discountAmount ?? 0, itemDiscounts);
+    const totalDiscount = itemDiscounts + (o.discountAmount ?? 0);
     const storeCommission = o.storeCommission ?? 0;
     const globalCommission = o.globalCommission ?? 0;
     const excessStoreCommission = Math.max(0, storeCommission - totalDiscount);
