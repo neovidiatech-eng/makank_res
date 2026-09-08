@@ -1522,6 +1522,10 @@ export class OrderService {
           });
         }),
       );
+
+      if (user?.Role?.roleKey === RolesKeys.DELIVERY) {
+        orders.forEach((o) => this.sanitizeOrderForDelivery(o, true));
+      }
     }
 
     return data;
@@ -3380,6 +3384,7 @@ export class OrderService {
       });
 
       const nextStatus =
+        order.type === OrderType.CUSTOM_DELIVERY &&
         order.status === OrderStatus.READY_PICKUP
           ? OrderStatus.ON_THE_WAY
           : order.status;
@@ -3707,6 +3712,7 @@ export class OrderService {
       });
 
     if (pendingAssignment) {
+      this.sanitizeOrderForDelivery(pendingAssignment.Order, true);
       return {
         type: 'PENDING_ASSIGNMENT',
         assignment: pendingAssignment,
@@ -3730,6 +3736,7 @@ export class OrderService {
     });
 
     if (activeOrder) {
+      this.sanitizeOrderForDelivery(activeOrder, true);
       return {
         type: 'ACTIVE_ORDER',
         order: this.attachCustomProgress(activeOrder),
@@ -3737,6 +3744,57 @@ export class OrderService {
     }
 
     return null;
+  }
+
+  /**
+   * Masks sensitive customer details (phone, name, exact address, coordinates)
+   * from delivery drivers until the order has been physically picked up from the store
+   * (i.e. status is ON_THE_WAY or DELIVERED).
+   */
+  sanitizeOrderForDelivery(order: any, isDeliveryUser: boolean): any {
+    if (!order || !isDeliveryUser) return order;
+
+    // Custom delivery orders have their own station privacy flow
+    if (order.type === OrderType.CUSTOM_DELIVERY) return order;
+
+    const isPickedUp =
+      order.status === OrderStatus.ON_THE_WAY ||
+      order.status === OrderStatus.DELIVERED;
+
+    if (!isPickedUp) {
+      if (order.Customer) {
+        order.Customer = {
+          ...order.Customer,
+          phone: null,
+          image: null,
+          name: 'العميل',
+        };
+      }
+      if (order.User) {
+        order.User = {
+          ...order.User,
+          phone: null,
+          email: null,
+          image: null,
+          name: 'العميل',
+        };
+      }
+      if (order.Address) {
+        order.Address = {
+          ...order.Address,
+          lat: null,
+          lng: null,
+          details: null,
+          adress: null,
+          title: 'موقع العميل (مخفي حتى الاستلام)',
+        };
+      }
+      order.deliveryLat = null;
+      order.deliveryLng = null;
+      order.note = null;
+    }
+
+    return order;
   }
 
   // Server-authoritative rating eligibility for an order, so the mobile rate page
@@ -3938,7 +3996,10 @@ export class OrderService {
       },
     });
 
-    assignments.forEach((a) => this.attachCustomProgress(a.Order));
+    assignments.forEach((a) => {
+      this.attachCustomProgress(a.Order);
+      this.sanitizeOrderForDelivery(a.Order, true);
+    });
     return assignments;
   }
 
