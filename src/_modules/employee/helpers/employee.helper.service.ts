@@ -39,13 +39,49 @@ export class HelpersService {
   // looking a role up by roleKey alone can't tell two of a store's own roles
   // apart (e.g. "Cashier" vs "Product Manager") — it must be targeted by its
   // actual id, scoped to the caller's store so one store can't borrow another's role.
-  async isRoleValid(roleId: number, storeId?: number) {
-    const role = await this.prisma.role.findFirst({
+  async isRoleValid(roleId?: number, storeId?: number) {
+    if (roleId && roleId > 0) {
+      const role = await this.prisma.role.findFirst({
+        where: {
+          id: roleId,
+          storeId,
+        },
+      });
+      if (role) return role;
+    }
+
+    // Look for an existing Staff role for this store
+    let role = await this.prisma.role.findFirst({
       where: {
-        id: roleId,
         storeId,
+        default: false,
       },
     });
+
+    // If no custom staff role exists yet, auto-create the standard Staff role
+    if (!role && storeId) {
+      const staffPerms = await this.prisma.permission.findMany({
+        where: {
+          OR: [
+            { prefix: 'orders', method: { in: ['get', 'patch'] } },
+            { prefix: 'services', method: { in: ['get', 'patch'] } },
+          ],
+        },
+      });
+
+      role = await this.prisma.role.create({
+        data: {
+          name: { ar: 'ستاف', en: 'Staff' },
+          roleKey: RolesKeys.STORE,
+          default: false,
+          storeId,
+          RolePermission: {
+            create: staffPerms.map((p) => ({ permissionId: p.id })),
+          },
+        },
+      });
+    }
+
     if (!role) {
       throw new BadRequestException('Invalid role');
     }
