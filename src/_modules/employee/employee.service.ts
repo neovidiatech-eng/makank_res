@@ -64,7 +64,9 @@ export class EmployeeService {
   }
   async update(id: number, dto: UpdateEmployeeDTO, user: CurrentUser) {
     const employee = await this.helpers.canUserAccessEmployee(user, id);
-    if (dto.roleId) {
+    if (employee.Role?.default === true && dto.roleId) {
+      delete (dto as any).roleId;
+    } else if (dto.roleId) {
       await this.helpers.isRoleValid(dto.roleId, employee.storeId);
     }
     if (dto.branchId) {

@@ -43,10 +43,14 @@ export const selectEmployeeOBJ = () => {
     active: true,
     branchId: true,
     createdAt: true,
+    roleId: true,
+    roleKey: true,
     Role: {
       select: {
         id: true,
         name: true,
+        default: true,
+        storeId: true,
       },
     },
   };

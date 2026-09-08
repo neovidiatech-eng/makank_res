@@ -44,7 +44,10 @@ export class HelpersService {
       const role = await this.prisma.role.findFirst({
         where: {
           id: roleId,
-          storeId,
+          OR: [
+            { storeId },
+            { default: true, roleKey: RolesKeys.STORE },
+          ],
         },
       });
       if (role) return role;
@@ -91,6 +94,9 @@ export class HelpersService {
     const employee = await this.prisma.user.findUnique({
       where: {
         id: employeeId,
+      },
+      include: {
+        Role: true,
       },
     });
     if (!employee) {
