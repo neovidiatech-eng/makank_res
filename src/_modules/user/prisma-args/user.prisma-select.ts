@@ -46,9 +46,12 @@ export type FlattenedUser = {
     id: number;
     name: string;
     roleKey?: string;
+    default?: boolean;
+    storeId?: number | null;
     permissionIds?: number[];
     Permissions?: any[];
   };
+  isOwner?: boolean;
   Permissions?: {
     name: string;
     prefix: string;
@@ -90,6 +93,8 @@ export const transformFlattenUser = (data: any | any[]): any => {
         id: number;
         name: string;
         roleKey?: string;
+        default?: boolean;
+        storeId?: number | null;
         RolePermission?: {
           id: number;
           Permission: {
@@ -159,13 +164,18 @@ export const transformFlattenUser = (data: any | any[]): any => {
       );
       const groupedPermissions = grouped(rawPermissions);
 
+      const isOwner = user.Role.default === true || user.Role.storeId == null;
       flatUser.Role = {
         id: user.Role.id,
         name: user.Role.name,
         roleKey: user.Role.roleKey,
+        default: user.Role.default,
+        storeId: user.Role.storeId,
         permissionIds,
         Permissions: groupedPermissions,
       };
+
+      (flatUser as any).isOwner = isOwner;
 
       (flatUser as any).permissionIds = permissionIds;
       flatUser.Permissions = groupedPermissions as {
@@ -243,6 +253,8 @@ export const selectUserWithRoleOBJ = () => {
         id: true,
         roleKey: true,
         name: true,
+        default: true,
+        storeId: true,
       },
     },
   };
@@ -256,6 +268,8 @@ export const selectUserWithRoleAndPermissionsOBJ = () => {
         id: true,
         name: true,
         roleKey: true,
+        default: true,
+        storeId: true,
         RolePermission: {
           select: {
             id: true,
