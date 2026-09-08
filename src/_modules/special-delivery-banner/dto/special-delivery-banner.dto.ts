@@ -112,6 +112,7 @@ export class CreateSpecialDeliveryBannerDTO {
     description: 'Required when targetType is EXTERNAL_URL.',
   })
   @ValidateString()
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
   clickUrl?: string;
 
   @Optional()

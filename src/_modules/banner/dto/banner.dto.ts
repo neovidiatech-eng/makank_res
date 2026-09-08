@@ -117,6 +117,7 @@ export class CreateBannerDTO {
     description: 'Optional external URL to open when banner is clicked.',
   })
   @ValidateString()
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
   clickUrl?: string;
 
   @Optional()
