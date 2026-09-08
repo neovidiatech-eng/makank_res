@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -109,12 +110,16 @@ export class ServiceModuleController {
   async create(
     @Res() res: Response,
     @Body() body: CreateServiceDTO,
-    @CurrentUser('Role') role: CurrentUser['Role'],
+    @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_create_products');
+    }
+
     // Product moderation removed per product decision — a store's own product
     // goes live immediately, no admin review queue. Admin can still set an
     // explicit status on create if they want; every other caller gets ACTIVE.
-    if (role?.roleKey !== RolesKeys.ADMIN) {
+    if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
       body.status = ServiceStatus.ACTIVE;
     }
     await this.service.create(body);
@@ -145,6 +150,17 @@ export class ServiceModuleController {
     @Param() { id }: RequiredIdParam,
     @CurrentUser() user: CurrentUser,
   ) {
+    // Staff role is strictly restricted to toggling product availability
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      const allowedKeys = new Set(['available', 'id', 'storeId']);
+      const hasRestrictedModifications = Object.keys(body).some(
+        (k) => !allowedKeys.has(k) && (body as any)[k] !== undefined,
+      );
+      if (hasRestrictedModifications) {
+        throw new ForbiddenException('staff_can_only_toggle_product_availability');
+      }
+    }
+
     await this.service.update(id, body, user);
     return this.response.created(res, 'service updated successfully');
   }
@@ -157,7 +173,15 @@ export class ServiceModuleController {
     ownerFieldName: 'storeId',
   })
   @ApiRequiredIdParam('id')
-  async delete(@Res() res: Response, @Param() { id }: RequiredIdParam) {
+  async delete(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_delete_products');
+    }
+
     await this.service.delete(id);
     return this.response.created(res, 'service deleted successfully');
   }

@@ -112,7 +112,7 @@ export class AdminNotificationService {
     switch (targetType) {
       case TargetType.ALL:
         return this.prisma.user.findMany({
-          where: { ...safety },
+          where: { ...safety, roleKey: { not: RolesKeys.STORE } },
           select: { id: true },
         });
       case TargetType.CUSTOMER:

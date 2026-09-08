@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -10,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { AttachStoreId } from 'src/decorators/api/attachStoreIdInterceptor.decorator';
 import {
   ApiOptionalIdParam,
@@ -62,7 +64,11 @@ export class EmployeeController {
   async getAll(
     @Res() res: Response,
     @Filter({ dto: FilterEmployeeDTO }) filters: FilterEmployeeDTO,
+    @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_access_employees');
+    }
     const Employees = await this.service.getAll(filters);
     const total = isOne(filters?.id)
       ? undefined
@@ -78,7 +84,14 @@ export class EmployeeController {
   }
   @Post('/')
   @AttachStoreId()
-  async create(@Res() res: Response, @Body() dto: CreateEmployeeDTO) {
+  async create(
+    @Res() res: Response,
+    @Body() dto: CreateEmployeeDTO,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_access_employees');
+    }
     await this.service.create(dto);
     return this.response.success(res, 'employee created successfully');
   }
@@ -90,6 +103,9 @@ export class EmployeeController {
     @Body() dto: UpdateEmployeeDTO,
     @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_access_employees');
+    }
     await this.service.update(id, dto, user);
     return this.response.success(res, 'Employee updated successfully');
   }
@@ -100,6 +116,9 @@ export class EmployeeController {
     @Param('id') id: Id,
     @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_access_employees');
+    }
     await this.service.delete(+id, user);
     return this.response.success(res, 'Employee deleted successfully');
   }

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -11,6 +12,7 @@ import {
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { CurrentUser } from 'src/_modules/authentication/decorators/current-user.decorator';
+import { RolesKeys } from '../providers/roles';
 import {
   ApiOptionalIdParam,
   ApiRequiredIdParam,
@@ -76,6 +78,9 @@ export class RoleController {
     @Body() dto: UpdateRoleDTO,
     @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_manage_roles');
+    }
     await this.service.update(id, dto, user);
     return this.responses.success(res, 'Role updated successfully');
   }
@@ -87,6 +92,9 @@ export class RoleController {
     @Param() { id }: RequiredIdParam,
     @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_manage_roles');
+    }
     await this.service.delete(id, user);
     return this.responses.success(res, 'Role deleted successfully');
   }
@@ -97,6 +105,9 @@ export class RoleController {
     @Body() dto: CreateRoleDTO,
     @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_manage_roles');
+    }
     await this.service.post(dto, user);
     return this.responses.created(res, 'Create role successfully');
   }

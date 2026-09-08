@@ -8,7 +8,6 @@ const PREFIX_ALIASES: Record<string, string[]> = {
     'orders/statistics',
     'statistics',
     'statistics/store',
-    'orders',
     'wallet',
   ],
   'statistics/store': [
@@ -39,7 +38,7 @@ const PREFIX_ALIASES: Record<string, string[]> = {
   bundles: ['bundles', 'services', 'categories'],
   'variation-templates': ['variation-templates', 'services'],
 
-  orders: ['orders', 'orders/statistics'],
+  orders: ['orders'],
   employees: ['employees', 'roles'],
   roles: ['roles', 'employees'],
   stores: ['stores', 'branches', 'schedule'],

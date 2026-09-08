@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Post, Res } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Post, Res } from '@nestjs/common';
 import { ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
+import { CurrentUser } from 'src/_modules/authentication/decorators/current-user.decorator';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { AttachStoreId } from 'src/decorators/api/attachStoreIdInterceptor.decorator';
 import { Filter } from 'src/decorators/param/filter.decorator';
 import { ResponseService } from 'src/globals/services/response.service';
@@ -59,7 +61,12 @@ export class StatisticsController {
   async findStoreStatistics(
     @Res() res: Response,
     @Filter({ dto: FilterStatisticsDTO }) filters: FilterStatisticsDTO,
+    @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('only_store_admin_can_view_store_statistics');
+    }
+
     const data = await this.service.getStoreDashboard(filters.storeId);
 
     return this.response.success(
@@ -78,7 +85,12 @@ export class StatisticsController {
   async findStoreSalesAnalytics(
     @Res() res: Response,
     @Filter({ dto: FilterStatisticsDTO }) filters: FilterStatisticsDTO,
+    @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('only_store_admin_can_view_sales_analytics');
+    }
+
     const data = await this.service.getSalesAnalytics(
       filters.storeId,
       filters.fromDate,
@@ -100,7 +112,12 @@ export class StatisticsController {
   async findStoreEmployeePerformance(
     @Res() res: Response,
     @Filter({ dto: FilterStatisticsDTO }) filters: FilterStatisticsDTO,
+    @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('only_store_admin_can_view_employee_performance');
+    }
+
     const data = await this.service.getEmployeePerformance(
       filters.storeId,
       filters.fromDate,
@@ -129,7 +146,15 @@ export class StatisticsController {
   @Post('/store/reset-period')
   @Auth({ prefix: `${prefix}/store` })
   @AttachStoreId()
-  async resetStorePeriod(@Res() res: Response, @Body() body: { storeId: Id }) {
+  async resetStorePeriod(
+    @Res() res: Response,
+    @Body() body: { storeId: Id },
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('only_store_admin_can_reset_period');
+    }
+
     const data = await this.service.resetStorePeriod(body.storeId);
     return this.response.success(
       res,

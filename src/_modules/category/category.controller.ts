@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -11,6 +12,8 @@ import {
 import { ApiOkResponse, ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from 'src/_modules/authentication/decorators/auth.decorator';
+import { CurrentUser } from 'src/_modules/authentication/decorators/current-user.decorator';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import {
   ApiOptionalIdParam,
   ApiRequiredIdParam,
@@ -49,7 +52,14 @@ export class CategoryController {
     storeIdOptionalForManagementUser: true,
   })
   @UploadFile('image', 'image')
-  async create(@Res() res: Response, @Body() body: CreateCategoryDTO) {
+  async create(
+    @Res() res: Response,
+    @Body() body: CreateCategoryDTO,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_manage_categories');
+    }
     await this.service.create(body);
     return this.response.created(res, 'category created successfully');
   }
@@ -69,7 +79,11 @@ export class CategoryController {
     @Res() res: Response,
     @Param() { id }: RequiredIdParam,
     @Body() body: UpdateCategoryDTO,
+    @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_manage_categories');
+    }
     await this.service.update(id, body);
     return this.response.created(res, 'category updated successfully');
   }
@@ -119,7 +133,14 @@ export class CategoryController {
     ownerCurrentUserField: 'storeId',
     ownerFieldName: 'storeId',
   })
-  async delete(@Res() res: Response, @Param() { id }: RequiredIdParam) {
+  async delete(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (user?.Role?.roleKey === RolesKeys.STORE && user?.Role?.default !== true) {
+      throw new ForbiddenException('staff_cannot_manage_categories');
+    }
     await this.service.delete(id);
     return this.response.success(res, 'delete category successfully');
   }
