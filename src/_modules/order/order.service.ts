@@ -3786,9 +3786,17 @@ export class OrderService {
           lng: null,
           details: null,
           adress: null,
+          zone: null,
+          zoneId: null,
           title: 'موقع العميل (مخفي حتى الاستلام)',
         };
       }
+      order.zone = null;
+      order.zoneId = null;
+      order.Zone = null;
+      order.customerSelectedZone = null;
+      order.customerSelectedZoneId = null;
+      order.CustomerSelectedZone = null;
       order.deliveryLat = null;
       order.deliveryLng = null;
       order.note = null;

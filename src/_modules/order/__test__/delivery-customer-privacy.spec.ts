@@ -62,6 +62,8 @@ describe('OrderService.sanitizeOrderForDelivery', () => {
     expect(result.Address.lng).toBeNull();
     expect(result.Address.adress).toBeNull();
     expect(result.Address.details).toBeNull();
+    expect(result.Address.zone).toBeNull();
+    expect(result.Zone).toBeNull();
 
     expect(result.deliveryLat).toBeNull();
     expect(result.deliveryLng).toBeNull();
