@@ -14,6 +14,7 @@ import {
   CreateTemplateCategoryDTO,
   FilterStoreTemplateDTO,
   FilterTemplateCategoryDTO,
+  ReorderTemplateStoresDTO,
   TemplateCategoryDTO,
   TemplateServiceDTO,
   UpdateStoreTemplateDTO,
@@ -166,6 +167,7 @@ export class StoreTemplateService {
     tx: Prisma.TransactionClient,
     storeId: number,
     templateId: number,
+    order = 0,
   ) {
     const template = await tx.storeTemplate.findFirst({
       where: { id: templateId, active: true, deletedAt: null },
@@ -199,7 +201,9 @@ export class StoreTemplateService {
       });
     }
 
-    await tx.storeTemplateApplication.create({ data: { storeId, templateId } });
+    await tx.storeTemplateApplication.create({
+      data: { storeId, templateId, order },
+    });
 
     // Recompute store min price. Uses updateMany (not update): when this runs as
     // part of store creation, `storeId` was just created in this same open
@@ -219,7 +223,7 @@ export class StoreTemplateService {
   }
 
   async applyToStore(storeId: number, dto: ApplyTemplateDTO) {
-    const { templateId } = dto;
+    const { templateId, order } = dto;
 
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
@@ -235,7 +239,7 @@ export class StoreTemplateService {
 
     try {
       await this.prisma.$transaction((tx) =>
-        this.applyTemplateWithinTx(tx, storeId, templateId),
+        this.applyTemplateWithinTx(tx, storeId, templateId, order ?? 0),
       );
     } catch (e) {
       if (
@@ -246,6 +250,91 @@ export class StoreTemplateService {
       }
       throw e;
     }
+  }
+
+  async getTemplateStores(templateId: Id) {
+    const template = await this.prisma.storeTemplate.findUnique({
+      where: { id: templateId },
+    });
+    if (!template) throw new NotFoundException('Template not found');
+
+    const applications = await this.prisma.storeTemplateApplication.findMany({
+      where: { templateId },
+      include: {
+        store: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            cover: true,
+            cityId: true,
+            city: { select: { id: true, name: true } },
+            branches: {
+              where: { isMainBranch: true },
+              take: 1,
+              select: {
+                id: true,
+                address: true,
+                phone: true,
+                isActive: true,
+                closed: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Sort stores: order > 0 comes first ascending (1, 2, 3...), order === 0 comes at the end
+    applications.sort((a, b) => {
+      const rankA = a.order > 0 ? a.order : Number.MAX_SAFE_INTEGER;
+      const rankB = b.order > 0 ? b.order : Number.MAX_SAFE_INTEGER;
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+      return a.storeId - b.storeId;
+    });
+
+    return applications.map((app) => ({
+      id: app.id,
+      storeId: app.storeId,
+      templateId: app.templateId,
+      order: app.order,
+      appliedAt: app.appliedAt,
+      store: {
+        id: app.store.id,
+        name: app.store.name,
+        logo: app.store.logo,
+        cover: app.store.cover,
+        cityId: app.store.cityId,
+        cityName: app.store.city?.name ?? null,
+        branch: app.store.branches?.[0] ?? null,
+      },
+    }));
+  }
+
+  async reorderTemplateStores(
+    templateId: Id,
+    dto: ReorderTemplateStoresDTO,
+  ) {
+    const template = await this.prisma.storeTemplate.findUnique({
+      where: { id: templateId },
+    });
+    if (!template) throw new NotFoundException('Template not found');
+
+    await this.prisma.$transaction(
+      dto.orders.map((item) =>
+        this.prisma.storeTemplateApplication.updateMany({
+          where: {
+            templateId,
+            storeId: item.storeId,
+          },
+          data: {
+            order: item.order,
+          },
+        }),
+      ),
+    );
   }
 
   async listTemplateCategories(filters: FilterTemplateCategoryDTO) {

@@ -114,6 +114,7 @@ export class StoreService {
         tx,
         store.id,
         templateId,
+        storeData.storeOrder ?? 0,
       );
 
       const user = await this.helpersService.createUser(
@@ -433,13 +434,14 @@ export class StoreService {
       this.getNearestStoresIfNeeded(filters, isVisitor),
     ]);
 
+    const shouldDeferPagination = shouldUseNearest || !!filters?.templateId;
     const args = getStoreArgs(
       filters,
       languages,
       stores,
       shouldUseNearest,
       enforceVisible,
-      shouldUseNearest,
+      shouldDeferPagination,
       resolvedCityId,
     );
     // Only the store detail/profile view (single-id fetch) embeds active bundles.
@@ -737,8 +739,17 @@ export class StoreService {
           }
         }
 
+        const templateApp = filters?.templateId
+          ? store.TemplateApplications?.find(
+              (ta: any) => ta.templateId === Number(filters.templateId),
+            )
+          : null;
+        const templateOrder = templateApp?.order ?? 0;
+
         const response = {
           ...storeRest,
+          templateOrder,
+          order: templateOrder,
           branchId: branchData.branchId || branchData.id,
           address: branchData.address,
           lat: branchData.lat,
@@ -772,21 +783,46 @@ export class StoreService {
       }),
     );
 
-    // Customer/visitor browse listing: push busy/closed stores below open
-    // ones. Whether a branch is genuinely open right now depends on live
-    // status/busyUntil (computed into `response.status`/`response.closed`
-    // just above), not a plain sortable DB column, so this can only be done
-    // here in JS — and it must run on the FULL matching set, not one page.
-    // Pagination for this path was deliberately skipped in getStoreArgs
-    // (deferPagination) and is applied here instead, AFTER the sort: doing
-    // it the normal way (DB-level LIMIT/OFFSET before this point) would
-    // lock in page boundaries before open/busy/closed is even known, and
-    // could strand an open store on page 2 behind a closed one holding a
-    // page-1 slot.
-    if (shouldUseNearest) {
+    // Customer/visitor browse listing or template listing:
+    // 1. Push busy/closed stores below open ones.
+    // 2. Sort by template section order (if templateId provided) or storeOrder.
+    //    Stores with explicit order (> 0) come first ascending (1, 2, 3...),
+    //    and unranked stores (order = 0) come after.
+    // 3. Pagination is applied after sorting.
+    if (shouldUseNearest || filters?.templateId) {
       const openTier = (store: any) =>
         store.status === 'BUSY' || store.closed ? 1 : 0;
-      processedData.sort((a, b) => openTier(a) - openTier(b));
+
+      processedData.sort((a, b) => {
+        if (shouldUseNearest) {
+          const tierDiff = openTier(a) - openTier(b);
+          if (tierDiff !== 0) return tierDiff;
+        }
+
+        if (filters?.templateId) {
+          const orderA = a.templateOrder ?? 0;
+          const orderB = b.templateOrder ?? 0;
+          const rankA = orderA > 0 ? orderA : Number.MAX_SAFE_INTEGER;
+          const rankB = orderB > 0 ? orderB : Number.MAX_SAFE_INTEGER;
+          if (rankA !== rankB) {
+            return rankA - rankB;
+          }
+        } else if (shouldUseNearest) {
+          const orderA =
+            a.storeOrder != null && a.storeOrder > 0
+              ? a.storeOrder
+              : Number.MAX_SAFE_INTEGER;
+          const orderB =
+            b.storeOrder != null && b.storeOrder > 0
+              ? b.storeOrder
+              : Number.MAX_SAFE_INTEGER;
+          if (orderA !== orderB) {
+            return orderA - orderB;
+          }
+        }
+
+        return (a.id ?? 0) - (b.id ?? 0);
+      });
 
       const pagination = paginationParams({
         page: filters?.page,

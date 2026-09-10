@@ -26,6 +26,7 @@ import {
   CreateTemplateCategoryDTO,
   FilterStoreTemplateDTO,
   FilterTemplateCategoryDTO,
+  ReorderTemplateStoresDTO,
   UpdateStoreTemplateDTO,
   UpdateTemplateCategoryDTO,
 } from './dto/store-template.dto';
@@ -145,6 +146,36 @@ export class StoreTemplateController {
   async delete(@Res() res: Response, @Param() { id }: RequiredIdParam) {
     await this.service.delete(id);
     return this.response.success(res, 'Store template deleted successfully');
+  }
+
+  @Get('/:id/stores')
+  @Auth({ prefix })
+  @ApiRequiredIdParam()
+  async getTemplateStores(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+  ) {
+    const data = await this.service.getTemplateStores(id);
+    return this.response.success(
+      res,
+      'Template stores fetched successfully',
+      data,
+    );
+  }
+
+  @Patch('/:id/stores/order')
+  @Auth({ prefix })
+  @ApiRequiredIdParam()
+  async reorderTemplateStores(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() body: ReorderTemplateStoresDTO,
+  ) {
+    await this.service.reorderTemplateStores(id, body);
+    return this.response.success(
+      res,
+      'Template stores reordered successfully',
+    );
   }
 
   @Get(['/', '/:id'])

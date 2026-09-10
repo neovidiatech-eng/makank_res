@@ -158,6 +158,26 @@ export class ApplyTemplateDTO {
   @Required()
   @ValidateNumber()
   templateId: number;
+
+  @Optional()
+  @ValidateNumber()
+  order?: number;
+}
+
+export class UpdateTemplateStoreOrderItemDTO {
+  @Required()
+  @ValidateNumber()
+  storeId: number;
+
+  @Required()
+  @ValidateNumber()
+  order: number;
+}
+
+export class ReorderTemplateStoresDTO {
+  @Required({ type: UpdateTemplateStoreOrderItemDTO, isArray: true })
+  @ValidateObject(UpdateTemplateStoreOrderItemDTO, true)
+  orders: UpdateTemplateStoreOrderItemDTO[];
 }
 
 export class SortStoreTemplateDTO {

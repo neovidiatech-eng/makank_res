@@ -79,6 +79,7 @@ model StoreTemplateApplication {
   id         Int           @id @default(autoincrement())
   storeId    Int           @map("store_id")
   templateId Int           @map("template_id")
+  order      Int           @default(0)
   appliedAt  DateTime      @default(now()) @map("applied_at")
   store      Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   template   StoreTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)

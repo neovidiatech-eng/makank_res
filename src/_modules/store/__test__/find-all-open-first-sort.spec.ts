@@ -28,6 +28,7 @@ const buildService = (storeRows: any[]) => {
   const prisma = {
     store: { findMany: jest.fn().mockResolvedValue(storeRows) },
     coupon: { findMany: jest.fn().mockResolvedValue([]) },
+    service: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const nearestService = { getNearestStores: jest.fn().mockResolvedValue([]) };
   const Language = { getCashedLanguages: jest.fn().mockResolvedValue([]) };

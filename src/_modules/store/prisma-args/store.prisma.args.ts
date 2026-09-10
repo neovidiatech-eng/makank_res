@@ -224,6 +224,12 @@ export const selectStoreOBJ = (includeBundles = false) => {
     commission: true,
     commissionType: true,
     storeOrder: true,
+    TemplateApplications: {
+      select: {
+        templateId: true,
+        order: true,
+      },
+    },
     prepTimeMinutes: true,
     deliveryTimeMinMinutes: true,
     deliveryTimeMaxMinutes: true,
