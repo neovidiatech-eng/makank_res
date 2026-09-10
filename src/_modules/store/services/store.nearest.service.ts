@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/globals/services/prisma.service';
+import { resolveCityForPoint } from 'src/globals/helpers/resolve-city-for-point.helper';
 import { FilterStoreDTO } from '../dto/store.dto';
 @Injectable()
 export class StoreNearestService {
@@ -101,7 +102,7 @@ export class StoreNearestService {
 
     const customerId = filter?.customerId || 0;
 
-    const result = await this.prisma.$queryRawUnsafe<any>(
+    let results = await this.prisma.$queryRawUnsafe<any>(
       `
     WITH branch_distances AS (
       SELECT
@@ -120,6 +121,7 @@ export class StoreNearestService {
         b.busy_until                  AS busyUntil,
         b.status_reason               AS statusReason,
         s.is_verified                 AS isVerified,
+        s.city_id                     AS cityId,
         (SELECT COUNT(*) FROM favorite_store fs
          WHERE fs.branch_id = b.id AND fs.customer_id = ?) > 0 AS isAddedToFavorite,
         (
@@ -149,7 +151,7 @@ export class StoreNearestService {
     )
     SELECT branchId, id, name, lat, lng, address, phone, rating, review,
            closed, temporarilyClosed, status, busyUntil, statusReason, isVerified,
-           isAddedToFavorite, distance
+           cityId, isAddedToFavorite, distance
     FROM nearest
     WHERE rn = 1
     ORDER BY distance ASC
@@ -167,6 +169,18 @@ export class StoreNearestService {
       radiusKm,
       limit,
     );
-    return result;
+
+    // City isolation: when a cityId is resolved, exclude stores that belong
+    // to a different city. Stores with cityId = null remain visible everywhere
+    // (backward-compat for stores not yet backfilled).
+    const resolvedCity = await resolveCityForPoint(this.prisma, userLat, userLng);
+    const resolvedCityId = resolvedCity?.id ?? null;
+    if (resolvedCityId != null) {
+      results = results.filter(
+        (s: any) => s.cityId == null || s.cityId === resolvedCityId,
+      );
+    }
+
+    return results;
   }
 }

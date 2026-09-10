@@ -39,7 +39,11 @@ export class AssignmentService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { Branch: true, Address: true },
+      include: {
+        Branch: { include: { Store: true } },
+        Address: true,
+        Zone: true,
+      },
     });
 
     if (!order) return;
@@ -60,27 +64,41 @@ export class AssignmentService {
       return;
     }
 
+    // Resolve the order's city from the branch store or the resolved zone.
+    // Used to prefer drivers in the same city; falls back to the global pool
+    // when no city can be resolved so single-city deployments are unaffected.
+    const orderCityId: number | null =
+      order.Branch?.Store?.cityId ?? order.Zone?.cityId ?? null;
+
+    let cityBounds: { lat: number | null; lng: number | null; radius: number | null } | null = null;
+    if (orderCityId != null) {
+      cityBounds = await this.prisma.city.findUnique({
+        where: { id: orderCityId },
+        select: { lat: true, lng: true, radius: true },
+      });
+    }
+
+    // Degree delta for the city radius (1 degree ≈ 111 km).
+    const delta = cityBounds?.radius != null ? cityBounds.radius / 111 : null;
+
     // Find deliveries who are:
     // 1. Available now (set by Cron based on schedule)
     // 2. User account is active
-    // 3. Admin has manually verified them (see UpdateDeliveryDTO.verified —
-    //    no longer set automatically by the driver's own OTP verification)
+    // 3. Admin has manually verified them
     // 4. Don't have an active order already
     // 5. Don't have another pending assignment awaiting response
-
+    // 6. (When resolvable) Located within the order's city bounds
     const deliveries = await this.prisma.deliveryDetails.findMany({
       where: {
-        //back again
         availableNow: true,
         User: {
           active: true,
           verified: true,
         },
-        // Skip drivers who just let this order lapse (avoids bouncing it back to them).
+        // Skip drivers who just let this order lapse.
         ...(excludeDeliveryIds.length
           ? { userId: { notIn: excludeDeliveryIds } }
           : {}),
-
         Assignments: {
           none: {
             status: AssignmentStatus.PENDING,
@@ -89,6 +107,15 @@ export class AssignmentService {
             },
           },
         },
+        // City-scoped filter: only include drivers whose last-known position
+        // falls within the order city's bounding box. When no city can be
+        // resolved the filter is omitted so the legacy global pool is used.
+        ...(delta != null && cityBounds?.lat != null && cityBounds?.lng != null
+          ? {
+              lat: { gte: cityBounds.lat - delta, lte: cityBounds.lat + delta },
+              lng: { gte: cityBounds.lng - delta, lte: cityBounds.lng + delta },
+            }
+          : {}),
       },
     });
     console.log(deliveries);
@@ -99,6 +126,7 @@ export class AssignmentService {
       );
       return;
     }
+
 
     // Sort by distance
     const sortedDeliveries = deliveries.sort((a, b) => {

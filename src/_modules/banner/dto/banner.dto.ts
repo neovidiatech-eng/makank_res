@@ -214,5 +214,9 @@ export class FilterBannerDTO extends PaginationParamsDTO {
   active?: boolean;
 
   @Optional()
+  @ValidateNumber({ allowNegative: false })
+  zoneId?: number;
+
+  @Optional()
   orderBy?: SortBannerDTO[];
 }

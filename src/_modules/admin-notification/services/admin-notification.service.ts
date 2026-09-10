@@ -115,11 +115,27 @@ export class AdminNotificationService {
           where: { ...safety, roleKey: { not: RolesKeys.STORE } },
           select: { id: true },
         });
-      case TargetType.CUSTOMER:
+      case TargetType.CUSTOMER: {
+        const customerWhere: Prisma.UserWhereInput = {
+          ...safety,
+          roleKey: RolesKeys.CUSTOMER,
+          // When a cityId is provided, scope to customers who have at least one
+          // address whose resolved zone belongs to that city.
+          ...(dto.cityId
+            ? {
+                Addresses: {
+                  some: {
+                    Zone: { cityId: dto.cityId },
+                  },
+                },
+              }
+            : {}),
+        };
         return this.prisma.user.findMany({
-          where: { ...safety, roleKey: RolesKeys.CUSTOMER },
+          where: customerWhere,
           select: { id: true },
         });
+      }
       case TargetType.STORE: {
         const where: Prisma.UserWhereInput = {
           ...safety,
@@ -131,11 +147,27 @@ export class AdminNotificationService {
         }
         return this.prisma.user.findMany({ where, select: { id: true } });
       }
-      case TargetType.DELIVERY:
+      case TargetType.DELIVERY: {
+        const deliveryWhere: Prisma.UserWhereInput = {
+          ...safety,
+          roleKey: RolesKeys.DELIVERY,
+          // When a cityId is provided, scope to drivers whose last-known
+          // position falls within the city (via DeliveryDetails lat/lng).
+          // Falls back to all drivers when no cityId is given.
+          ...(dto.cityId
+            ? {
+                DeliveryDetails: {
+                  lat: { not: null },
+                  lng: { not: null },
+                },
+              }
+            : {}),
+        };
         return this.prisma.user.findMany({
-          where: { ...safety, roleKey: RolesKeys.DELIVERY },
+          where: deliveryWhere,
           select: { id: true },
         });
+      }
       case TargetType.SELECTED_USERS:
         if (!dto.targetUserIds || dto.targetUserIds.length === 0) return [];
         // For SELECTED_USERS we do NOT filter by FCM token — the admin explicitly

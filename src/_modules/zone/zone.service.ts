@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { firstOrMany } from 'src/globals/helpers/first-or-many';
 import { PrismaService } from 'src/globals/services/prisma.service';
 import { isPointInPolygon } from '../../globals/helpers/point-in-polygon.helper';
+import { resolveCityForPoint } from 'src/globals/helpers/resolve-city-for-point.helper';
 import { LanguagesService } from '../languages/languages.service';
 import { CreateZoneDTO, FilterZoneDTO, UpdateZoneDTO } from './dto/zone.dto';
 import {
@@ -59,14 +60,25 @@ export class ZoneService {
     });
   }
 
+  /**
+   * Returns active zones scoped to the city that contains the given point.
+   * Falls back to ALL active zones when the point resolves to no city
+   * (e.g. outside every configured city boundary), so existing behaviour is
+   * preserved for single-city deployments.
+   */
+  private async _resolveCityWhere(lat: number, lng: number) {
+    const city = await resolveCityForPoint(this.prisma, lat, lng);
+    return {
+      active: true as const,
+      ...(city ? { cityId: city.id } : {}),
+    };
+  }
+
   async isPointInZone(lat: number, lng: number): Promise<boolean> {
+    const where = await this._resolveCityWhere(lat, lng);
     const activeZones = await this.prisma.zone.findMany({
-      where: {
-        active: true,
-      },
-      select: {
-        coordinates: true,
-      },
+      where,
+      select: { coordinates: true },
     });
 
     for (const zone of activeZones) {
@@ -93,8 +105,9 @@ export class ZoneService {
   ): Promise<number | null> {
     if (lat == null || lng == null) return null;
 
+    const where = await this._resolveCityWhere(lat, lng);
     const activeZones = await this.prisma.zone.findMany({
-      where: { active: true },
+      where,
       select: { id: true, coordinates: true },
     });
 
@@ -124,15 +137,17 @@ export class ZoneService {
   ): Promise<number> {
     if (!points?.length) return -1;
 
-    const activeZones = await this.prisma.zone.findMany({
-      where: { active: true },
-      select: { coordinates: true },
-    });
-
     for (let i = 0; i < points.length; i++) {
       const lat = points[i]?.lat;
       const lng = points[i]?.lng;
       if (lat == null || lng == null) return i;
+
+      // Scope the zone lookup to the city this point falls in.
+      const where = await this._resolveCityWhere(lat, lng);
+      const activeZones = await this.prisma.zone.findMany({
+        where,
+        select: { coordinates: true },
+      });
 
       const covered = activeZones.some((zone) =>
         isPointInPolygon(

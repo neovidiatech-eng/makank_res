@@ -192,4 +192,17 @@ export class CreateAdminNotificationDto {
   // with the resolved server path, same convention as Campaign's image field.
   @OptionalFile()
   image?: string;
+
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description:
+      'When set, restricts the audience to users associated with this city. ' +
+      'For CUSTOMER: customers with at least one address in a zone of this city. ' +
+      'For DELIVERY: drivers who have GPS coordinates on record.',
+  })
+  @Transform(transformOptionalInt)
+  @IsOptional()
+  @IsInt()
+  cityId?: number;
 }

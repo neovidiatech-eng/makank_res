@@ -37,6 +37,19 @@ export const getBannerArgs = (
   if (isCustomer) {
     searchArray.push({ active: true });
     searchArray.push(scheduleWindow(new Date()));
+    // Zone targeting: when the customer's resolved zone is provided, show only
+    // banners that (a) are targeted to that zone OR (b) have no zone targeting
+    // (global banners visible everywhere). When no zoneId is provided the filter
+    // is omitted so all active banners remain visible (single-city / GPS-off).
+    // NOTE: The Prisma relation on Banner is `Zones` (→ BannerZone[]).
+    if (query.zoneId) {
+      searchArray.push({
+        OR: [
+          { Zones: { some: { zoneId: Number(query.zoneId) } } },
+          { Zones: { none: {} } },
+        ],
+      });
+    }
   }
 
   // Explicit `order` (ascending) drives display order. Customers get a random
