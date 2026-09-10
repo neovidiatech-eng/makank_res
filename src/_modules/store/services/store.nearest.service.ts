@@ -121,7 +121,7 @@ export class StoreNearestService {
         b.busy_until                  AS busyUntil,
         b.status_reason               AS statusReason,
         s.is_verified                 AS isVerified,
-        s.city_id                     AS cityId,
+        s.cityId                      AS cityId,
         (SELECT COUNT(*) FROM favorite_store fs
          WHERE fs.branch_id = b.id AND fs.customer_id = ?) > 0 AS isAddedToFavorite,
         (
