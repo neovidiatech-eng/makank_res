@@ -2418,8 +2418,18 @@ export class OrderService {
         if (stop.lat != null && stop.lng != null) {
           return stop as T & { lat: number; lng: number };
         }
-        const centroid = await this.zoneService.getZoneCentroid(stop.zoneId);
-        return { ...stop, lat: centroid.lat, lng: centroid.lng };
+        // Stop has no explicit lat/lng — try to derive them from the zone centroid.
+        // Some zones (e.g. city-level zones) have a deliveryPrice but no polygon
+        // coordinates. In that case getZoneCentroid throws, so we catch it and
+        // surface a clear message telling the customer to pin their location.
+        try {
+          const centroid = await this.zoneService.getZoneCentroid(stop.zoneId);
+          return { ...stop, lat: centroid.lat, lng: centroid.lng };
+        } catch {
+          throw new BadRequestException(
+            'يرجى تحديد موقعك على الخريطة لأن المنطقة المختارة لا تحتوي على إحداثيات',
+          );
+        }
       }),
     );
   }

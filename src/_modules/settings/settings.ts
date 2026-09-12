@@ -371,6 +371,19 @@ export const settingTypes = [
     value: '0',
     type: DataType.NUMBER,
   },
+  // Global on/off switch for zone-based delivery pricing across ALL stores and
+  // restaurants inside the app. When true (default), the pricing waterfall
+  // checks zone prices (per-store then app-wide) before falling back to the
+  // km formula. When false, zone prices are ignored entirely for every store
+  // and the km formula is always used — useful for temporarily disabling zone
+  // pricing without touching individual store or zone records.
+  // Custom Delivery pricing is NEVER affected by this toggle.
+  {
+    setting: 'globalZonePricingEnabled',
+    domain: SettingDomain.ORDER,
+    value: 'true',
+    type: DataType.BOOLEAN,
+  },
 ] as const satisfies readonly Setting[];
 
 export const SettingKeys = settingTypes.map((s) => s.setting);

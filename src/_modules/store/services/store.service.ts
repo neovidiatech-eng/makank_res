@@ -821,7 +821,14 @@ export class StoreService {
           }
         }
 
-        return (a.id ?? 0) - (b.id ?? 0);
+        // Final tiebreaker: sort by distance (nearest first).
+        // Fall back to storeOrder for stores without coordinates.
+        const distA = a.distance ?? Number.MAX_SAFE_INTEGER;
+        const distB = b.distance ?? Number.MAX_SAFE_INTEGER;
+        if (distA !== distB) return distA - distB;
+        const soA = a.storeOrder != null && a.storeOrder > 0 ? a.storeOrder : Number.MAX_SAFE_INTEGER;
+        const soB = b.storeOrder != null && b.storeOrder > 0 ? b.storeOrder : Number.MAX_SAFE_INTEGER;
+        return soA - soB;
       });
 
       const pagination = paginationParams({

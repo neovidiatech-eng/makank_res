@@ -567,51 +567,60 @@ export class HelpersService {
       return 0;
     }
 
-    // Product decision: the zone the customer explicitly picked from the
-    // dropdown (customerSelectedZoneId) takes priority for pricing over the
-    // real, GPS/address-resolved zone — the opposite of every other
-    // "reference-only" zoneId in the app. Only falls through to the resolved
-    // zone / km-formula when the selected zone has no price of its own.
-    if (customerSelectedZoneId != null) {
-      const selectedStoreZonePrice =
-        await this.zoneService.getStoreZoneDeliveryPrice(
-          branch.storeId,
+    // Global zone-pricing toggle: when the admin disables this, ALL zone-based
+    // pricing is skipped for every store/restaurant order — we fall straight
+    // through to the km formula below. Custom-delivery pricing is unaffected.
+    const { globalZonePricingEnabled } = await this.settingService.getSettings([
+      'globalZonePricingEnabled',
+    ]);
+
+    if (globalZonePricingEnabled !== false) {
+      // Product decision: the zone the customer explicitly picked from the
+      // dropdown (customerSelectedZoneId) takes priority for pricing over the
+      // real, GPS/address-resolved zone — the opposite of every other
+      // "reference-only" zoneId in the app. Only falls through to the resolved
+      // zone / km-formula when the selected zone has no price of its own.
+      if (customerSelectedZoneId != null) {
+        const selectedStoreZonePrice =
+          await this.zoneService.getStoreZoneDeliveryPrice(
+            branch.storeId,
+            customerSelectedZoneId,
+          );
+        if (selectedStoreZonePrice != null) {
+          return selectedStoreZonePrice;
+        }
+        const selectedZonePrice = await this.zoneService.getZoneDeliveryPrice(
           customerSelectedZoneId,
         );
-      if (selectedStoreZonePrice != null) {
-        return selectedStoreZonePrice;
+        if (selectedZonePrice != null) {
+          return selectedZonePrice;
+        }
       }
-      const selectedZonePrice = await this.zoneService.getZoneDeliveryPrice(
-        customerSelectedZoneId,
+
+      const zoneId = await this.zoneService.resolveZoneId(
+        address.lat,
+        address.lng,
       );
-      if (selectedZonePrice != null) {
-        return selectedZonePrice;
+
+      // Per-store zone pricing: only applies when the admin has specifically
+      // enabled it for this branch's store (Store.zonePricingEnabled) and the
+      // store set its own price for this zone. Takes priority over the
+      // app-wide zone price below. Custom-delivery pricing never looks at this.
+      const storeZonePrice = await this.zoneService.getStoreZoneDeliveryPrice(
+        branch.storeId,
+        zoneId,
+      );
+      if (storeZonePrice != null) {
+        return storeZonePrice;
       }
-    }
 
-    const zoneId = await this.zoneService.resolveZoneId(
-      address.lat,
-      address.lng,
-    );
-
-    // Per-store zone pricing: only applies when the admin has specifically
-    // enabled it for this branch's store (Store.zonePricingEnabled) and the
-    // store set its own price for this zone. Takes priority over the
-    // app-wide zone price below. Custom-delivery pricing never looks at this.
-    const storeZonePrice = await this.zoneService.getStoreZoneDeliveryPrice(
-      branch.storeId,
-      zoneId,
-    );
-    if (storeZonePrice != null) {
-      return storeZonePrice;
-    }
-
-    // App-wide zone-based pricing: if the customer's address falls inside a
-    // zone the admin gave a fixed delivery price, use it directly instead of
-    // the per-km formula below.
-    const zonePrice = await this.zoneService.getZoneDeliveryPrice(zoneId);
-    if (zonePrice != null) {
-      return zonePrice;
+      // App-wide zone-based pricing: if the customer's address falls inside a
+      // zone the admin gave a fixed delivery price, use it directly instead of
+      // the per-km formula below.
+      const zonePrice = await this.zoneService.getZoneDeliveryPrice(zoneId);
+      if (zonePrice != null) {
+        return zonePrice;
+      }
     }
 
     // Calculate distance

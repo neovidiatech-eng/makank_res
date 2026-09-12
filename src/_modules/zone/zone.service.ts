@@ -133,13 +133,26 @@ export class ZoneService {
    * a point with missing coordinates is treated as uncovered.
    */
   async firstPointOutsideActiveZones(
-    points: Array<{ lat?: number | null; lng?: number | null }>,
+    points: Array<{ lat?: number | null; lng?: number | null; zoneId?: Id | null }>,
   ): Promise<number> {
     if (!points?.length) return -1;
 
     for (let i = 0; i < points.length; i++) {
-      const lat = points[i]?.lat;
-      const lng = points[i]?.lng;
+      const point = points[i];
+      // If the stop was explicitly assigned an active zone (e.g. customer selected
+      // the zone from the app's dropdown), it is guaranteed covered.
+      if (point?.zoneId != null) {
+        const activeZone = await this.prisma.zone.findFirst({
+          where: { id: Number(point.zoneId), active: true },
+          select: { id: true },
+        });
+        if (activeZone) {
+          continue;
+        }
+      }
+
+      const lat = point?.lat;
+      const lng = point?.lng;
       if (lat == null || lng == null) return i;
 
       // Scope the zone lookup to the city this point falls in.
@@ -149,12 +162,12 @@ export class ZoneService {
         select: { coordinates: true },
       });
 
-      const covered = activeZones.some((zone) =>
-        isPointInPolygon(
-          { lat, lng },
-          zone.coordinates as Array<{ lat: number; lng: number }>,
-        ),
-      );
+      const covered = activeZones.some((zone) => {
+        const coords = zone.coordinates as Array<{ lat: number; lng: number }>;
+        return coords && Array.isArray(coords) && coords.length > 0
+          ? isPointInPolygon({ lat, lng }, coords)
+          : false;
+      });
       if (!covered) return i;
     }
 
@@ -162,28 +175,43 @@ export class ZoneService {
   }
 
   // Resolves a representative point for a zone (its vertex centroid) — used by
-  // the online-delivery flow, which selects zones instead of a map point, so the
-  // existing lat/lng-based assignment and geofence machinery still has a
-  // coordinate to work with. A simple vertex average is precise enough here:
-  // the point is only used for nearest-driver ranking, not zone-coverage
-  // enforcement (the zone itself already guarantees coverage).
+  // the custom & online-delivery flows when a stop selects a zone without a map pin.
+  // When the zone has no polygon coordinates (e.g. zones created without coordinates
+  // under a city), it seamlessly falls back to its parent City's coordinates.
   async getZoneCentroid(zoneId: Id): Promise<{ lat: number; lng: number }> {
     const zone = await this.prisma.zone.findFirst({
       where: { id: zoneId, active: true },
-      select: { coordinates: true },
+      select: {
+        coordinates: true,
+        City: {
+          select: { lat: true, lng: true, coordinates: true },
+        },
+      },
     });
     if (!zone) {
       throw new BadRequestException('المنطقة غير موجودة أو غير نشطة');
     }
     const coordinates = zone.coordinates as Array<{ lat: number; lng: number }>;
-    if (!coordinates?.length) {
-      throw new BadRequestException('المنطقة ليس لها إحداثيات صالحة');
+    if (coordinates && Array.isArray(coordinates) && coordinates.length > 0) {
+      const lat =
+        coordinates.reduce((sum, p) => sum + p.lat, 0) / coordinates.length;
+      const lng =
+        coordinates.reduce((sum, p) => sum + p.lng, 0) / coordinates.length;
+      return { lat, lng };
     }
-    const lat =
-      coordinates.reduce((sum, p) => sum + p.lat, 0) / coordinates.length;
-    const lng =
-      coordinates.reduce((sum, p) => sum + p.lng, 0) / coordinates.length;
-    return { lat, lng };
+    // Fall back to parent city centroid / coordinates if zone itself has no polygon
+    if (zone.City?.lat != null && zone.City?.lng != null) {
+      return { lat: zone.City.lat, lng: zone.City.lng };
+    }
+    const cityCoords = zone.City?.coordinates as Array<{ lat: number; lng: number }>;
+    if (cityCoords && Array.isArray(cityCoords) && cityCoords.length > 0) {
+      const lat =
+        cityCoords.reduce((sum, p) => sum + p.lat, 0) / cityCoords.length;
+      const lng =
+        cityCoords.reduce((sum, p) => sum + p.lng, 0) / cityCoords.length;
+      return { lat, lng };
+    }
+    throw new BadRequestException('المنطقة ليس لها إحداثيات صالحة');
   }
 
   // App-wide zone-based delivery pricing: returns the zone's fixed price if an
