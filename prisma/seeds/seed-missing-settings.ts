@@ -16,6 +16,19 @@ const prisma = new PrismaClient();
 async function main() {
   await prisma.$connect();
   await seedSettings(prisma);
+
+  // Synchronize all stores: if zone pricing is enabled globally, ensure every
+  // store has zonePricingEnabled = true so the zone pricing tab is active and editable.
+  const globalZoneSetting = await prisma.settings.findUnique({
+    where: { setting: 'globalZonePricingEnabled' },
+  });
+  if (globalZoneSetting?.value !== 'false') {
+    const updated = await prisma.store.updateMany({
+      data: { zonePricingEnabled: true },
+    });
+    console.log(`Synchronized zonePricingEnabled = true across all ${updated.count} stores.`);
+  }
+
   await prisma.$disconnect();
 }
 

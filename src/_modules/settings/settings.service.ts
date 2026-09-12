@@ -29,6 +29,13 @@ export class SettingsService {
         where: { setting },
         data: settingObj,
       });
+
+      if (setting === 'globalZonePricingEnabled') {
+        const isEnabled = settingObj.value === 'true';
+        await this.prisma.store.updateMany({
+          data: { zonePricingEnabled: isEnabled },
+        });
+      }
     }
   }
 
@@ -162,6 +169,12 @@ export class SettingsService {
         domain: 'ORDER',
         dataType: 'BOOLEAN',
       },
+    });
+
+    // Synchronize all stores: toggling the master switch directly sets
+    // zonePricingEnabled for every store in the system
+    await this.prisma.store.updateMany({
+      data: { zonePricingEnabled: isEnabled },
     });
 
     return {
