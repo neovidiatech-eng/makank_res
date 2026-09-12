@@ -129,4 +129,43 @@ export class SettingsService {
 
     return await this.getAppStatus();
   }
+
+  async getZonePricingStatus() {
+    let setting = await this.prisma.settings.findUnique({
+      where: { setting: 'globalZonePricingEnabled' },
+    });
+
+    if (!setting) {
+      setting = await this.prisma.settings.create({
+        data: {
+          setting: 'globalZonePricingEnabled',
+          value: 'true',
+          domain: 'ORDER',
+          dataType: 'BOOLEAN',
+        },
+      });
+    }
+
+    return {
+      enabled: setting.value !== 'false',
+    };
+  }
+
+  async updateZonePricingStatus(body: { enabled?: boolean }) {
+    const isEnabled = body.enabled !== false;
+    await this.prisma.settings.upsert({
+      where: { setting: 'globalZonePricingEnabled' },
+      update: { value: isEnabled ? 'true' : 'false' },
+      create: {
+        setting: 'globalZonePricingEnabled',
+        value: isEnabled ? 'true' : 'false',
+        domain: 'ORDER',
+        dataType: 'BOOLEAN',
+      },
+    });
+
+    return {
+      enabled: isEnabled,
+    };
+  }
 }

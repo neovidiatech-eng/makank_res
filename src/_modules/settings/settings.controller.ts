@@ -58,6 +58,35 @@ export class SettingsController {
     );
   }
 
+  @Get('/zone-pricing-status')
+  async getZonePricingStatus(@Res() res: Response) {
+    const data = await this.settingsService.getZonePricingStatus();
+    return this.responses.success(
+      res,
+      'Zone pricing status retrieved successfully',
+      data,
+    );
+  }
+
+  @Patch('/zone-pricing-status')
+  @Auth({ prefix })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean', example: true },
+      },
+    },
+  })
+  async updateZonePricingStatus(@Res() res: Response, @Req() req: Request) {
+    const data = await this.settingsService.updateZonePricingStatus(req.body);
+    return this.responses.success(
+      res,
+      'Zone pricing status updated successfully',
+      data,
+    );
+  }
+
   @Get(['/'])
   @ApiFilter(SettingFilter)
   async get(
