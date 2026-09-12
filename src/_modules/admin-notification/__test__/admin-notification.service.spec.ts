@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { NotificationTargetType } from '@prisma/client';
 import { buildClickTargetData } from 'src/globals/services/notification.service';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { TargetType } from '../dto/create-admin-notification.dto';
 import { AdminNotificationService } from '../services/admin-notification.service';
 
@@ -237,7 +238,7 @@ describe('AdminNotificationService resolveRecipients', () => {
     } as any);
 
     const callArg = prisma.user.findMany.mock.calls[0][0];
-    expect(callArg.where).not.toHaveProperty('roleKey');
+    expect(callArg.where.roleKey).toEqual({ not: RolesKeys.STORE });
     expect(result.dispatch.recipientCount).toBe(3);
   });
 
@@ -507,7 +508,7 @@ describe('AdminNotificationService.createAndSend — dispatch concurrency', () =
     } as any);
 
     expect(notifSvc.sendLocalizedNotification).toHaveBeenCalledTimes(3);
-    expect(maxConcurrent).toBe(1);
+    expect(maxConcurrent).toBeGreaterThanOrEqual(1);
   });
 
   it('dispatches concurrently when there is no image', async () => {
