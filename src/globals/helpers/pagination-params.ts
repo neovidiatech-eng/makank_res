@@ -1,5 +1,6 @@
 export const paginationParams = (params: PaginationParams) => {
   const { page, limit } = params;
+  if (Number(limit) === -1) return undefined;
   const parsedPage = page || 1;
   let parsedLimit = limit || 10;
   if (parsedLimit > +env('MAX_PAGE_LIMIT'))
@@ -12,14 +13,15 @@ export const paginationParams = (params: PaginationParams) => {
 
 export const prismaPagination = (params: PaginationParams) => {
   const parsed = paginationParams(params);
+  if (!parsed) return undefined;
   return {
-    take: parsed?.limit,
-    skip: (parsed?.page - 1) * parsed?.limit,
+    take: parsed.limit,
+    skip: (parsed.page - 1) * parsed.limit,
   };
 };
 
 export const paginateOrNot = (params: PaginationParams, isOne: unknown) => {
-  if (isOne) return;
+  if (isOne) return undefined;
   return prismaPagination(params);
 };
 
