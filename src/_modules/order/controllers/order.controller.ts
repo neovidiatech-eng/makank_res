@@ -200,7 +200,14 @@ export class OrderController {
     @Body() body: ChangeOrderStatusBodyDTO,
     @CurrentUser() user: CurrentUser,
   ) {
-    await this.service.changeStatus(id, status, user, body?.lat, body?.lng);
+    await this.service.changeStatus(
+      id,
+      status,
+      user,
+      body?.lat,
+      body?.lng,
+      body?.nonPartnerPaymentOption,
+    );
     return this.response.created(res, 'order status changed successfully');
   }
 

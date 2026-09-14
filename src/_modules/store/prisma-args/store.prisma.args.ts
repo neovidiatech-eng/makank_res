@@ -257,6 +257,7 @@ export const selectStoreOBJ = (includeBundles = false) => {
       include: {
         storeSchedule: true,
         favorites: true,
+        Wallet: true,
       },
     },
     User: {

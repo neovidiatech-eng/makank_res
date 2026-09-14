@@ -26,6 +26,7 @@ import {
   StationType,
   TransactionType,
   TransferType,
+  NonPartnerPaymentOption,
 } from '@prisma/client';
 import { NotificationMessages } from 'src/configs/notification.messages';
 import { calculateNewAverageRating } from 'src/globals/helpers/calculateAverageRating.helper';
@@ -1674,6 +1675,7 @@ export class OrderService {
     user: CurrentUser,
     lat?: number,
     lng?: number,
+    nonPartnerPaymentOption?: NonPartnerPaymentOption,
   ) {
     this.logger.log(
       `[geofence-debug] changeStatus called: orderId=${id} status=${status} userId=${user.id} roleKey=${user.Role?.roleKey} coordinates=(${lat}, ${lng})`,
@@ -1813,6 +1815,9 @@ export class OrderService {
         },
         data: {
           status: updatedStatus,
+          ...(nonPartnerPaymentOption && {
+            nonPartnerPaymentOption,
+          }),
           paymentStatus:
             updatedStatus === OrderStatus.DELIVERED
               ? PaymentStatus.PAID
@@ -1849,6 +1854,16 @@ export class OrderService {
         status === OrderStatus.DELIVERED &&
         order.status !== OrderStatus.DELIVERED
       ) {
+        if (nonPartnerPaymentOption) {
+          order.nonPartnerPaymentOption = nonPartnerPaymentOption;
+        } else if (!order.nonPartnerPaymentOption) {
+          const freshOrder = await tx.order.findUnique({
+            where: { id: order.id },
+            select: { nonPartnerPaymentOption: true },
+          });
+          order.nonPartnerPaymentOption = freshOrder?.nonPartnerPaymentOption;
+        }
+
         // Distribute earnings to Admin, Branch, and Delivery
         await this.walletService.distributeEarnings(order, tx);
 
@@ -1863,6 +1878,11 @@ export class OrderService {
             balance: order.totalPriceAfterDiscount,
             adminCommission: order.adminCommission,
             shipping: order.shipping,
+            isPartnerStore: Boolean(
+              order.isPartnerStore || (order.Branch as any)?.Store?.isPartner,
+            ),
+            discountAmount: order.discountAmount || 0,
+            nonPartnerPaymentOption: order.nonPartnerPaymentOption,
           } as any,
           tx,
         );

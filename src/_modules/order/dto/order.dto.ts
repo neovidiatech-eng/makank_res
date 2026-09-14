@@ -5,6 +5,7 @@ import {
   OrderType,
   PaymentMethod,
   TransferType,
+  NonPartnerPaymentOption,
 } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, ValidateNested } from 'class-validator';
@@ -320,6 +321,10 @@ export class ChangeOrderStatusBodyDTO {
   @Optional()
   @ValidateNumber()
   lng?: number;
+
+  @Optional()
+  @ValidateEnum(NonPartnerPaymentOption)
+  nonPartnerPaymentOption?: NonPartnerPaymentOption;
 }
 
 export class VerifyOrderPaymentDTO {

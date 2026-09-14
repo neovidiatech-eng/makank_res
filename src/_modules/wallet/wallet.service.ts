@@ -5,7 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, Prisma, WithdrawStatus } from '@prisma/client';
+import {
+  OrderStatus,
+  Prisma,
+  TransactionType,
+  UserType,
+  WithdrawStatus,
+} from '@prisma/client';
 import { UserService } from '../user/services/user.service';
 @Injectable()
 export class WalletService {
@@ -78,6 +84,11 @@ export class WalletService {
     const tax = order.tax || 0;
     const totalPrice = order.totalPriceAfterDiscount;
     const branchEarning = totalPrice - adminCommission - shipping;
+    const isPartnerStore = Boolean(
+      order.isPartnerStore || order.Branch?.Store?.isPartner,
+    );
+    const discountAmount = Number(order.discountAmount || 0);
+    const nonPartnerPaymentOption = order.nonPartnerPaymentOption;
 
     // 1. Update Admin Wallet
     const adminWallet = await tx.adminWallet.findFirst();
@@ -94,25 +105,47 @@ export class WalletService {
 
     // 2. Update Branch Wallet
     if (order.branchId) {
-      await tx.wallet.update({
-        where: { branchId: order.branchId },
-        data: {
-          totalEarning: { increment: branchEarning },
-          currentBalance: { increment: branchEarning },
-          total: { increment: totalPrice - shipping },
-          // Transparency figure only (see getStoreWalletSummary) — never subtracted
-          // from currentBalance again, adminCommission above already excludes it.
-          totalCommissionDeducted: { increment: adminCommission },
-        },
-      });
+      if (isPartnerStore) {
+        // Partner Store: receives full branchEarning via wallet
+        await tx.wallet.update({
+          where: { branchId: order.branchId },
+          data: {
+            totalEarning: { increment: branchEarning },
+            currentBalance: { increment: branchEarning },
+            total: { increment: totalPrice - shipping },
+            // Transparency figure only (see getStoreWalletSummary) — never subtracted
+            // from currentBalance again, adminCommission above already excludes it.
+            totalCommissionDeducted: { increment: adminCommission },
+          },
+        });
+      } else {
+        // Non-partner store: driver pays cash at the restaurant counter upon pickup.
+        // Food price is NEVER credited to the non-partner store wallet.
+        // If order had a discount and driver paid at the discounted price (DISCOUNTED_PRICE),
+        // the platform subsidizes the discount by crediting the discount amount to the store wallet.
+        if (discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE') {
+          await tx.wallet.update({
+            where: { branchId: order.branchId },
+            data: {
+              totalEarning: { increment: discountAmount },
+              currentBalance: { increment: discountAmount },
+              total: { increment: discountAmount },
+            },
+          });
+        }
+      }
     }
 
     // 3. Update Delivery Driver Wallet
     if (order.deliveryId) {
-      const isPartnerStore = Boolean(
-        order.isPartnerStore || order.Branch?.Store?.isPartner,
-      );
-      const driverUpdateData: any = { wallet: { increment: shipping } };
+      let driverEarnings = shipping;
+      // If non-partner store with discount and driver paid full price cash (FULL_PRICE),
+      // the driver paid the discount out of pocket, so the platform reimburses the driver's wallet!
+      if (!isPartnerStore && discountAmount > 0 && nonPartnerPaymentOption === 'FULL_PRICE') {
+        driverEarnings += discountAmount;
+      }
+
+      const driverUpdateData: any = { wallet: { increment: driverEarnings } };
 
       if (order.paymentMethod === 'CASH' && !order.paidWithWallet) {
         driverUpdateData.collectedCash = { increment: totalPrice };
@@ -129,7 +162,7 @@ export class WalletService {
         update: driverUpdateData,
         create: {
           userId: order.deliveryId,
-          wallet: shipping,
+          wallet: driverEarnings,
           collectedCash:
             order.paymentMethod === 'CASH' && !order.paidWithWallet
               ? totalPrice
@@ -151,6 +184,11 @@ export class WalletService {
     const tax = order.tax || 0;
     const totalPrice = order.totalPriceAfterDiscount;
     const branchEarning = totalPrice - adminCommission - shipping;
+    const isPartnerStore = Boolean(
+      order.isPartnerStore || order.Branch?.Store?.isPartner,
+    );
+    const discountAmount = Number(order.discountAmount || 0);
+    const nonPartnerPaymentOption = order.nonPartnerPaymentOption;
 
     const adminWallet = await tx.adminWallet.findFirst();
     if (adminWallet) {
@@ -165,22 +203,37 @@ export class WalletService {
     }
 
     if (order.branchId) {
-      await tx.wallet.update({
-        where: { branchId: order.branchId },
-        data: {
-          totalEarning: { decrement: branchEarning },
-          currentBalance: { decrement: branchEarning },
-          total: { decrement: totalPrice - shipping },
-          totalCommissionDeducted: { decrement: adminCommission },
-        },
-      });
+      if (isPartnerStore) {
+        await tx.wallet.update({
+          where: { branchId: order.branchId },
+          data: {
+            totalEarning: { decrement: branchEarning },
+            currentBalance: { decrement: branchEarning },
+            total: { decrement: totalPrice - shipping },
+            totalCommissionDeducted: { decrement: adminCommission },
+          },
+        });
+      } else {
+        if (discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE') {
+          await tx.wallet.update({
+            where: { branchId: order.branchId },
+            data: {
+              totalEarning: { decrement: discountAmount },
+              currentBalance: { decrement: discountAmount },
+              total: { decrement: discountAmount },
+            },
+          });
+        }
+      }
     }
 
     if (order.deliveryId) {
-      const isPartnerStore = Boolean(
-        order.isPartnerStore || order.Branch?.Store?.isPartner,
-      );
-      const driverUpdateData: any = { wallet: { decrement: shipping } };
+      let driverEarnings = shipping;
+      if (!isPartnerStore && discountAmount > 0 && nonPartnerPaymentOption === 'FULL_PRICE') {
+        driverEarnings += discountAmount;
+      }
+
+      const driverUpdateData: any = { wallet: { decrement: driverEarnings } };
 
       if (order.paymentMethod === 'CASH' && !order.paidWithWallet) {
         driverUpdateData.collectedCash = { decrement: totalPrice };
@@ -231,6 +284,53 @@ export class WalletService {
         },
       }),
     ]);
+  }
+
+  // Settle and reset wallet for a non-partner store
+  async settleNonPartnerStoreWallet(storeId: number, adminNote?: string) {
+    const branches = await this.prisma.branch.findMany({
+      where: { storeId },
+      include: { Wallet: true },
+    });
+
+    if (!branches.length) {
+      throw new NotFoundException('Store branches not found');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      let settledTotal = 0;
+      for (const branch of branches) {
+        if (!branch.Wallet) continue;
+        const currentBalance = branch.Wallet.currentBalance || 0;
+        if (currentBalance <= 0) continue;
+
+        settledTotal += currentBalance;
+
+        // Zero out current balance and record as withdrawn
+        await tx.wallet.update({
+          where: { branchId: branch.id },
+          data: {
+            currentBalance: 0,
+            totalWithdrawn: { increment: currentBalance },
+          },
+        });
+
+        // Record a transaction for audit trail
+        await tx.transaction.create({
+          data: {
+            branchId: branch.id,
+            storeId: storeId,
+            userType: UserType.STORE,
+            type: TransactionType.WITHDRAWAL,
+            referenceId: storeId,
+            debit: 0,
+            credit: currentBalance,
+            balance: 0,
+          },
+        });
+      }
+      return { settledAmount: settledTotal, storeId };
+    });
   }
 
   // Driver wallet screen: Total cash held, commission/tax owed, withdrawable earnings,

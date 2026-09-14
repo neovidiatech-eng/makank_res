@@ -181,23 +181,36 @@ export class TransactionService {
 
     // Branch transaction
     if (branchId) {
-      const branchBalance = await this.getBalance(undefined, branchId);
-      const rules = this.getTransactionRules(type, UserType.STORE);
-      const amount =
-        type === TransactionType.ORDER_COMPLETED
-          ? balance - (adminCommission || 0) - ((data as any).shipping || 0)
-          : balance;
-      const { debit, credit } = this.calculateDebitCredit(amount, rules);
+      const isPartner = (data as any).isPartnerStore !== false;
+      const discount = Number((data as any).discountAmount || 0);
+      const paymentOpt = (data as any).nonPartnerPaymentOption;
 
-      transactions.push({
-        branchId,
-        userType: UserType.STORE,
-        debit,
-        credit,
-        referenceId,
-        type,
-        balance: branchBalance + debit - credit,
-      });
+      let storeAmount = 0;
+      if (type === TransactionType.ORDER_COMPLETED) {
+        if (isPartner) {
+          storeAmount = balance - (adminCommission || 0) - ((data as any).shipping || 0);
+        } else if (discount > 0 && paymentOpt === 'DISCOUNTED_PRICE') {
+          storeAmount = discount;
+        }
+      } else {
+        storeAmount = balance;
+      }
+
+      if (storeAmount > 0) {
+        const branchBalance = await this.getBalance(undefined, branchId);
+        const rules = this.getTransactionRules(type, UserType.STORE);
+        const { debit, credit } = this.calculateDebitCredit(storeAmount, rules);
+
+        transactions.push({
+          branchId,
+          userType: UserType.STORE,
+          debit,
+          credit,
+          referenceId,
+          type,
+          balance: branchBalance + debit - credit,
+        });
+      }
     }
 
     // Admin transaction (commission)
@@ -227,9 +240,17 @@ export class TransactionService {
         data.deliveryId,
       );
       const rules = this.getTransactionRules(type, UserType.DELIVERY);
+      const isPartner = (data as any).isPartnerStore !== false;
+      const discount = Number((data as any).discountAmount || 0);
+      const paymentOpt = (data as any).nonPartnerPaymentOption;
+      let deliveryDiscount = 0;
+      if (!isPartner && discount > 0 && paymentOpt === 'FULL_PRICE') {
+        deliveryDiscount = discount;
+      }
+
       const amount =
         type === TransactionType.ORDER_COMPLETED
-          ? (data as any).shipping || 0
+          ? ((data as any).shipping || 0) + deliveryDiscount
           : balance;
       const { debit, credit } = this.calculateDebitCredit(amount, rules);
 
@@ -314,28 +335,41 @@ export class TransactionService {
 
     // Branch transaction
     if (branchId) {
-      const branchBalance = await this.getBalanceWithinTx(
-        undefined,
-        branchId,
-        undefined,
-        tx,
-      );
-      const rules = this.getTransactionRules(type, UserType.STORE);
-      const amount =
-        type === TransactionType.ORDER_COMPLETED
-          ? balance - (adminCommission || 0) - ((data as any).shipping || 0)
-          : balance;
-      const { debit, credit } = this.calculateDebitCredit(amount, rules);
+      const isPartner = (data as any).isPartnerStore !== false;
+      const discount = Number((data as any).discountAmount || 0);
+      const paymentOpt = (data as any).nonPartnerPaymentOption;
 
-      transactions.push({
-        branchId,
-        userType: UserType.STORE,
-        debit,
-        credit,
-        referenceId,
-        type,
-        balance: branchBalance + debit - credit,
-      });
+      let storeAmount = 0;
+      if (type === TransactionType.ORDER_COMPLETED) {
+        if (isPartner) {
+          storeAmount = balance - (adminCommission || 0) - ((data as any).shipping || 0);
+        } else if (discount > 0 && paymentOpt === 'DISCOUNTED_PRICE') {
+          storeAmount = discount;
+        }
+      } else {
+        storeAmount = balance;
+      }
+
+      if (storeAmount > 0) {
+        const branchBalance = await this.getBalanceWithinTx(
+          undefined,
+          branchId,
+          undefined,
+          tx,
+        );
+        const rules = this.getTransactionRules(type, UserType.STORE);
+        const { debit, credit } = this.calculateDebitCredit(storeAmount, rules);
+
+        transactions.push({
+          branchId,
+          userType: UserType.STORE,
+          debit,
+          credit,
+          referenceId,
+          type,
+          balance: branchBalance + debit - credit,
+        });
+      }
     }
 
     // Admin transaction (commission)
@@ -366,9 +400,17 @@ export class TransactionService {
         tx,
       );
       const rules = this.getTransactionRules(type, UserType.DELIVERY);
+      const isPartner = (data as any).isPartnerStore !== false;
+      const discount = Number((data as any).discountAmount || 0);
+      const paymentOpt = (data as any).nonPartnerPaymentOption;
+      let deliveryDiscount = 0;
+      if (!isPartner && discount > 0 && paymentOpt === 'FULL_PRICE') {
+        deliveryDiscount = discount;
+      }
+
       const amount =
         type === TransactionType.ORDER_COMPLETED
-          ? (data as any).shipping || 0
+          ? ((data as any).shipping || 0) + deliveryDiscount
           : balance;
       const { debit, credit } = this.calculateDebitCredit(amount, rules);
 

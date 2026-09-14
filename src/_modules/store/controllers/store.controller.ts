@@ -35,6 +35,7 @@ import { buildExamples } from 'src/globals/helpers/generate-example.helper';
 import { tag } from 'src/globals/helpers/tag.helper';
 import { ResponseService } from 'src/globals/services/response.service';
 import { ServiceModuleService } from '../../serviceModule/services/storeModule.service';
+import { WalletService } from '../../wallet/wallet.service';
 import { ApplyTemplateDTO } from '../../store-template/dto/store-template.dto';
 import { StoreTemplateService } from '../../store-template/store-template.service';
 import {
@@ -68,6 +69,7 @@ export class StoreController {
     private readonly response: ResponseService,
     private readonly OTPService: OTPService,
     private readonly tokenService: TokenService,
+    private readonly walletService: WalletService,
   ) {}
 
   @Post('/')
@@ -268,6 +270,26 @@ export class StoreController {
       res,
       'partner store settlements fetched successfully',
       data,
+    );
+  }
+
+  // Admin-only — settle and reset a store's wallet balance (for non-partner stores)
+  @Patch('/:id/settle-wallet')
+  @ApiRequiredIdParam()
+  @Auth({ prefix: 'store-partner' })
+  async settleStoreWallet(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() body?: { note?: string },
+  ) {
+    const result = await this.walletService.settleNonPartnerStoreWallet(
+      id,
+      body?.note,
+    );
+    return this.response.success(
+      res,
+      'Store wallet settled and reset successfully',
+      result,
     );
   }
 
