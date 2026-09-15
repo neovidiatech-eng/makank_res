@@ -77,7 +77,7 @@ describe('StoreService.create - template-driven store creation', () => {
     expect(tx.store.create).toHaveBeenCalledTimes(1);
     const arg = (tx.store.create as AnyFn).mock.calls[0][0];
     expect(arg.data.Module).toBeUndefined();
-    expect(applyTemplateWithinTx).toHaveBeenCalledWith(tx, 1, 5);
+    expect(applyTemplateWithinTx).toHaveBeenCalledWith(tx, 1, 5, 0);
   });
 
   it('rejects creation when the template is missing or inactive', async () => {
@@ -453,5 +453,162 @@ describe('StoreService.update — minOrderAmount', () => {
     expect(prisma.__tx.store.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { minOrderAmount: 50 } }),
     );
+  });
+
+  it('persists and clears announcement', async () => {
+    const prisma = buildUpdatePrisma();
+    await buildService(prisma as any).update(1, { announcement: 'Special Notice' } as any);
+
+    expect(prisma.__tx.store.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { announcement: 'Special Notice' } }),
+    );
+
+    await buildService(prisma as any).update(1, { announcement: null } as any);
+    expect(prisma.__tx.store.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { announcement: null } }),
+    );
+  });
+});
+
+describe('StoreService - Zone Pricing & Announcements Management Scenarios', () => {
+  const buildZonePricesPrisma = (store: any, zones: any[], ownPrices: any[] = []) => ({
+    store: {
+      findUnique: jest.fn().mockResolvedValue(store),
+      update: jest.fn().mockResolvedValue(store),
+    },
+    branch: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    zone: {
+      findMany: jest.fn().mockResolvedValue(zones),
+      count: jest.fn().mockResolvedValue(zones.length),
+    },
+    storeZonePrice: {
+      findMany: jest.fn().mockResolvedValue(ownPrices),
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn(async (cb: any) => (Array.isArray(cb) ? Promise.all(cb) : cb({}))),
+  });
+
+  it('scenario 1: getZonePrices returns store details, announcement, zonePricingEnabled, and mapped zone prices', async () => {
+    const mockStore = {
+      id: 10,
+      name: { ar: 'مطعم السعادة', en: 'Happiness Restaurant' },
+      logo: 'https://img.png',
+      announcement: 'خصم 20% على جميع الوجبات اليوم',
+      zonePricingEnabled: true,
+    };
+    const mockZones = [
+      { id: 1, name: { ar: 'المنطقة الأولى' }, cityId: 1 },
+      { id: 2, name: { ar: 'المنطقة الثانية' }, cityId: 1 },
+    ];
+    const mockOwnPrices = [{ zoneId: 1, price: 25.5 }];
+
+    const prisma = buildZonePricesPrisma(mockStore, mockZones, mockOwnPrices);
+    const service = buildService(prisma as any);
+
+    const result = await service.getZonePrices(10);
+
+    expect(result).toEqual({
+      storeId: 10,
+      storeName: mockStore.name,
+      logo: mockStore.logo,
+      announcement: mockStore.announcement,
+      zonePricingEnabled: true,
+      zones: [
+        { zoneId: 1, name: { ar: 'المنطقة الأولى' }, cityId: 1, price: 25.5 },
+        { zoneId: 2, name: { ar: 'المنطقة الثانية' }, cityId: 1, price: null },
+      ],
+    });
+  });
+
+  it('scenario 2: getZonePrices throws NotFoundException if store does not exist', async () => {
+    const prisma = buildZonePricesPrisma(null, []);
+    const service = buildService(prisma as any);
+
+    await expect(service.getZonePrices(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('scenario 3: toggleZonePricing toggles zonePricingEnabled on the store', async () => {
+    const prisma = {
+      store: {
+        findUnique: jest.fn().mockResolvedValue({ id: 10, zonePricingEnabled: false }),
+        update: jest.fn().mockResolvedValue({ id: 10, zonePricingEnabled: true }),
+      },
+    };
+    const service = buildService(prisma as any);
+
+    await service.toggleZonePricing(10, true);
+
+    expect(prisma.store.update).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: { zonePricingEnabled: true },
+    });
+  });
+
+  it('scenario 4: setZonePrices saves bulk uniform prices across multiple zones and auto-enables zone pricing', async () => {
+    const mockStore = {
+      id: 10,
+      name: 'Store 10',
+      logo: null,
+      announcement: null,
+      zonePricingEnabled: false,
+    };
+    const mockZones = [
+      { id: 1, name: 'Zone 1', cityId: 1 },
+      { id: 2, name: 'Zone 2', cityId: 1 },
+      { id: 3, name: 'Zone 3', cityId: 1 },
+    ];
+
+    const prisma = buildZonePricesPrisma(mockStore, mockZones, []);
+    prisma.zone.count = jest.fn().mockResolvedValue(3);
+    const service = buildService(prisma as any);
+
+    // Uniform price 20 EGP across zones 1, 2, 3
+    const bulkPayload = {
+      zonePrices: [
+        { zoneId: 1, price: 20 },
+        { zoneId: 2, price: 20 },
+        { zoneId: 3, price: 20 },
+      ],
+    };
+
+    await service.setZonePrices(10, bulkPayload);
+
+    // Verifies store zonePricingEnabled is set to true
+    expect(prisma.store.update).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: { zonePricingEnabled: true },
+    });
+    // Verifies transaction upserts all 3 zones
+    expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it('scenario 5: setZonePrices rejects invalid zone ids or empty payload', async () => {
+    const mockStore = { id: 10 };
+    const prisma = buildZonePricesPrisma(mockStore, []);
+    prisma.zone.count = jest.fn().mockResolvedValue(0); // Valid count != provided count
+    const service = buildService(prisma as any);
+
+    await expect(
+      service.setZonePrices(10, { zonePrices: [{ zoneId: 999, price: 20 }] }),
+    ).rejects.toThrow(BadRequestException);
+
+    await expect(service.setZonePrices(10, { zonePrices: [] })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('scenario 6: deleteZonePrice deletes price override for specific zone', async () => {
+    const mockStore = { id: 10, name: 'Store 10', zonePricingEnabled: true };
+    const prisma = buildZonePricesPrisma(mockStore, [{ id: 1, name: 'Zone 1', cityId: 1 }], []);
+    const service = buildService(prisma as any);
+
+    await service.deleteZonePrice(10, 1);
+
+    expect(prisma.storeZonePrice.deleteMany).toHaveBeenCalledWith({
+      where: { storeId: 10, zoneId: 1 },
+    });
   });
 });
