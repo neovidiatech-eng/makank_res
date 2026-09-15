@@ -7,12 +7,28 @@ model Wallet {
   pendingWithdraw         Float   @default(0) @map("pending_withdraw")
   collect_cash            Float   @default(0)
   currentBalance          Float   @default(0) @map("current_balance")
-  totalCommissionDeducted Float   @default(0) @map("total_commission_deducted")
-  stores                  Store[]
-  Branch                  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  totalCommissionDeducted    Float   @default(0) @map("total_commission_deducted")
+  accumulatedFortuneDiscount Float   @default(0) @map("accumulated_fortune_discount")
+  settledFortuneDiscount     Float   @default(0) @map("settled_fortune_discount")
+  stores                     Store[]
+  Branch                     Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@index([branchId])
   @@map("wallet")
+}
+
+model StoreDiscountSettlement {
+  id              Int      @id @default(autoincrement())
+  storeId         Int      @map("store_id")
+  branchId        Int?     @map("branch_id")
+  totalDiscounts  Float    @map("total_discounts")
+  platformSubsidy Float    @map("platform_subsidy")
+  settlementType  String   @default("CASH_BANK_PAYOUT") @map("settlement_type")
+  adminNote       String?  @map("admin_note") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([storeId])
+  @@map("store_discount_settlements")
 }
 
 model AdminWallet {

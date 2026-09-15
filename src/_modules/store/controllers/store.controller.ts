@@ -293,6 +293,31 @@ export class StoreController {
     );
   }
 
+  // Admin-only — settle and reset a store's accumulated fortune discounts (deferred 50/50 split)
+  @Patch('/:id/settle-fortune-discounts')
+  @ApiRequiredIdParam()
+  @Auth({ prefix: 'store-partner' })
+  async settleStoreFortuneDiscounts(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body()
+    body?: {
+      note?: string;
+      payoutMethod?: 'CASH_BANK_PAYOUT' | 'WALLET';
+    },
+  ) {
+    const result = await this.walletService.settleStoreFortuneDiscounts(
+      id,
+      body?.note,
+      body?.payoutMethod || 'CASH_BANK_PAYOUT',
+    );
+    return this.response.success(
+      res,
+      'Store fortune discounts settled and reset successfully',
+      result,
+    );
+  }
+
   // Store self-service (also reachable by admin) — apply one discount (percentage
   // or fixed amount) across the store's entire catalog in a single call, instead
   // of editing every service one by one. Overwrites any existing per-service

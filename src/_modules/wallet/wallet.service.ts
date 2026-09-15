@@ -105,54 +105,61 @@ export class WalletService {
           : shipping),
     );
 
-    // 50/50 Fortune Wheel discount sharing:
-    // Store bears 50%, platform subsidizes 50% by adding +50% to the restaurant's wallet.
-    const storeFortuneSubsidy = fortuneDiscount > 0 ? fortuneDiscount / 2 : 0;
-    const freeDeliveryDriverCost = isFreeDeliveryFortune && originalShippingFee > 0
-      ? originalShippingFee
-      : 0;
-    const platformFortuneCost = storeFortuneSubsidy + freeDeliveryDriverCost;
+    // Free delivery cost is borne by the platform at order completion
+    const freeDeliveryDriverCost =
+      isFreeDeliveryFortune && originalShippingFee > 0
+        ? originalShippingFee
+        : 0;
 
-    // 1. Update Admin Wallet
+    // 1. Update Admin Wallet (deducts freeDeliveryDriverCost if platform subsidized free delivery)
     const adminWallet = await tx.adminWallet.findFirst();
     if (adminWallet) {
       await tx.adminWallet.update({
         where: { id: adminWallet.id },
         data: {
-          totalEarning: { increment: adminCommission - platformFortuneCost },
-          currentBalance: { increment: adminCommission - platformFortuneCost },
-          total: { increment: adminCommission - platformFortuneCost },
+          totalEarning: { increment: adminCommission - freeDeliveryDriverCost },
+          currentBalance: { increment: adminCommission - freeDeliveryDriverCost },
+          total: { increment: adminCommission - freeDeliveryDriverCost },
         },
       });
     }
 
-    // 2. Update Branch Wallet
+    // 2. Update Branch Wallet:
+    // Store absorbs 100% of the discount upfront in the order's earning.
+    // The discount amount is accumulated in accumulatedFortuneDiscount for the 50/50 end-of-period settlement.
     if (order.branchId) {
       if (isPartnerStore) {
-        // Partner Store: receives branchEarning + 50% platform fortune subsidy
         await tx.wallet.update({
           where: { branchId: order.branchId },
           data: {
-            totalEarning: { increment: branchEarning + storeFortuneSubsidy },
-            currentBalance: { increment: branchEarning + storeFortuneSubsidy },
-            total: { increment: totalPrice - shipping + storeFortuneSubsidy },
+            totalEarning: { increment: branchEarning },
+            currentBalance: { increment: branchEarning },
+            total: { increment: totalPrice - shipping },
             totalCommissionDeducted: { increment: adminCommission },
+            ...(fortuneDiscount > 0
+              ? { accumulatedFortuneDiscount: { increment: fortuneDiscount } }
+              : {}),
           },
         });
       } else {
         // Non-partner store: driver pays cash at counter.
-        // If order had a discount and driver paid at discounted price, or store had fortune discount:
         const nonPartnerExtra =
-          (discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE' ? discountAmount : 0) +
-          storeFortuneSubsidy;
+          discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE'
+            ? discountAmount
+            : 0;
+        const branchUpdateData: any = {};
         if (nonPartnerExtra > 0) {
+          branchUpdateData.totalEarning = { increment: nonPartnerExtra };
+          branchUpdateData.currentBalance = { increment: nonPartnerExtra };
+          branchUpdateData.total = { increment: nonPartnerExtra };
+        }
+        if (fortuneDiscount > 0) {
+          branchUpdateData.accumulatedFortuneDiscount = { increment: fortuneDiscount };
+        }
+        if (Object.keys(branchUpdateData).length > 0) {
           await tx.wallet.update({
             where: { branchId: order.branchId },
-            data: {
-              totalEarning: { increment: nonPartnerExtra },
-              currentBalance: { increment: nonPartnerExtra },
-              total: { increment: nonPartnerExtra },
-            },
+            data: branchUpdateData,
           });
         }
       }
@@ -229,20 +236,19 @@ export class WalletService {
           : shipping),
     );
 
-    const storeFortuneSubsidy = fortuneDiscount > 0 ? fortuneDiscount / 2 : 0;
-    const freeDeliveryDriverCost = isFreeDeliveryFortune && originalShippingFee > 0
-      ? originalShippingFee
-      : 0;
-    const platformFortuneCost = storeFortuneSubsidy + freeDeliveryDriverCost;
+    const freeDeliveryDriverCost =
+      isFreeDeliveryFortune && originalShippingFee > 0
+        ? originalShippingFee
+        : 0;
 
     const adminWallet = await tx.adminWallet.findFirst();
     if (adminWallet) {
       await tx.adminWallet.update({
         where: { id: adminWallet.id },
         data: {
-          totalEarning: { decrement: adminCommission - platformFortuneCost },
-          currentBalance: { decrement: adminCommission - platformFortuneCost },
-          total: { decrement: adminCommission - platformFortuneCost },
+          totalEarning: { decrement: adminCommission - freeDeliveryDriverCost },
+          currentBalance: { decrement: adminCommission - freeDeliveryDriverCost },
+          total: { decrement: adminCommission - freeDeliveryDriverCost },
         },
       });
     }
@@ -252,24 +258,33 @@ export class WalletService {
         await tx.wallet.update({
           where: { branchId: order.branchId },
           data: {
-            totalEarning: { decrement: branchEarning + storeFortuneSubsidy },
-            currentBalance: { decrement: branchEarning + storeFortuneSubsidy },
-            total: { decrement: totalPrice - shipping + storeFortuneSubsidy },
+            totalEarning: { decrement: branchEarning },
+            currentBalance: { decrement: branchEarning },
+            total: { decrement: totalPrice - shipping },
             totalCommissionDeducted: { decrement: adminCommission },
+            ...(fortuneDiscount > 0
+              ? { accumulatedFortuneDiscount: { decrement: fortuneDiscount } }
+              : {}),
           },
         });
       } else {
         const nonPartnerExtra =
-          (discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE' ? discountAmount : 0) +
-          storeFortuneSubsidy;
+          discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE'
+            ? discountAmount
+            : 0;
+        const branchUpdateData: any = {};
         if (nonPartnerExtra > 0) {
+          branchUpdateData.totalEarning = { decrement: nonPartnerExtra };
+          branchUpdateData.currentBalance = { decrement: nonPartnerExtra };
+          branchUpdateData.total = { decrement: nonPartnerExtra };
+        }
+        if (fortuneDiscount > 0) {
+          branchUpdateData.accumulatedFortuneDiscount = { decrement: fortuneDiscount };
+        }
+        if (Object.keys(branchUpdateData).length > 0) {
           await tx.wallet.update({
             where: { branchId: order.branchId },
-            data: {
-              totalEarning: { decrement: nonPartnerExtra },
-              currentBalance: { decrement: nonPartnerExtra },
-              total: { decrement: nonPartnerExtra },
-            },
+            data: branchUpdateData,
           });
         }
       }
@@ -964,7 +979,7 @@ export class WalletService {
     };
   }
 
-  // Store wallet screen's two numbers, summed across every branch of the
+  // Store wallet screen's numbers, summed across every branch of the
   // store (a store may have more than one branch, each with its own Wallet row).
   async getStoreWalletSummary(storeId: number) {
     const result = await this.prisma.wallet.aggregate({
@@ -974,14 +989,105 @@ export class WalletService {
         totalCommissionDeducted: true,
         pendingWithdraw: true,
         totalWithdrawn: true,
+        accumulatedFortuneDiscount: true,
+        settledFortuneDiscount: true,
       },
     });
+    const accumulatedFortuneDiscount =
+      result._sum.accumulatedFortuneDiscount ?? 0;
     return {
       total: result._sum.currentBalance ?? 0,
       commissionDeducted: result._sum.totalCommissionDeducted ?? 0,
       pendingWithdraw: result._sum.pendingWithdraw ?? 0,
       totalWithdrawn: result._sum.totalWithdrawn ?? 0,
+      accumulatedFortuneDiscount,
+      pendingPlatformSubsidy: accumulatedFortuneDiscount / 2,
+      settledFortuneDiscount: result._sum.settledFortuneDiscount ?? 0,
     };
+  }
+
+  /**
+   * Settles accumulated fortune discounts for a store at the end of the period.
+   * By default: External settlement (Cash / Bank payout):
+   * Admin records that 50% was handed over in cash or bank transfer to store,
+   * resets `accumulatedFortuneDiscount` to 0 without mutating in-app currentBalance,
+   * increments `settledFortuneDiscount`, and creates a StoreDiscountSettlement audit record.
+   */
+  async settleStoreFortuneDiscounts(
+    storeId: number,
+    adminNote?: string,
+    payoutMethod: 'CASH_BANK_PAYOUT' | 'WALLET' = 'CASH_BANK_PAYOUT',
+  ) {
+    const branches = await this.prisma.branch.findMany({
+      where: { storeId },
+      include: { Wallet: true },
+    });
+
+    if (!branches.length) {
+      throw new NotFoundException('Store branches not found');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      let totalDiscounts = 0;
+      let totalPlatformSubsidy = 0;
+
+      for (const branch of branches) {
+        if (!branch.Wallet) continue;
+        const accumulated = branch.Wallet.accumulatedFortuneDiscount || 0;
+        if (accumulated <= 0) continue;
+
+        const platformSubsidy = accumulated / 2;
+        totalDiscounts += accumulated;
+        totalPlatformSubsidy += platformSubsidy;
+
+        const walletUpdate: any = {
+          accumulatedFortuneDiscount: 0,
+          settledFortuneDiscount: { increment: accumulated },
+        };
+
+        if (payoutMethod === 'WALLET') {
+          walletUpdate.currentBalance = { increment: platformSubsidy };
+          walletUpdate.totalEarning = { increment: platformSubsidy };
+        }
+
+        await tx.wallet.update({
+          where: { branchId: branch.id },
+          data: walletUpdate,
+        });
+
+        await (tx as any).storeDiscountSettlement.create({
+          data: {
+            storeId,
+            branchId: branch.id,
+            totalDiscounts: accumulated,
+            platformSubsidy,
+            settlementType: payoutMethod,
+            adminNote: adminNote || null,
+          },
+        });
+      }
+
+      if (payoutMethod === 'WALLET' && totalPlatformSubsidy > 0) {
+        const adminWallet = await tx.adminWallet.findFirst();
+        if (adminWallet) {
+          await tx.adminWallet.update({
+            where: { id: adminWallet.id },
+            data: {
+              totalEarning: { decrement: totalPlatformSubsidy },
+              currentBalance: { decrement: totalPlatformSubsidy },
+            },
+          });
+        }
+      }
+
+      return {
+        storeId,
+        settledDiscounts: totalDiscounts,
+        platformSubsidyPaid: totalPlatformSubsidy,
+        payoutMethod,
+        message: 'Store fortune discounts settled and reset successfully',
+      };
+    });
   }
 
   async checkWalletBalance(userId: number, amount: number) {
