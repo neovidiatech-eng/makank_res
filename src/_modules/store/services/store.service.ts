@@ -1431,6 +1431,9 @@ export class StoreService {
     );
     return {
       storeId,
+      storeName: store.name,
+      logo: store.logo,
+      announcement: store.announcement ?? null,
       zonePricingEnabled: store.zonePricingEnabled,
       zones: zones.map((zone) => ({
         zoneId: zone.id,
