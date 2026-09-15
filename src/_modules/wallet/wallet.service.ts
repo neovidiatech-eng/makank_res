@@ -90,15 +90,38 @@ export class WalletService {
     const discountAmount = Number(order.discountAmount || 0);
     const nonPartnerPaymentOption = order.nonPartnerPaymentOption;
 
+    // Fortune Wheel breakdown from invoice summary
+    const invoiceSummary = (order.invoice as any)?.summary || {};
+    const fortuneDiscount = Number(invoiceSummary.fortuneDiscount || 0);
+    const isFreeDeliveryFortune = Boolean(
+      invoiceSummary.isFreeDeliveryFortune ||
+      invoiceSummary.freeDelivery ||
+      (order.type === 'DELIVERY' && shipping === 0 && (invoiceSummary.deliveryDiscount > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
+    );
+    const originalShippingFee = Number(
+      invoiceSummary.originalShippingFee ??
+        (invoiceSummary.deliveryDiscount != null
+          ? shipping + Number(invoiceSummary.deliveryDiscount)
+          : shipping),
+    );
+
+    // 50/50 Fortune Wheel discount sharing:
+    // Store bears 50%, platform subsidizes 50% by adding +50% to the restaurant's wallet.
+    const storeFortuneSubsidy = fortuneDiscount > 0 ? fortuneDiscount / 2 : 0;
+    const freeDeliveryDriverCost = isFreeDeliveryFortune && originalShippingFee > 0
+      ? originalShippingFee
+      : 0;
+    const platformFortuneCost = storeFortuneSubsidy + freeDeliveryDriverCost;
+
     // 1. Update Admin Wallet
     const adminWallet = await tx.adminWallet.findFirst();
     if (adminWallet) {
       await tx.adminWallet.update({
         where: { id: adminWallet.id },
         data: {
-          totalEarning: { increment: adminCommission },
-          currentBalance: { increment: adminCommission },
-          total: { increment: adminCommission },
+          totalEarning: { increment: adminCommission - platformFortuneCost },
+          currentBalance: { increment: adminCommission - platformFortuneCost },
+          total: { increment: adminCommission - platformFortuneCost },
         },
       });
     }
@@ -106,30 +129,29 @@ export class WalletService {
     // 2. Update Branch Wallet
     if (order.branchId) {
       if (isPartnerStore) {
-        // Partner Store: receives full branchEarning via wallet
+        // Partner Store: receives branchEarning + 50% platform fortune subsidy
         await tx.wallet.update({
           where: { branchId: order.branchId },
           data: {
-            totalEarning: { increment: branchEarning },
-            currentBalance: { increment: branchEarning },
-            total: { increment: totalPrice - shipping },
-            // Transparency figure only (see getStoreWalletSummary) — never subtracted
-            // from currentBalance again, adminCommission above already excludes it.
+            totalEarning: { increment: branchEarning + storeFortuneSubsidy },
+            currentBalance: { increment: branchEarning + storeFortuneSubsidy },
+            total: { increment: totalPrice - shipping + storeFortuneSubsidy },
             totalCommissionDeducted: { increment: adminCommission },
           },
         });
       } else {
-        // Non-partner store: driver pays cash at the restaurant counter upon pickup.
-        // Food price is NEVER credited to the non-partner store wallet.
-        // If order had a discount and driver paid at the discounted price (DISCOUNTED_PRICE),
-        // the platform subsidizes the discount by crediting the discount amount to the store wallet.
-        if (discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE') {
+        // Non-partner store: driver pays cash at counter.
+        // If order had a discount and driver paid at discounted price, or store had fortune discount:
+        const nonPartnerExtra =
+          (discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE' ? discountAmount : 0) +
+          storeFortuneSubsidy;
+        if (nonPartnerExtra > 0) {
           await tx.wallet.update({
             where: { branchId: order.branchId },
             data: {
-              totalEarning: { increment: discountAmount },
-              currentBalance: { increment: discountAmount },
-              total: { increment: discountAmount },
+              totalEarning: { increment: nonPartnerExtra },
+              currentBalance: { increment: nonPartnerExtra },
+              total: { increment: nonPartnerExtra },
             },
           });
         }
@@ -138,7 +160,10 @@ export class WalletService {
 
     // 3. Update Delivery Driver Wallet
     if (order.deliveryId) {
-      let driverEarnings = shipping;
+      let driverEarnings = isFreeDeliveryFortune && originalShippingFee > 0
+        ? originalShippingFee
+        : shipping;
+
       // If non-partner store with discount and driver paid full price cash (FULL_PRICE),
       // the driver paid the discount out of pocket, so the platform reimburses the driver's wallet!
       if (!isPartnerStore && discountAmount > 0 && nonPartnerPaymentOption === 'FULL_PRICE') {
@@ -190,14 +215,34 @@ export class WalletService {
     const discountAmount = Number(order.discountAmount || 0);
     const nonPartnerPaymentOption = order.nonPartnerPaymentOption;
 
+    const invoiceSummary = (order.invoice as any)?.summary || {};
+    const fortuneDiscount = Number(invoiceSummary.fortuneDiscount || 0);
+    const isFreeDeliveryFortune = Boolean(
+      invoiceSummary.isFreeDeliveryFortune ||
+      invoiceSummary.freeDelivery ||
+      (order.type === 'DELIVERY' && shipping === 0 && (invoiceSummary.deliveryDiscount > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
+    );
+    const originalShippingFee = Number(
+      invoiceSummary.originalShippingFee ??
+        (invoiceSummary.deliveryDiscount != null
+          ? shipping + Number(invoiceSummary.deliveryDiscount)
+          : shipping),
+    );
+
+    const storeFortuneSubsidy = fortuneDiscount > 0 ? fortuneDiscount / 2 : 0;
+    const freeDeliveryDriverCost = isFreeDeliveryFortune && originalShippingFee > 0
+      ? originalShippingFee
+      : 0;
+    const platformFortuneCost = storeFortuneSubsidy + freeDeliveryDriverCost;
+
     const adminWallet = await tx.adminWallet.findFirst();
     if (adminWallet) {
       await tx.adminWallet.update({
         where: { id: adminWallet.id },
         data: {
-          totalEarning: { decrement: adminCommission },
-          currentBalance: { decrement: adminCommission },
-          total: { decrement: adminCommission },
+          totalEarning: { decrement: adminCommission - platformFortuneCost },
+          currentBalance: { decrement: adminCommission - platformFortuneCost },
+          total: { decrement: adminCommission - platformFortuneCost },
         },
       });
     }
@@ -207,20 +252,23 @@ export class WalletService {
         await tx.wallet.update({
           where: { branchId: order.branchId },
           data: {
-            totalEarning: { decrement: branchEarning },
-            currentBalance: { decrement: branchEarning },
-            total: { decrement: totalPrice - shipping },
+            totalEarning: { decrement: branchEarning + storeFortuneSubsidy },
+            currentBalance: { decrement: branchEarning + storeFortuneSubsidy },
+            total: { decrement: totalPrice - shipping + storeFortuneSubsidy },
             totalCommissionDeducted: { decrement: adminCommission },
           },
         });
       } else {
-        if (discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE') {
+        const nonPartnerExtra =
+          (discountAmount > 0 && nonPartnerPaymentOption === 'DISCOUNTED_PRICE' ? discountAmount : 0) +
+          storeFortuneSubsidy;
+        if (nonPartnerExtra > 0) {
           await tx.wallet.update({
             where: { branchId: order.branchId },
             data: {
-              totalEarning: { decrement: discountAmount },
-              currentBalance: { decrement: discountAmount },
-              total: { decrement: discountAmount },
+              totalEarning: { decrement: nonPartnerExtra },
+              currentBalance: { decrement: nonPartnerExtra },
+              total: { decrement: nonPartnerExtra },
             },
           });
         }
@@ -228,7 +276,9 @@ export class WalletService {
     }
 
     if (order.deliveryId) {
-      let driverEarnings = shipping;
+      let driverEarnings = isFreeDeliveryFortune && originalShippingFee > 0
+        ? originalShippingFee
+        : shipping;
       if (!isPartnerStore && discountAmount > 0 && nonPartnerPaymentOption === 'FULL_PRICE') {
         driverEarnings += discountAmount;
       }

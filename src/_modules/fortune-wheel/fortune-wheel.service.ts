@@ -122,6 +122,14 @@ export class FortuneWheelService {
         minOrderAmount: true,
         maxOrderAmount: true,
         rewardExpiryHours: true,
+        storeId: true,
+        Store: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+          },
+        },
       },
     });
 
@@ -170,7 +178,7 @@ export class FortuneWheelService {
 
   async spin(userId: Id) {
     return this.prisma.$transaction(async (tx) => {
-      const settings = await this.getOrCreateSettings();
+      const settings = await this.getOrCreateSettings(tx);
       if (!settings.isEnabled) {
         throw new BadRequestException('Fortune wheel is not enabled');
       }
@@ -187,6 +195,14 @@ export class FortuneWheelService {
           minOrderAmount: true,
           maxOrderAmount: true,
           rewardExpiryHours: true,
+          storeId: true,
+          Store: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+            },
+          },
         },
       });
 
@@ -234,6 +250,8 @@ export class FortuneWheelService {
             id: wonItem.id,
             displayName: wonItem.displayName,
             rewardType: wonItem.rewardType,
+            storeId: wonItem.storeId,
+            Store: wonItem.Store,
           },
           reward: null,
         };
@@ -247,6 +265,7 @@ export class FortuneWheelService {
         data: {
           userId,
           itemId: wonItem.id,
+          storeId: wonItem.storeId,
           rewardType: wonItem.rewardType,
           rewardValue: wonItem.rewardValue,
           maxDiscount: wonItem.maxDiscount,
@@ -254,6 +273,15 @@ export class FortuneWheelService {
           maxOrderAmount: wonItem.maxOrderAmount,
           status: FortuneWheelRewardStatus.VALID,
           expiresAt,
+        },
+        include: {
+          Store: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+            },
+          },
         },
       });
 
@@ -267,17 +295,28 @@ export class FortuneWheelService {
           maxDiscount: wonItem.maxDiscount,
           minOrderAmount: wonItem.minOrderAmount,
           maxOrderAmount: wonItem.maxOrderAmount,
+          storeId: wonItem.storeId,
+          Store: wonItem.Store,
         },
-        reward: { id: reward.id, expiresAt },
+        reward: {
+          id: reward.id,
+          expiresAt,
+          storeId: reward.storeId,
+          Store: reward.Store,
+        },
       };
     });
   }
 
   async listMyRewards(userId: Id, filters: FilterUserRewardDTO) {
     const now = new Date();
-    const { status, rewardType, page, limit } = filters;
+    const { status, rewardType, storeId, page, limit } = filters;
 
     let where: Prisma.FortuneWheelUserRewardWhereInput = { userId };
+
+    if (storeId !== undefined) {
+      where.storeId = storeId;
+    }
 
     if (rewardType) {
       where.rewardType = rewardType;
@@ -404,13 +443,15 @@ export class FortuneWheelService {
     return items[items.length - 1];
   }
 
-  private async getOrCreateSettings() {
-    const settings = await this.prisma.fortuneWheelSettings.findFirst({
+  private async getOrCreateSettings(
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const settings = await client.fortuneWheelSettings.findFirst({
       orderBy: { id: 'asc' },
     });
     if (settings) return settings;
 
-    return this.prisma.fortuneWheelSettings.create({
+    return client.fortuneWheelSettings.create({
       data: { displayIntervalHours: DEFAULT_DISPLAY_INTERVAL_HOURS },
     });
   }

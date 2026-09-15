@@ -56,6 +56,8 @@ model Store {
   TemplateApplications StoreTemplateApplication[]
   ZonePrices           StoreZonePrice[]
   VariationTemplates   VariationTemplate[]
+  FortuneWheelItems    FortuneWheelItem[]
+  FortuneWheelUserRewards FortuneWheelUserReward[]
   city                 City?                      @relation(fields: [cityId], references: [id])
   Plan                 Plan?                      @relation(fields: [planId], references: [id])
   wallet               Wallet?                    @relation(fields: [walletId], references: [id])

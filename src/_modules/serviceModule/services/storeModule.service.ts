@@ -514,12 +514,63 @@ export class ServiceModuleService {
       },
     });
 
+    let activeReward: any = null;
+    if (customerId) {
+      const now = new Date();
+      activeReward = await this.prisma.fortuneWheelUserReward.findFirst({
+        where: {
+          userId: customerId,
+          status: 'VALID',
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          AND: [
+            { OR: [{ storeId: null }, { storeId }] },
+            {
+              rewardType: {
+                in: ['DISCOUNT', 'FIXED_AMOUNT', 'FREE_DELIVERY'],
+              },
+            },
+          ],
+        },
+        include: {
+          Store: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    const fortuneRewardSummary = activeReward
+      ? {
+          id: activeReward.id,
+          rewardType: activeReward.rewardType,
+          rewardValue: activeReward.rewardValue,
+          maxDiscount: activeReward.maxDiscount,
+          minOrderAmount: activeReward.minOrderAmount,
+          storeId: activeReward.storeId,
+          storeName: activeReward.Store?.name ?? null,
+          storeLogo: activeReward.Store?.logo ?? null,
+          expiresAt: activeReward.expiresAt,
+          label:
+            activeReward.rewardType === 'DISCOUNT'
+              ? `خصم العجلة ${activeReward.rewardValue}%`
+              : activeReward.rewardType === 'FREE_DELIVERY'
+                ? 'توصيل مجاني من عجلة الحظ'
+                : 'خصم عجلة الحظ',
+        }
+      : null;
+
     return Promise.all(
       categories.map(async (category: any) => {
         const { services, ...categoryData } = category;
         return {
           ...categoryData,
-          Services: await this.helper.mapServices(services),
+          activeFortuneReward: fortuneRewardSummary,
+          Services: await this.helper.mapServices(services, activeReward),
         };
       }),
     );

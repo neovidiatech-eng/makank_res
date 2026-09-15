@@ -67,4 +67,6 @@ export class ServiceDTO {
   priceWithDefaultOptions: number;
   isFavourite: boolean;
   available: boolean;
+  isFortuneDiscount?: boolean;
+  fortuneReward?: any;
 }

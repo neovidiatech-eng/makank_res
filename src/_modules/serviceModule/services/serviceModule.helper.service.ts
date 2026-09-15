@@ -120,13 +120,21 @@ export class ServiceModuleHelper {
       : (subtotal * settings.value) / 100;
   }
 
-  mapServices = async (services: any[]): Promise<ServiceDTO[]> => {
+  mapServices = async (
+    services: any[],
+    activeReward?: any,
+  ): Promise<ServiceDTO[]> => {
     return Array.isArray(services)
-      ? services.map((service) => this.mapServiceObject(service))
+      ? services.map((service) =>
+          this.mapServiceObject(service, activeReward),
+        )
       : [];
   };
 
-  private mapServiceObject = (service: any): ServiceDTO => {
+  private mapServiceObject = (
+    service: any,
+    activeReward?: any,
+  ): ServiceDTO => {
     const store: StoreCommissionInput = {
       commission: service.Store?.commission ?? 0,
       commissionType: service.Store?.commissionType ?? CommissionType.FIXED,
@@ -154,6 +162,7 @@ export class ServiceModuleHelper {
           const rawPrice = s.price ?? 0;
           const rawPad = s.priceAfterDiscount;
           const hasDiscount = this.hasValidDiscount(rawPrice, rawPad);
+
           // Original commission-inclusive price (pre-sale list price).
           const price = this.applyStoreCommission(
             rawPrice,
@@ -216,6 +225,7 @@ export class ServiceModuleHelper {
     const rawBasePrice = service.price ?? 0;
     const rawBasePad = service.priceAfterDiscount;
     const baseHasDiscount = this.hasValidDiscount(rawBasePrice, rawBasePad);
+
     const { clientFacingPrice } = this.applyStoreCommission(
       rawBasePrice,
       store,
@@ -238,13 +248,6 @@ export class ServiceModuleHelper {
     const finalClientPrice = useDefaultSizeForTopLevel
       ? defaultSize.price
       : clientFacingPrice;
-    // Previously only `price` followed the default size here — `effectivePrice`/
-    // `hasDiscount`/`priceAfterDiscount` still fell back to the base service's own
-    // (discount-free, by definition of this branch) values, which could show a
-    // contradictory response like `price: 0, effectivePrice: 120` for a product
-    // whose only/default size was priced at 0. Only applies when the base has no
-    // discount of its own — the other branch (base has a real headline discount)
-    // is intentionally left alone, see the "list headline" test.
     const finalEffectivePrice = useDefaultSizeForTopLevel
       ? defaultSize.effectivePrice
       : baseEffectivePrice;
@@ -254,6 +257,18 @@ export class ServiceModuleHelper {
     const finalPriceAfterDiscount = useDefaultSizeForTopLevel
       ? defaultSize.priceAfterDiscount
       : basePriceAfterDiscount;
+
+    const fortuneDiscountMeta = activeReward
+      ? {
+          rewardId: activeReward.id,
+          rewardType: activeReward.rewardType,
+          rewardValue: activeReward.rewardValue,
+          label:
+            activeReward.rewardType === 'DISCOUNT'
+              ? `خصم العجلة ${activeReward.rewardValue}%`
+              : 'خصم عجلة الحظ',
+        }
+      : null;
 
     return {
       id: service.id ?? 0,
@@ -282,6 +297,8 @@ export class ServiceModuleHelper {
       Sizes: sizesDTO,
       Addons: addonsDTO,
       isFavourite: service?.Favorites?.length > 0,
+      isFortuneDiscount: !!activeReward,
+      fortuneReward: fortuneDiscountMeta,
     };
   };
 }

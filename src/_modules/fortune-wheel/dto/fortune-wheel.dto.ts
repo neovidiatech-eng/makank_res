@@ -45,6 +45,10 @@ export class CreateFortuneWheelItemDTO {
   rewardExpiryHours?: number;
 
   @Optional()
+  @ValidateNumber()
+  storeId?: number;
+
+  @Optional()
   @ValidateBoolean()
   isActive?: boolean;
 
@@ -100,6 +104,10 @@ export class FilterFortuneWheelItemDTO extends PaginationParamsDTO {
   isActive?: boolean;
 
   @Optional()
+  @ValidateNumber()
+  storeId?: number;
+
+  @Optional()
   orderBy?: SortFortuneWheelItemDTO[];
 }
 
@@ -111,4 +119,8 @@ export class FilterUserRewardDTO extends PaginationParamsDTO {
   @Optional()
   @ValidateEnum(FortuneWheelRewardType)
   rewardType?: FortuneWheelRewardType;
+
+  @Optional()
+  @ValidateNumber()
+  storeId?: number;
 }

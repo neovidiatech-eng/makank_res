@@ -884,9 +884,11 @@ export class HelpersService {
     subtotalAfterCoupon: number,
     orderType: OrderType,
     deliveryFeeExclTip: number,
+    orderStoreId?: number,
   ): Promise<{ rewardId: Id; rewardDiscount: number; freeDelivery: boolean }> {
     const reward = await this.prisma.fortuneWheelUserReward.findUnique({
       where: { id: rewardId },
+      include: { Store: { select: { id: true, name: true } } },
     });
 
     if (!reward) throw new BadRequestException('Fortune reward not found');
@@ -898,6 +900,16 @@ export class HelpersService {
     const now = new Date();
     if (reward.expiresAt && reward.expiresAt <= now)
       throw new BadRequestException('Reward has expired');
+
+    if (
+      reward.storeId !== null &&
+      orderStoreId !== undefined &&
+      reward.storeId !== orderStoreId
+    ) {
+      throw new BadRequestException(
+        'هذه الجائزة صالحة فقط للطلب من المطعم المحدد في عجلة الحظ',
+      );
+    }
 
     if (
       reward.minOrderAmount !== null &&

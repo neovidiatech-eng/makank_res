@@ -501,6 +501,8 @@ export class OrderService {
     let rewardId: Id | undefined;
     let adjustedDeliveryPrice = deliveryPrice;
 
+    let isFreeDeliveryFortune = false;
+
     if (data.fortuneRewardId) {
       const deliveryFeeExclTip =
         data.type === OrderType.PICKUP ? 0 : deliveryPrice - (data.tip ?? 0);
@@ -510,11 +512,13 @@ export class OrderService {
         totalAfterDiscount,
         data.type,
         deliveryFeeExclTip,
+        firstPaidItem.service.storeId,
       );
       rewardDiscount = fortuneResult.rewardDiscount;
       rewardId = fortuneResult.rewardId;
 
       if (fortuneResult.freeDelivery) {
+        isFreeDeliveryFortune = true;
         // Zero the delivery portion but preserve tip
         adjustedDeliveryPrice = data.tip ?? 0;
       }
@@ -565,6 +569,9 @@ export class OrderService {
       shipping: adjustedDeliveryPrice,
       couponId,
       rewardId,
+      fortuneDiscount: rewardDiscount,
+      isFreeDeliveryFortune,
+      originalShippingFee: deliveryPrice,
       zoneId,
       items: validatedItems,
       bundles: pricedBundles,
@@ -659,6 +666,9 @@ export class OrderService {
       tax,
       couponId,
       rewardId,
+      fortuneDiscount,
+      isFreeDeliveryFortune,
+      originalShippingFee,
       items,
       shipping,
       // Delivery-destination zone, resolved from the address coords inside
@@ -912,6 +922,12 @@ export class OrderService {
           storeCommission,
           commission: adminCommission,
           total: totalPrice,
+          rewardId,
+          fortuneDiscount: fortuneDiscount || 0,
+          isFreeDeliveryFortune: isFreeDeliveryFortune || false,
+          originalShippingFee: originalShippingFee || shipping,
+          storeFortuneSubsidy: (fortuneDiscount || 0) / 2,
+          storeFortuneContribution: (fortuneDiscount || 0) / 2,
         },
         estimatedArrivalMinutes,
         paymentMethod: data.paymentMethod,
@@ -3976,11 +3992,46 @@ export class OrderService {
           );
     const payToStoreAmount =
       isPartnerStore || isCustomDelivery ? 0 : storeNetEarnings;
-    const driverEarnings = shipping;
+    const invoiceSummary = (order.invoice as any)?.summary || {};
+    const isFreeDelivery = Boolean(
+      invoiceSummary.isFreeDeliveryFortune ||
+      invoiceSummary.freeDelivery ||
+      (order.type === OrderType.DELIVERY && shipping === 0 && (invoiceSummary.deliveryDiscount > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
+    );
+    const originalDeliveryPrice = Number(
+      invoiceSummary.originalShippingFee ??
+        (invoiceSummary.deliveryDiscount != null
+          ? shipping + Number(invoiceSummary.deliveryDiscount)
+          : shipping),
+    );
+    const fortuneDiscount = Number(invoiceSummary.fortuneDiscount || 0);
+
+    const driverEarnings = isFreeDelivery
+      ? (originalDeliveryPrice > 0 ? originalDeliveryPrice : shipping)
+      : shipping;
+
+    const freeDeliveryNotice = isFreeDelivery
+      ? 'عرض توصيل مجاني - لا يتم تحصيل مصاريف توصيل من العميل ومستحقاتك تضاف لمحفظتك'
+      : null;
+
+    const fortuneRewardDetails = fortuneDiscount > 0 || isFreeDelivery
+      ? {
+          hasFortuneReward: true,
+          totalFortuneDiscount: fortuneDiscount,
+          storeContribution: fortuneDiscount / 2,
+          platformContribution: fortuneDiscount / 2,
+          walletCreditAmount: fortuneDiscount / 2,
+          isFreeDelivery,
+          originalShippingFee: originalDeliveryPrice,
+        }
+      : null;
 
     Object.assign(order, {
       isPartnerStore,
       partnerStoreNotice,
+      isFreeDelivery,
+      freeDeliveryNotice,
+      fortuneRewardDetails,
       paymentDetails: {
         isOnlinePayment,
         isPaid,
@@ -3988,6 +4039,8 @@ export class OrderService {
         payToStoreAmount,
         paymentTypeLabel,
         paymentMethodName,
+        isFreeDelivery,
+        freeDeliveryNotice,
         paymentMethod: order.paymentMethod ?? PaymentMethod.CASH,
         paymentStatus: order.paymentStatus ?? PaymentStatus.UNPAID,
         transferType: order.transferType ?? null,
@@ -4011,6 +4064,12 @@ export class OrderService {
         storeNetEarnings,
         payToStoreAmount,
         driverEarnings,
+        fortuneDiscount,
+        storeFortuneContribution: fortuneDiscount / 2,
+        platformFortuneContribution: fortuneDiscount / 2,
+        isFreeDelivery,
+        originalShippingFee: originalDeliveryPrice,
+        freeDeliveryNotice,
       },
     });
 
