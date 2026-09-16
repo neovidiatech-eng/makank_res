@@ -548,13 +548,17 @@ export class HelpersService {
     totalPrice: number,
     customerSelectedZoneId?: Id | null,
   ) {
-    if (!addressId) return 0;
+    if (!addressId && !customerSelectedZoneId) return 0;
 
     const [address, branch] = await Promise.all([
-      this.prisma.address.findUnique({ where: { id: addressId } }),
-      this.prisma.branch.findUnique({ where: { id: branchId } }),
+      addressId
+        ? this.prisma.address.findUnique({ where: { id: addressId } })
+        : null,
+      branchId
+        ? this.prisma.branch.findUnique({ where: { id: branchId } })
+        : null,
     ]);
-    if (!address || !branch) return 0;
+    if (!branch) return 0;
 
     // Check free delivery threshold
     const freeDeliveryOverSet = await this.prisma.settings.findUnique({
@@ -567,14 +571,22 @@ export class HelpersService {
       return 0;
     }
 
-    // Global zone-pricing toggle: when the admin disables this, ALL zone-based
-    // pricing is skipped for every store/restaurant order — we fall straight
-    // through to the km formula below. Custom-delivery pricing is unaffected.
-    const { globalZonePricingEnabled } = await this.settingService.getSettings([
+    const settings = await this.settingService.getSettings([
       'globalZonePricingEnabled',
+      'shippingKMCharge',
+      'deliveryCommission',
     ]);
 
-    if (globalZonePricingEnabled !== false) {
+    // Global zone-pricing toggle: when the admin disables this, ALL zone-based
+    // pricing is skipped for every store/restaurant order — we fall straight
+    // through to the fixed/km formula below. Custom-delivery pricing is unaffected.
+    const isZonePricingActive =
+      settings.globalZonePricingEnabled !== false &&
+      settings.globalZonePricingEnabled !== 'false' &&
+      settings.globalZonePricingEnabled !== 0 &&
+      settings.globalZonePricingEnabled !== '0';
+
+    if (isZonePricingActive) {
       // Product decision: the zone the customer explicitly picked from the
       // dropdown (customerSelectedZoneId) takes priority for pricing over the
       // real, GPS/address-resolved zone — the opposite of every other
@@ -597,30 +609,49 @@ export class HelpersService {
         }
       }
 
-      const zoneId = await this.zoneService.resolveZoneId(
-        address.lat,
-        address.lng,
-      );
+      if (address?.lat != null && address?.lng != null) {
+        const zoneId = await this.zoneService.resolveZoneId(
+          address.lat,
+          address.lng,
+        );
 
-      // Per-store zone pricing: only applies when the admin has specifically
-      // enabled it for this branch's store (Store.zonePricingEnabled) and the
-      // store set its own price for this zone. Takes priority over the
-      // app-wide zone price below. Custom-delivery pricing never looks at this.
-      const storeZonePrice = await this.zoneService.getStoreZoneDeliveryPrice(
-        branch.storeId,
-        zoneId,
-      );
-      if (storeZonePrice != null) {
-        return storeZonePrice;
-      }
+        // Per-store zone pricing: only applies when the admin has specifically
+        // enabled it for this branch's store (Store.zonePricingEnabled) and the
+        // store set its own price for this zone. Takes priority over the
+        // app-wide zone price below. Custom-delivery pricing never looks at this.
+        const storeZonePrice = await this.zoneService.getStoreZoneDeliveryPrice(
+          branch.storeId,
+          zoneId,
+        );
+        if (storeZonePrice != null) {
+          return storeZonePrice;
+        }
 
-      // App-wide zone-based pricing: if the customer's address falls inside a
-      // zone the admin gave a fixed delivery price, use it directly instead of
-      // the per-km formula below.
-      const zonePrice = await this.zoneService.getZoneDeliveryPrice(zoneId);
-      if (zonePrice != null) {
-        return zonePrice;
+        // App-wide zone-based pricing: if the customer's address falls inside a
+        // zone the admin gave a fixed delivery price, use it directly instead of
+        // the per-km formula below.
+        const zonePrice = await this.zoneService.getZoneDeliveryPrice(zoneId);
+        if (zonePrice != null) {
+          return zonePrice;
+        }
       }
+    }
+
+    const rawKm = settings.shippingKMCharge;
+    const shippingKMCharge =
+      rawKm !== undefined && rawKm !== null && rawKm !== '' && !isNaN(+rawKm)
+        ? +rawKm
+        : 10;
+    const deliveryCommission = +settings.deliveryCommission || 0;
+
+    // When shippingKMCharge is 0 or negligible (<= 0.001, e.g. 0.0001 configured in dashboard),
+    // delivery price is the flat fixed fee (e.g. 15 EGP) across all zones.
+    if (shippingKMCharge <= 0.001) {
+      return deliveryCommission;
+    }
+
+    if (!address?.lat || !address?.lng || !branch?.lat || !branch?.lng) {
+      return deliveryCommission;
     }
 
     // Calculate distance
@@ -643,16 +674,11 @@ export class HelpersService {
         calculateDistance(address.lat, address.lng, branch.lat, branch.lng) /
         1000;
     }
-    const settings = await this.settingService.getSettings([
-      'shippingKMCharge',
-      'deliveryCommission',
-    ]);
-    console.log('settings', settings);
-    const shippingKMCharge = +settings.shippingKMCharge || 10;
-    const deliveryCommission = +settings.deliveryCommission || 0;
-    console.log(distance);
+
     // Calculate price
-    return distance * shippingKMCharge + deliveryCommission;
+    return (
+      Math.round((distance * shippingKMCharge + deliveryCommission) * 100) / 100
+    );
   }
 
   /**

@@ -1418,6 +1418,16 @@ export class StoreService {
     if (!store) {
       throw new NotFoundException('Store not found');
     }
+
+    const { globalZonePricingEnabled } = await this.settingService.getSettings([
+      'globalZonePricingEnabled',
+    ]);
+    const isGlobalActive =
+      globalZonePricingEnabled !== false &&
+      globalZonePricingEnabled !== 'false' &&
+      globalZonePricingEnabled !== 0 &&
+      globalZonePricingEnabled !== '0';
+
     const [zones, ownPrices] = await Promise.all([
       this.prisma.zone.findMany({
         where: { active: true },
@@ -1434,7 +1444,8 @@ export class StoreService {
       storeName: store.name,
       logo: store.logo,
       announcement: store.announcement ?? null,
-      zonePricingEnabled: store.zonePricingEnabled,
+      zonePricingEnabled: isGlobalActive && store.zonePricingEnabled,
+      globalZonePricingEnabled: isGlobalActive,
       zones: zones.map((zone) => ({
         zoneId: zone.id,
         name: zone.name,
@@ -1446,16 +1457,57 @@ export class StoreService {
 
   async getEffectiveZonePrices(id: any, user?: CurrentUser) {
     const storeId = await this.resolveStoreId(id, user);
+
+    const { globalZonePricingEnabled, deliveryCommission } =
+      await this.settingService.getSettings([
+        'globalZonePricingEnabled',
+        'deliveryCommission',
+      ]);
+
+    const isGlobalActive =
+      globalZonePricingEnabled !== false &&
+      globalZonePricingEnabled !== 'false' &&
+      globalZonePricingEnabled !== 0 &&
+      globalZonePricingEnabled !== '0';
+
     const zones = await this.prisma.zone.findMany({
       where: { active: true },
       select: { id: true, name: true, cityId: true },
       orderBy: { id: 'asc' },
     });
+
+    if (!isGlobalActive) {
+      const flatPrice =
+        deliveryCommission != null && !isNaN(+deliveryCommission)
+          ? +deliveryCommission
+          : 15;
+      return zones.map((zone) => ({
+        zoneId: zone.id,
+        name: zone.name,
+        cityId: zone.cityId,
+        price: flatPrice,
+      }));
+    }
+
+    const store = await this.prisma.store.findUnique({
+      where: { id: storeId },
+      select: { zonePricingEnabled: true },
+    });
+    const storeZonePricingEnabled = store?.zonePricingEnabled !== false;
+
     return Promise.all(
       zones.map(async (zone) => {
-        const storePrice = await this.zoneService.getStoreZoneDeliveryPrice(storeId, zone.id);
-        const price = storePrice ?? (await this.zoneService.getZoneDeliveryPrice(zone.id));
-        return { zoneId: zone.id, name: zone.name, cityId: zone.cityId, price: price ?? null };
+        const storePrice = storeZonePricingEnabled
+          ? await this.zoneService.getStoreZoneDeliveryPrice(storeId, zone.id)
+          : null;
+        const price =
+          storePrice ?? (await this.zoneService.getZoneDeliveryPrice(zone.id));
+        return {
+          zoneId: zone.id,
+          name: zone.name,
+          cityId: zone.cityId,
+          price: price ?? null,
+        };
       }),
     );
   }

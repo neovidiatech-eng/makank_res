@@ -23,7 +23,13 @@ export class PrivateSettingService {
     const processedSettings = settings?.map((s) => {
       let value: any = s.value;
       if (s.dataType === DataType.NUMBER) value = Number(s.value);
-      if (s.dataType === DataType.BOOLEAN) value = s.value === 'true';
+      if (
+        s.dataType === DataType.BOOLEAN ||
+        s.value === 'true' ||
+        s.value === 'false'
+      ) {
+        value = s.value === 'true';
+      }
       if (s.dataType === DataType.DATE) value = new Date(s.value);
       if (s.dataType === DataType.TIME) value = new Date(s.value);
 
