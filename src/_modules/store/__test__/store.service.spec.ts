@@ -516,6 +516,7 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
       logo: mockStore.logo,
       announcement: mockStore.announcement,
       zonePricingEnabled: true,
+      globalZonePricingEnabled: true,
       zones: [
         { zoneId: 1, name: { ar: 'المنطقة الأولى' }, cityId: 1, price: 25.5 },
         { zoneId: 2, name: { ar: 'المنطقة الثانية' }, cityId: 1, price: null },
