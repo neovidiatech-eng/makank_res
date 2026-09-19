@@ -681,7 +681,7 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
     ]);
   });
 
-  it('scenario 12: setAllStoresZonePrices updates Zone, existing StoreZonePrice rows, and enables zone pricing', async () => {
+  it('scenario 12: setAllStoresZonePrices updates Zone defaults and enables zone pricing without touching StoreZonePrice overrides', async () => {
     const prisma = {
       zone: {
         count: jest.fn().mockResolvedValue(2),
@@ -705,16 +705,20 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
       ],
     });
 
+    // Zone defaults must be updated
     expect(prisma.zone.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { deliveryPrice: 35, deliveryPriceAfterDiscount: 20 },
     });
-    expect(prisma.storeZonePrice.updateMany).toHaveBeenCalledWith({
-      where: { zoneId: 1 },
-      data: { price: 35, priceAfterDiscount: 20 },
+    expect(prisma.zone.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: { deliveryPrice: 50, deliveryPriceAfterDiscount: null },
     });
+    // All stores must be zone-pricing-enabled
     expect(prisma.store.updateMany).toHaveBeenCalledWith({
       data: { zonePricingEnabled: true },
     });
+    // Store-specific overrides must NOT be touched — they keep their custom prices
+    expect(prisma.storeZonePrice.updateMany).not.toHaveBeenCalled();
   });
 });

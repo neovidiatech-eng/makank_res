@@ -948,7 +948,9 @@ export class OrderService {
           rewardId,
           fortuneDiscount: fortuneDiscount || 0,
           isFreeDeliveryFortune: isFreeDeliveryFortune || false,
-          originalShippingFee: originalShippingFee || shipping,
+          // originalShippingFee = the base delivery price BEFORE any promo/discount.
+          // Used by distributeEarnings to credit the driver the full contractual amount.
+          originalShippingFee: deliveryOriginalShipping || shipping,
           storeFortuneSubsidy: (fortuneDiscount || 0) / 2,
           storeFortuneContribution: (fortuneDiscount || 0) / 2,
           // Delivery promo breakdown — consumed by mobile app and wallet settlement

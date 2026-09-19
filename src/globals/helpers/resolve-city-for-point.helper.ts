@@ -10,7 +10,7 @@ export async function resolveCityForPoint(
   if (lat == null || lng == null) return null;
 
   const cities = await prisma.city.findMany({
-    where: { active: true },
+    where: { active: true, lat: { not: null }, lng: { not: null } },
     select: {
       id: true,
       lat: true,

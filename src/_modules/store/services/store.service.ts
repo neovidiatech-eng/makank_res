@@ -1712,9 +1712,12 @@ export class StoreService {
       throw new BadRequestException('One or more zones are invalid');
     }
 
-    // 1. Update Zone defaults
-    // 2. Update existing StoreZonePrice rows for these zones so any store that previously had overrides now matches the global update
-    // 3. Ensure all stores have zonePricingEnabled
+    // 1. Update Zone defaults (new stores / stores with no override inherit these automatically).
+    // 2. Ensure all stores have zonePricingEnabled so the cascade works.
+    // NOTE: We intentionally do NOT touch existing StoreZonePrice rows — stores that
+    // already have their own per-zone override keep it.  "Apply to all" sets the
+    // global floor, not a forced reset.  Admin can still delete a store's override
+    // manually (deleteZonePrice) to revert it to the global price.
     await this.prisma.$transaction([
       ...normalizedEntries.map((entry) =>
         this.prisma.zone.update({
@@ -1722,15 +1725,6 @@ export class StoreService {
           data: {
             deliveryPrice: entry.price,
             deliveryPriceAfterDiscount: entry.priceAfterDiscount,
-          },
-        }),
-      ),
-      ...normalizedEntries.map((entry) =>
-        this.prisma.storeZonePrice.updateMany({
-          where: { zoneId: entry.zoneId },
-          data: {
-            price: entry.price,
-            priceAfterDiscount: entry.priceAfterDiscount,
           },
         }),
       ),

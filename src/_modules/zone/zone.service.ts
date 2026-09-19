@@ -137,6 +137,21 @@ export class ZoneService {
   ): Promise<number> {
     if (!points?.length) return -1;
 
+    // Fetch all active zones once for the whole batch — avoids N queries.
+    // City-scoped optimisation: use the first non-null point to resolve a city,
+    // then scope the batch to that city.  Falls back to ALL active zones when the
+    // city cannot be resolved (single-city deployments, no city configured, etc.).
+    let zonesCache: Array<{ coordinates: unknown }> | null = null;
+    const getZones = async (lat: number, lng: number) => {
+      if (zonesCache !== null) return zonesCache;
+      const where = await this._resolveCityWhere(lat, lng);
+      zonesCache = await this.prisma.zone.findMany({
+        where,
+        select: { coordinates: true },
+      });
+      return zonesCache;
+    };
+
     for (let i = 0; i < points.length; i++) {
       const point = points[i];
       // If the stop was explicitly assigned an active zone (e.g. customer selected
@@ -155,12 +170,7 @@ export class ZoneService {
       const lng = point?.lng;
       if (lat == null || lng == null) return i;
 
-      // Scope the zone lookup to the city this point falls in.
-      const where = await this._resolveCityWhere(lat, lng);
-      const activeZones = await this.prisma.zone.findMany({
-        where,
-        select: { coordinates: true },
-      });
+      const activeZones = await getZones(lat, lng);
 
       const covered = activeZones.some((zone) => {
         const coords = zone.coordinates as Array<{ lat: number; lng: number }>;

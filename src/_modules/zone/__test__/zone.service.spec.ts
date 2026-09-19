@@ -32,7 +32,10 @@ const STOCKHOLM = { lat: 59.33, lng: 18.07 }; // outside every Egyptian zone
 
 const buildService = (zones: Array<{ coordinates: unknown }>) => {
   const findMany = jest.fn().mockResolvedValue(zones);
-  const prisma = { zone: { findMany } } as any;
+  const prisma = {
+    zone: { findMany, findFirst: jest.fn().mockResolvedValue(null) },
+    city: { findMany: jest.fn().mockResolvedValue([]) },
+  } as any;
   const service = new ZoneService(prisma, undefined as any);
   return { service, findMany };
 };
