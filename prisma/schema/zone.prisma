@@ -6,7 +6,8 @@ model Zone {
   deletedAt            DateTime?             @map("deleted_at")
   active               Boolean               @default(true)
   cityId               Int?                  @map("city_id")
-  deliveryPrice        Float?                @map("delivery_price")
+  deliveryPrice              Float?                @map("delivery_price")
+  deliveryPriceAfterDiscount Float?                @map("delivery_price_after_discount")
   Banners              BannerZone[]
   SpecialDeliveryBanners SpecialDeliveryBannerZone[]
   Branches             BranchZone[]

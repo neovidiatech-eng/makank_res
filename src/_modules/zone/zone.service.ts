@@ -228,7 +228,21 @@ export class ZoneService {
     // fall through to the per-km formula instead of treating zero as a real price.
     if (zone?.deliveryPrice == null || zone.deliveryPrice === 0) return null;
     return zone.deliveryPrice;
+  }
 
+  async getZoneDeliveryPriceEntry(
+    zoneId?: Id | null,
+  ): Promise<{ price: number; priceAfterDiscount: number | null } | null> {
+    if (zoneId == null) return null;
+    const zone = await this.prisma.zone.findUnique({
+      where: { id: Number(zoneId) },
+      select: { deliveryPrice: true, deliveryPriceAfterDiscount: true },
+    });
+    if (zone?.deliveryPrice == null || zone.deliveryPrice === 0) return null;
+    return {
+      price: zone.deliveryPrice,
+      priceAfterDiscount: zone.deliveryPriceAfterDiscount ?? null,
+    };
   }
 
   // Per-store zone pricing override — only for regular store delivery
@@ -246,6 +260,24 @@ export class ZoneService {
     });
     if (row && row.price != null) {
       return row.price;
+    }
+    return null;
+  }
+
+  async getStoreZonePriceEntry(
+    storeId?: Id | null,
+    zoneId?: Id | null,
+  ): Promise<{ price: number; priceAfterDiscount: number | null } | null> {
+    if (storeId == null || zoneId == null) return null;
+    const row = await this.prisma.storeZonePrice.findUnique({
+      where: { storeId_zoneId: { storeId: Number(storeId), zoneId: Number(zoneId) } },
+      select: { price: true, priceAfterDiscount: true },
+    });
+    if (row && row.price != null) {
+      return {
+        price: row.price,
+        priceAfterDiscount: row.priceAfterDiscount ?? null,
+      };
     }
     return null;
   }

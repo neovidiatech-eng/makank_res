@@ -391,6 +391,33 @@ export class StoreController {
     return this.response.success(res, 'store effective zone prices fetched successfully', data);
   }
 
+  @Get('all/zone-prices')
+  @Auth({ prefix })
+  async getAllStoresZonePrices(
+    @Res() res: Response,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
+    const data = await this.service.getAllStoresZonePrices(user);
+    return this.response.success(res, 'all stores zone prices fetched successfully', data);
+  }
+
+  @Patch('all/zone-prices')
+  @Auth({ prefix: 'store-zone-pricing' })
+  async setAllStoresZonePrices(
+    @Res() res: Response,
+    @Body() body: any,
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
+    const data = await this.service.setAllStoresZonePrices(body, user);
+    return this.response.success(res, 'all stores zone prices updated successfully', data);
+  }
+
   @Get(['/me/zone-prices', '/zone-prices', '/:id/zone-prices'])
   @Auth({ prefix })
   async getZonePrices(

@@ -1414,6 +1414,9 @@ export class StoreService {
   }
 
   async getZonePrices(id: any, user?: CurrentUser) {
+    if (String(id) === 'all') {
+      return this.getAllStoresZonePrices(user);
+    }
     const storeId = await this.resolveStoreId(id, user);
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
@@ -1440,7 +1443,10 @@ export class StoreService {
       this.prisma.storeZonePrice.findMany({ where: { storeId } }),
     ]);
     const priceByZoneId = new Map(
-      ownPrices.map((row) => [row.zoneId, row.price]),
+      ownPrices.map((row) => [
+        row.zoneId,
+        { price: row.price, priceAfterDiscount: row.priceAfterDiscount ?? null },
+      ]),
     );
     return {
       storeId,
@@ -1449,11 +1455,57 @@ export class StoreService {
       announcement: store.announcement ?? null,
       zonePricingEnabled: isGlobalActive && store.zonePricingEnabled,
       globalZonePricingEnabled: isGlobalActive,
+      zones: zones.map((zone) => {
+        const own = priceByZoneId.get(zone.id);
+        return {
+          zoneId: zone.id,
+          name: zone.name,
+          cityId: zone.cityId,
+          price: own ? own.price : null,
+          priceAfterDiscount: own ? own.priceAfterDiscount : null,
+        };
+      }),
+    };
+  }
+
+  async getAllStoresZonePrices(user?: CurrentUser) {
+    if (user && user.Role?.roleKey && user.Role.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
+    const { globalZonePricingEnabled } = await this.settingService.getSettings([
+      'globalZonePricingEnabled',
+    ]);
+    const isGlobalActive =
+      globalZonePricingEnabled !== false &&
+      globalZonePricingEnabled !== 'false' &&
+      globalZonePricingEnabled !== 0 &&
+      globalZonePricingEnabled !== '0';
+
+    const zones = await this.prisma.zone.findMany({
+      where: { active: true },
+      select: {
+        id: true,
+        name: true,
+        cityId: true,
+        deliveryPrice: true,
+        deliveryPriceAfterDiscount: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    return {
+      storeId: 'all',
+      storeName: { ar: 'جميع المتاجر (تطبيق عام)', en: 'All Stores (Global Application)' },
+      logo: null,
+      announcement: null,
+      zonePricingEnabled: isGlobalActive,
+      globalZonePricingEnabled: isGlobalActive,
       zones: zones.map((zone) => ({
         zoneId: zone.id,
         name: zone.name,
         cityId: zone.cityId,
-        price: priceByZoneId.get(zone.id) ?? null,
+        price: zone.deliveryPrice ?? null,
+        priceAfterDiscount: zone.deliveryPriceAfterDiscount ?? null,
       })),
     };
   }
@@ -1489,6 +1541,7 @@ export class StoreService {
         name: zone.name,
         cityId: zone.cityId,
         price: flatPrice,
+        priceAfterDiscount: null,
       }));
     }
 
@@ -1500,16 +1553,37 @@ export class StoreService {
 
     return Promise.all(
       zones.map(async (zone) => {
-        const storePrice = storeZonePricingEnabled
-          ? await this.zoneService.getStoreZoneDeliveryPrice(storeId, zone.id)
+        const storeEntry = storeZonePricingEnabled && typeof this.zoneService.getStoreZonePriceEntry === 'function'
+          ? await this.zoneService.getStoreZonePriceEntry(storeId, zone.id)
           : null;
-        const price =
-          storePrice ?? (await this.zoneService.getZoneDeliveryPrice(zone.id));
+        const zoneEntry = storeEntry
+          ? null
+          : (typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
+              ? await this.zoneService.getZoneDeliveryPriceEntry(zone.id)
+              : null);
+
+        let price: number | null = null;
+        let priceAfterDiscount: number | null = null;
+
+        if (storeEntry) {
+          price = storeEntry.price;
+          priceAfterDiscount = storeEntry.priceAfterDiscount;
+        } else if (zoneEntry) {
+          price = zoneEntry.price;
+          priceAfterDiscount = zoneEntry.priceAfterDiscount;
+        } else {
+          const storeLegacy = storeZonePricingEnabled
+            ? await this.zoneService.getStoreZoneDeliveryPrice(storeId, zone.id)
+            : null;
+          price = storeLegacy ?? (await this.zoneService.getZoneDeliveryPrice(zone.id));
+        }
+
         return {
           zoneId: zone.id,
           name: zone.name,
           cityId: zone.cityId,
           price: price ?? null,
+          priceAfterDiscount: priceAfterDiscount ?? null,
         };
       }),
     );
@@ -1519,9 +1593,12 @@ export class StoreService {
     if (user && user.Role?.roleKey && user.Role.roleKey !== RolesKeys.ADMIN) {
       throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
     }
+    if (String(id) === 'all') {
+      return this.setAllStoresZonePrices(payload, user);
+    }
     const storeId = await this.resolveStoreId(id, user);
 
-    let entries: { zoneId: number; price: number }[] = [];
+    let entries: { zoneId: number; price: number; priceAfterDiscount?: number | null }[] = [];
     if (Array.isArray(payload)) {
       entries = payload;
     } else if (payload && Array.isArray(payload.zonePrices)) {
@@ -1542,9 +1619,16 @@ export class StoreService {
       throw new BadRequestException('No valid zone price entries provided');
     }
 
-    const normalizedEntries = entries.map((e) => ({
+    const normalizedEntries = entries.map((e: any) => ({
       zoneId: Number(e.zoneId),
       price: Number(e.price),
+      priceAfterDiscount:
+        e.priceAfterDiscount !== undefined &&
+        e.priceAfterDiscount !== null &&
+        e.priceAfterDiscount !== '' &&
+        !isNaN(Number(e.priceAfterDiscount))
+          ? Number(e.priceAfterDiscount)
+          : null,
     }));
 
     const zoneIds = normalizedEntries.map((entry) => entry.zoneId);
@@ -1565,13 +1649,97 @@ export class StoreService {
       normalizedEntries.map((entry) =>
         this.prisma.storeZonePrice.upsert({
           where: { storeId_zoneId: { storeId, zoneId: entry.zoneId } },
-          update: { price: entry.price },
-          create: { storeId, zoneId: entry.zoneId, price: entry.price },
+          update: {
+            price: entry.price,
+            priceAfterDiscount: entry.priceAfterDiscount,
+          },
+          create: {
+            storeId,
+            zoneId: entry.zoneId,
+            price: entry.price,
+            priceAfterDiscount: entry.priceAfterDiscount,
+          },
         }),
       ),
     );
 
     return this.getZonePrices(storeId, user);
+  }
+
+  async setAllStoresZonePrices(payload: any, user?: CurrentUser) {
+    if (user && user.Role?.roleKey && user.Role.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
+
+    let entries: { zoneId: number; price: number; priceAfterDiscount?: number | null }[] = [];
+    if (Array.isArray(payload)) {
+      entries = payload;
+    } else if (payload && Array.isArray(payload.zonePrices)) {
+      entries = payload.zonePrices;
+    } else if (payload && Array.isArray(payload.prices)) {
+      entries = payload.prices;
+    } else if (payload && typeof payload === 'object') {
+      if ('zoneId' in payload && 'price' in payload) {
+        entries = [payload];
+      } else {
+        entries = Object.entries(payload)
+          .filter(([k, v]) => !isNaN(Number(k)) && !isNaN(Number(v)))
+          .map(([k, v]) => ({ zoneId: Number(k), price: Number(v) }));
+      }
+    }
+
+    if (!entries.length) {
+      throw new BadRequestException('No valid zone price entries provided');
+    }
+
+    const normalizedEntries = entries.map((e: any) => ({
+      zoneId: Number(e.zoneId),
+      price: Number(e.price),
+      priceAfterDiscount:
+        e.priceAfterDiscount !== undefined &&
+        e.priceAfterDiscount !== null &&
+        e.priceAfterDiscount !== '' &&
+        !isNaN(Number(e.priceAfterDiscount))
+          ? Number(e.priceAfterDiscount)
+          : null,
+    }));
+
+    const zoneIds = normalizedEntries.map((entry) => entry.zoneId);
+    const validZoneCount = await this.prisma.zone.count({
+      where: { id: { in: zoneIds }, active: true },
+    });
+    if (validZoneCount !== new Set(zoneIds).size) {
+      throw new BadRequestException('One or more zones are invalid');
+    }
+
+    // 1. Update Zone defaults
+    // 2. Update existing StoreZonePrice rows for these zones so any store that previously had overrides now matches the global update
+    // 3. Ensure all stores have zonePricingEnabled
+    await this.prisma.$transaction([
+      ...normalizedEntries.map((entry) =>
+        this.prisma.zone.update({
+          where: { id: entry.zoneId },
+          data: {
+            deliveryPrice: entry.price,
+            deliveryPriceAfterDiscount: entry.priceAfterDiscount,
+          },
+        }),
+      ),
+      ...normalizedEntries.map((entry) =>
+        this.prisma.storeZonePrice.updateMany({
+          where: { zoneId: entry.zoneId },
+          data: {
+            price: entry.price,
+            priceAfterDiscount: entry.priceAfterDiscount,
+          },
+        }),
+      ),
+      this.prisma.store.updateMany({
+        data: { zonePricingEnabled: true },
+      }),
+    ]);
+
+    return this.getAllStoresZonePrices(user);
   }
 
   async deleteZonePrice(id: any, zoneId: number, user?: CurrentUser) {

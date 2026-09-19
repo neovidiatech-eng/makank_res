@@ -598,6 +598,7 @@ export class HelpersService {
       settings.globalZonePricingEnabled !== '0';
 
     let basePrice: number | null = null;
+    let explicitDiscountPrice: number | null = null;
     let resolvedZoneId: number | null = null;
 
     if (isZonePricingActive) {
@@ -608,19 +609,53 @@ export class HelpersService {
       // zone / km-formula when the selected zone has no price of its own.
       if (customerSelectedZoneId != null) {
         resolvedZoneId = customerSelectedZoneId as number;
-        const selectedStoreZonePrice =
-          await this.zoneService.getStoreZoneDeliveryPrice(
-            branch.storeId,
-            customerSelectedZoneId,
-          );
-        if (selectedStoreZonePrice != null) {
-          basePrice = selectedStoreZonePrice;
+        const selectedStoreZoneEntry =
+          typeof this.zoneService.getStoreZonePriceEntry === 'function'
+            ? await this.zoneService.getStoreZonePriceEntry(
+                branch.storeId,
+                customerSelectedZoneId,
+              )
+            : null;
+
+        if (selectedStoreZoneEntry != null) {
+          basePrice = selectedStoreZoneEntry.price;
+          if (
+            selectedStoreZoneEntry.priceAfterDiscount != null &&
+            selectedStoreZoneEntry.priceAfterDiscount < selectedStoreZoneEntry.price
+          ) {
+            explicitDiscountPrice = selectedStoreZoneEntry.priceAfterDiscount;
+          }
         } else {
-          const selectedZonePrice = await this.zoneService.getZoneDeliveryPrice(
-            customerSelectedZoneId,
-          );
-          if (selectedZonePrice != null) {
-            basePrice = selectedZonePrice;
+          const selectedStoreZonePrice =
+            await this.zoneService.getStoreZoneDeliveryPrice(
+              branch.storeId,
+              customerSelectedZoneId,
+            );
+          if (selectedStoreZonePrice != null) {
+            basePrice = selectedStoreZonePrice;
+          } else {
+            const selectedZoneEntry =
+              typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
+                ? await this.zoneService.getZoneDeliveryPriceEntry(
+                    customerSelectedZoneId,
+                  )
+                : null;
+            if (selectedZoneEntry != null) {
+              basePrice = selectedZoneEntry.price;
+              if (
+                selectedZoneEntry.priceAfterDiscount != null &&
+                selectedZoneEntry.priceAfterDiscount < selectedZoneEntry.price
+              ) {
+                explicitDiscountPrice = selectedZoneEntry.priceAfterDiscount;
+              }
+            } else {
+              const selectedZonePrice = await this.zoneService.getZoneDeliveryPrice(
+                customerSelectedZoneId,
+              );
+              if (selectedZonePrice != null) {
+                basePrice = selectedZonePrice;
+              }
+            }
           }
         }
       }
@@ -636,19 +671,51 @@ export class HelpersService {
         // enabled it for this branch's store (Store.zonePricingEnabled) and the
         // store set its own price for this zone. Takes priority over the
         // app-wide zone price below. Custom-delivery pricing never looks at this.
-        const storeZonePrice = await this.zoneService.getStoreZoneDeliveryPrice(
-          branch.storeId,
-          zoneId,
-        );
-        if (storeZonePrice != null) {
-          basePrice = storeZonePrice;
+        const storeZoneEntry =
+          typeof this.zoneService.getStoreZonePriceEntry === 'function'
+            ? await this.zoneService.getStoreZonePriceEntry(
+                branch.storeId,
+                zoneId,
+              )
+            : null;
+
+        if (storeZoneEntry != null) {
+          basePrice = storeZoneEntry.price;
+          if (
+            storeZoneEntry.priceAfterDiscount != null &&
+            storeZoneEntry.priceAfterDiscount < storeZoneEntry.price
+          ) {
+            explicitDiscountPrice = storeZoneEntry.priceAfterDiscount;
+          }
         } else {
-          // App-wide zone-based pricing: if the customer's address falls inside a
-          // zone the admin gave a fixed delivery price, use it directly instead of
-          // the per-km formula below.
-          const zonePrice = await this.zoneService.getZoneDeliveryPrice(zoneId);
-          if (zonePrice != null) {
-            basePrice = zonePrice;
+          const storeZonePrice = await this.zoneService.getStoreZoneDeliveryPrice(
+            branch.storeId,
+            zoneId,
+          );
+          if (storeZonePrice != null) {
+            basePrice = storeZonePrice;
+          } else {
+            // App-wide zone-based pricing: if the customer's address falls inside a
+            // zone the admin gave a fixed delivery price, use it directly instead of
+            // the per-km formula below.
+            const zoneEntry =
+              typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
+                ? await this.zoneService.getZoneDeliveryPriceEntry(zoneId)
+                : null;
+            if (zoneEntry != null) {
+              basePrice = zoneEntry.price;
+              if (
+                zoneEntry.priceAfterDiscount != null &&
+                zoneEntry.priceAfterDiscount < zoneEntry.price
+              ) {
+                explicitDiscountPrice = zoneEntry.priceAfterDiscount;
+              }
+            } else {
+              const zonePrice = await this.zoneService.getZoneDeliveryPrice(zoneId);
+              if (zonePrice != null) {
+                basePrice = zonePrice;
+              }
+            }
           }
         }
       }
@@ -699,6 +766,24 @@ export class HelpersService {
       branch.storeId,
       resolvedZoneId,
     );
+
+    if (explicitDiscountPrice != null) {
+      if (promo) {
+        const promoCalc = this.deliveryPromotionService.applyPromotion(basePrice, promo);
+        if (promoCalc.finalShipping < explicitDiscountPrice) {
+          return promoCalc;
+        }
+      }
+      return {
+        finalShipping: Math.round(explicitDiscountPrice * 100) / 100,
+        originalShipping: Math.round(basePrice * 100) / 100,
+        discountAmount: Math.round((basePrice - explicitDiscountPrice) * 100) / 100,
+        isPromotional: true,
+        promotionId: null,
+        promotionBadgeText: 'توصيل مخفض',
+      };
+    }
+
     return this.deliveryPromotionService.applyPromotion(basePrice, promo);
   }
 

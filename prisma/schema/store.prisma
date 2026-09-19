@@ -75,8 +75,9 @@ model StoreZonePrice {
   id        Int      @id @default(autoincrement())
   storeId   Int      @map("store_id")
   zoneId    Int      @map("zone_id")
-  price     Float    @map("price")
-  createdAt DateTime @default(now()) @map("created_at")
+  price              Float    @map("price")
+  priceAfterDiscount Float?   @map("price_after_discount")
+  createdAt          DateTime @default(now()) @map("created_at")
   Store     Store    @relation(fields: [storeId], references: [id])
   Zone      Zone     @relation(fields: [zoneId], references: [id])
 

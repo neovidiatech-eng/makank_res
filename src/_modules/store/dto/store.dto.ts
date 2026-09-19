@@ -1,4 +1,4 @@
-import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { CommissionType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { Max, Min, ValidateNested } from 'class-validator';
@@ -468,6 +468,11 @@ export class StoreZonePriceEntryDTO {
   @Required()
   @ValidateNumber({ allowNegative: false })
   price: number;
+
+  @Optional()
+  @ValidateNumber({ allowNegative: false })
+  @ApiPropertyOptional({ description: 'Promo delivery price (after discount)', example: 20 })
+  priceAfterDiscount?: number | null;
 }
 
 export class SetStoreZonePricesDTO {

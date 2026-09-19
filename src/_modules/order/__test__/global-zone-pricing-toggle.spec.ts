@@ -206,6 +206,68 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
       expect(result.promotionBadgeText).toBe('توصيل مخفض لفترة محدودة');
     });
 
+    it('returns promo zone price when priceAfterDiscount is set lower than price', async () => {
+      mockZoneService.getStoreZonePriceEntry = jest.fn().mockResolvedValue({
+        price: 35,
+        priceAfterDiscount: 20,
+      });
+
+      mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: true,
+          shippingKMCharge: 10,
+          deliveryCommission: 5,
+        }),
+      };
+
+      helpers = new HelpersService(
+        mockPrisma,
+        null as any,
+        mockMapService,
+        mockSettingsService,
+        null as any,
+        mockZoneService,
+        mockDeliveryPromotionService as any,
+      );
+
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 99);
+      expect(result.finalShipping).toBe(20);
+      expect(result.originalShipping).toBe(35);
+      expect(result.discountAmount).toBe(15);
+      expect(result.isPromotional).toBe(true);
+    });
+
+    it('returns regular price when priceAfterDiscount is null', async () => {
+      mockZoneService.getStoreZonePriceEntry = jest.fn().mockResolvedValue({
+        price: 35,
+        priceAfterDiscount: null,
+      });
+
+      mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: true,
+          shippingKMCharge: 10,
+          deliveryCommission: 5,
+        }),
+      };
+
+      helpers = new HelpersService(
+        mockPrisma,
+        null as any,
+        mockMapService,
+        mockSettingsService,
+        null as any,
+        mockZoneService,
+        mockDeliveryPromotionService as any,
+      );
+
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 99);
+      expect(result.finalShipping).toBe(35);
+      expect(result.originalShipping).toBe(35);
+      expect(result.discountAmount).toBe(0);
+      expect(result.isPromotional).toBe(false);
+    });
+
     it('returns noDelivery object when no address and no selected zone', async () => {
       mockSettingsService = {
         getSettings: jest.fn().mockResolvedValue({
@@ -256,11 +318,10 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
 
       mockZoneService = {
         getStoreZoneDeliveryPrice: jest.fn().mockImplementation((storeId, zoneId) => {
-          if (zoneId === 1) return 20;
-          if (zoneId === 2) return 25;
-          return 30;
+          const map: Record<number, number> = { 1: 20, 2: 25, 3: 30 };
+          return Promise.resolve(map[zoneId] ?? null);
         }),
-        getZoneDeliveryPrice: jest.fn().mockResolvedValue(25),
+        getZoneDeliveryPrice: jest.fn().mockResolvedValue(15),
       };
     });
 
@@ -288,9 +349,9 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
 
       const result = await storeService.getEffectiveZonePrices('10');
       expect(result).toEqual([
-        { zoneId: 1, name: 'Zone 1', cityId: 1, price: 15 },
-        { zoneId: 2, name: 'Zone 2', cityId: 1, price: 15 },
-        { zoneId: 3, name: 'Zone 3', cityId: 1, price: 15 },
+        { zoneId: 1, name: 'Zone 1', cityId: 1, price: 15, priceAfterDiscount: null },
+        { zoneId: 2, name: 'Zone 2', cityId: 1, price: 15, priceAfterDiscount: null },
+        { zoneId: 3, name: 'Zone 3', cityId: 1, price: 15, priceAfterDiscount: null },
       ]);
       expect(mockZoneService.getStoreZoneDeliveryPrice).not.toHaveBeenCalled();
     });
@@ -319,9 +380,9 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
 
       const result = await storeService.getEffectiveZonePrices('10');
       expect(result).toEqual([
-        { zoneId: 1, name: 'Zone 1', cityId: 1, price: 20 },
-        { zoneId: 2, name: 'Zone 2', cityId: 1, price: 25 },
-        { zoneId: 3, name: 'Zone 3', cityId: 1, price: 30 },
+        { zoneId: 1, name: 'Zone 1', cityId: 1, price: 20, priceAfterDiscount: null },
+        { zoneId: 2, name: 'Zone 2', cityId: 1, price: 25, priceAfterDiscount: null },
+        { zoneId: 3, name: 'Zone 3', cityId: 1, price: 30, priceAfterDiscount: null },
       ]);
     });
   });

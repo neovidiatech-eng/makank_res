@@ -425,7 +425,9 @@ describe('StoreService.getEffectiveZonePrices — mobile sends the branch id, no
       expect.objectContaining({ where: { id: 120 } }),
     );
     expect(zoneService.getStoreZoneDeliveryPrice).toHaveBeenCalledWith(119, 1);
-    expect(result).toEqual([{ zoneId: 1, name: { en: 'Zone A' }, cityId: null, price: null }]);
+    expect(result).toEqual([
+      { zoneId: 1, name: { en: 'Zone A' }, cityId: null, price: null, priceAfterDiscount: null },
+    ]);
   });
 
   it('still 404s when the id matches neither a store nor a branch', async () => {
@@ -519,8 +521,8 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
       zonePricingEnabled: true,
       globalZonePricingEnabled: true,
       zones: [
-        { zoneId: 1, name: { ar: 'المنطقة الأولى' }, cityId: 1, price: 25.5 },
-        { zoneId: 2, name: { ar: 'المنطقة الثانية' }, cityId: 1, price: null },
+        { zoneId: 1, name: { ar: 'المنطقة الأولى' }, cityId: 1, price: 25.5, priceAfterDiscount: null },
+        { zoneId: 2, name: { ar: 'المنطقة الثانية' }, cityId: 1, price: null, priceAfterDiscount: null },
       ],
     });
   });
@@ -639,5 +641,80 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
     await expect(
       service.toggleZonePricing(10, true, storeUser),
     ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('scenario 10: setZonePrices saves price and priceAfterDiscount correctly', async () => {
+    const mockStore = { id: 10, name: 'Store 10', zonePricingEnabled: true };
+    const mockZones = [{ id: 1, name: 'Zone 1', cityId: 1 }];
+    const prisma = buildZonePricesPrisma(mockStore, mockZones, []);
+    prisma.zone.count = jest.fn().mockResolvedValue(1);
+    const service = buildService(prisma as any);
+
+    await service.setZonePrices(10, {
+      zonePrices: [{ zoneId: 1, price: 35, priceAfterDiscount: 20 }],
+    });
+
+    expect(prisma.storeZonePrice.upsert).toHaveBeenCalledWith({
+      where: { storeId_zoneId: { storeId: 10, zoneId: 1 } },
+      update: { price: 35, priceAfterDiscount: 20 },
+      create: { storeId: 10, zoneId: 1, price: 35, priceAfterDiscount: 20 },
+    });
+  });
+
+  it('scenario 11: getAllStoresZonePrices returns all zones with global deliveryPrice and promo price', async () => {
+    const mockZones = [
+      { id: 1, name: 'Zone 1', cityId: 1, deliveryPrice: 35, deliveryPriceAfterDiscount: 20 },
+      { id: 2, name: 'Zone 2', cityId: 1, deliveryPrice: 50, deliveryPriceAfterDiscount: null },
+    ];
+    const prisma = {
+      zone: {
+        findMany: jest.fn().mockResolvedValue(mockZones),
+      },
+    };
+    const service = buildService(prisma as any);
+    const result = await service.getAllStoresZonePrices();
+
+    expect(result.storeId).toBe('all');
+    expect(result.zones).toEqual([
+      { zoneId: 1, name: 'Zone 1', cityId: 1, price: 35, priceAfterDiscount: 20 },
+      { zoneId: 2, name: 'Zone 2', cityId: 1, price: 50, priceAfterDiscount: null },
+    ]);
+  });
+
+  it('scenario 12: setAllStoresZonePrices updates Zone, existing StoreZonePrice rows, and enables zone pricing', async () => {
+    const prisma = {
+      zone: {
+        count: jest.fn().mockResolvedValue(2),
+        update: jest.fn().mockReturnValue({}),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      storeZonePrice: {
+        updateMany: jest.fn().mockReturnValue({}),
+      },
+      store: {
+        updateMany: jest.fn().mockReturnValue({}),
+      },
+      $transaction: jest.fn(async (ops: any) => Promise.all(ops)),
+    };
+    const service = buildService(prisma as any);
+
+    await service.setAllStoresZonePrices({
+      zonePrices: [
+        { zoneId: 1, price: 35, priceAfterDiscount: 20 },
+        { zoneId: 2, price: 50, priceAfterDiscount: null },
+      ],
+    });
+
+    expect(prisma.zone.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { deliveryPrice: 35, deliveryPriceAfterDiscount: 20 },
+    });
+    expect(prisma.storeZonePrice.updateMany).toHaveBeenCalledWith({
+      where: { zoneId: 1 },
+      data: { price: 35, priceAfterDiscount: 20 },
+    });
+    expect(prisma.store.updateMany).toHaveBeenCalledWith({
+      data: { zonePricingEnabled: true },
+    });
   });
 });
