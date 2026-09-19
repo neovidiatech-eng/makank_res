@@ -70,7 +70,8 @@ describe('Store Search & Arabic Normalization Tests', () => {
       expect(whereClause.AND).toBeDefined();
 
       // Ensure name filter was added
-      const hasNameFilter = whereClause.AND.some((condition: any) => {
+      const andList = Array.isArray(whereClause.AND) ? whereClause.AND : [whereClause.AND];
+      const hasNameFilter = andList.some((condition: any) => {
         return condition && condition.OR && condition.OR.some((sub: any) => sub.name && sub.name.path === '$.ar');
       });
 
@@ -81,8 +82,9 @@ describe('Store Search & Arabic Normalization Tests', () => {
       const query = { search: '164' } as any;
       const args = getStoreArgs(query, mockLanguages as any, [], false, false, false);
 
-      const whereClause = args.where;
-      const hasIdFilter = whereClause.AND.some((condition: any) => condition && condition.id === 164);
+      const whereClause = args.where as any;
+      const andList = Array.isArray(whereClause.AND) ? whereClause.AND : [whereClause.AND];
+      const hasIdFilter = andList.some((condition: any) => condition && condition.id === 164);
       expect(hasIdFilter).toBe(true);
     });
   });
