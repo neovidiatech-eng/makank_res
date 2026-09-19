@@ -44,6 +44,7 @@ describe('Checkout — price after discount', () => {
       null as any, // settingService
       realHelper, // serviceHelper (real — single source of truth)
       null as any, // zoneService
+      null as any, // deliveryPromotionService
     );
   };
 

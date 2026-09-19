@@ -65,6 +65,7 @@ describe('Bundle checkout pricing', () => {
       null as any,
       serviceHelper,
       null as any,
+      null as any, // deliveryPromotionService
     );
     jest
       .spyOn(helpers, 'validateServiceAvailability')

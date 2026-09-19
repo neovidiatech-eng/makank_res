@@ -24,6 +24,7 @@ describe('Coupon — zone restrictions', () => {
     null as any, // settingService
     null as any, // serviceHelper
     null as any, // zoneService
+    null as any, // deliveryPromotionService
   );
 
   // A coupon that passes every non-zone check; tweak per test.

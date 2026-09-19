@@ -1,5 +1,18 @@
 import { HelpersService } from '../services/helpers.service';
 import { StoreService } from '../../store/services/store.service';
+import { PromoDiscountType } from '@prisma/client';
+
+const mockDeliveryPromotionService = {
+  getActivePromotionForContext: jest.fn().mockResolvedValue(null),
+  applyPromotion: jest.fn().mockImplementation((basePrice: number, promo: any) => ({
+    finalShipping: basePrice,
+    originalShipping: basePrice,
+    discountAmount: 0,
+    isPromotional: false,
+    promotionId: null,
+    promotionBadgeText: null,
+  })),
+};
 
 describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
   describe('HelpersService.getDeliveryPrice', () => {
@@ -10,6 +23,7 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
     let helpers: HelpersService;
 
     beforeEach(() => {
+      jest.clearAllMocks();
       mockPrisma = {
         address: {
           findUnique: jest.fn().mockResolvedValue({
@@ -40,6 +54,17 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
       mockMapService = {
         getBatchDetails: jest.fn().mockResolvedValue([{ distance: 4.5 }]),
       };
+
+      // Reset applyPromotion to pass-through (no promotion)
+      mockDeliveryPromotionService.applyPromotion.mockImplementation((basePrice: number) => ({
+        finalShipping: basePrice,
+        originalShipping: basePrice,
+        discountAmount: 0,
+        isPromotional: false,
+        promotionId: null,
+        promotionBadgeText: null,
+      }));
+      mockDeliveryPromotionService.getActivePromotionForContext.mockResolvedValue(null);
     });
 
     it('returns fixed 15 EGP delivery fee across all zones when globalZonePricingEnabled is false', async () => {
@@ -58,10 +83,11 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
         mockSettingsService,
         null as any,
         mockZoneService,
+        mockDeliveryPromotionService as any,
       );
 
-      const price = await helpers.getDeliveryPrice(1, 10, 100, 99);
-      expect(price).toBe(15);
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 99);
+      expect(result.finalShipping).toBe(15);
       expect(mockZoneService.getStoreZoneDeliveryPrice).not.toHaveBeenCalled();
       expect(mockZoneService.getZoneDeliveryPrice).not.toHaveBeenCalled();
     });
@@ -82,10 +108,11 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
         mockSettingsService,
         null as any,
         mockZoneService,
+        mockDeliveryPromotionService as any,
       );
 
-      const price = await helpers.getDeliveryPrice(1, 10, 100, 99);
-      expect(price).toBe(15);
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 99);
+      expect(result.finalShipping).toBe(15);
     });
 
     it('returns fixed 15 EGP when shippingKMCharge is 0', async () => {
@@ -104,10 +131,11 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
         mockSettingsService,
         null as any,
         mockZoneService,
+        mockDeliveryPromotionService as any,
       );
 
-      const price = await helpers.getDeliveryPrice(1, 10, 100, 99);
-      expect(price).toBe(15);
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 99);
+      expect(result.finalShipping).toBe(15);
     });
 
     it('applies zone price when globalZonePricingEnabled is true', async () => {
@@ -126,10 +154,80 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
         mockSettingsService,
         null as any,
         mockZoneService,
+        mockDeliveryPromotionService as any,
       );
 
-      const price = await helpers.getDeliveryPrice(1, 10, 100, 99);
-      expect(price).toBe(40);
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 99);
+      expect(result.finalShipping).toBe(40);
+    });
+
+    // ─── Promo overlay integration ─────────────────────────────────────────
+    it('applies promo discount on top of zone price', async () => {
+      mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: true,
+          shippingKMCharge: 0.0001,
+          deliveryCommission: 15,
+        }),
+      };
+
+      // Zone price = 40; promo reduces to 20
+      mockDeliveryPromotionService.getActivePromotionForContext.mockResolvedValue({
+        id: 7,
+        discountType: PromoDiscountType.FIXED_PRICE,
+        promoValue: 20,
+        badgeText: null,
+      });
+      mockDeliveryPromotionService.applyPromotion.mockReturnValue({
+        finalShipping: 20,
+        originalShipping: 40,
+        discountAmount: 20,
+        isPromotional: true,
+        promotionId: 7,
+        promotionBadgeText: 'توصيل مخفض لفترة محدودة',
+      });
+
+      helpers = new HelpersService(
+        mockPrisma,
+        null as any,
+        mockMapService,
+        mockSettingsService,
+        null as any,
+        mockZoneService,
+        mockDeliveryPromotionService as any,
+      );
+
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 99);
+      expect(result.finalShipping).toBe(20);
+      expect(result.originalShipping).toBe(40);
+      expect(result.discountAmount).toBe(20);
+      expect(result.isPromotional).toBe(true);
+      expect(result.promotionId).toBe(7);
+      expect(result.promotionBadgeText).toBe('توصيل مخفض لفترة محدودة');
+    });
+
+    it('returns noDelivery object when no address and no selected zone', async () => {
+      mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: true,
+          shippingKMCharge: 10,
+          deliveryCommission: 5,
+        }),
+      };
+
+      helpers = new HelpersService(
+        mockPrisma,
+        null as any,
+        mockMapService,
+        mockSettingsService,
+        null as any,
+        mockZoneService,
+        mockDeliveryPromotionService as any,
+      );
+
+      const result = await helpers.getDeliveryPrice(null as any, 10, 100, null);
+      expect(result.finalShipping).toBe(0);
+      expect(result.isPromotional).toBe(false);
     });
   });
 

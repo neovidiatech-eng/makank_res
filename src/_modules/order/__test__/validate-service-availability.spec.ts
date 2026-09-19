@@ -26,6 +26,7 @@ const buildHelpers = (service: any) => {
     undefined as any,
     undefined as any,
     undefined as any,
+    undefined as any, // deliveryPromotionService
   );
   return { helpers, prisma };
 };

@@ -129,6 +129,7 @@ describe('Cross-City Complete Isolation Test — Mahalla vs Tanta vs Hurghada', ()
         undefined as any,
         undefined as any,
         undefined as any,
+        undefined as any, // deliveryPromotionService
       );
 
       const tantaZoneId = 201;

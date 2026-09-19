@@ -16,6 +16,7 @@ const buildHelpers = () =>
     undefined as any,
     undefined as any,
     undefined as any,
+    undefined as any, // deliveryPromotionService
   );
 
 const userOf = (roleKey: string) => ({ Role: { roleKey } }) as any;

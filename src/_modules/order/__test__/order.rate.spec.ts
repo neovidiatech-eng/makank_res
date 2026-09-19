@@ -202,6 +202,7 @@ describe('HelpersService.canUserRate — authorization & single submission', () 
       null as any,
       null as any,
       null as any,
+      null as any, // deliveryPromotionService
     );
   };
 

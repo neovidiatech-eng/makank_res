@@ -24,6 +24,7 @@ describe('HelpersService — City Geofencing & Grace Buffer', () => {
       undefined as any,
       undefined as any,
       undefined as any,
+      undefined as any, // deliveryPromotionService
     );
   });
 

@@ -24,7 +24,14 @@ const buildHelpers = () => ({
   getTax: jest
     .fn()
     .mockImplementation((price: number) => Promise.resolve({ tax: 0, priceAfterTax: price })),
-  getDeliveryPrice: jest.fn().mockResolvedValue(0),
+  getDeliveryPrice: jest.fn().mockResolvedValue({
+    finalShipping: 0,
+    originalShipping: 0,
+    discountAmount: 0,
+    isPromotional: false,
+    promotionId: null,
+    promotionBadgeText: null,
+  }),
 });
 
 const buildPrisma = (maxActiveOrders: number | null, activeOrdersCount: number) => ({
