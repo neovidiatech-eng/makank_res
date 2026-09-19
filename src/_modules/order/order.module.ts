@@ -24,12 +24,15 @@ import { KashierModule } from '../payment/kashier/kashier.module';
 import { ServiceModule } from '../serviceModule/serviceModule.module';
 import { ZoneModule } from '../zone/zone.module';
 
+import { DeliveryPromotionModule } from '../delivery-promotion/delivery-promotion.module';
+
 @Module({
   imports: [
     ServiceModule,
     forwardRef(() => KashierModule),
     ZoneModule,
     LogsModule,
+    DeliveryPromotionModule,
   ],
   controllers: [OrderStatisticsController, OrderController],
   providers: [

@@ -55,6 +55,7 @@ model Store {
   storeRatings         StoreRating[]
   TemplateApplications StoreTemplateApplication[]
   ZonePrices           StoreZonePrice[]
+  DeliveryPromotions   DeliveryPromotion[]
   VariationTemplates   VariationTemplate[]
   FortuneWheelItems    FortuneWheelItem[]
   FortuneWheelUserRewards FortuneWheelUserReward[]

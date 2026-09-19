@@ -114,3 +114,15 @@ enum TransferType {
   INSTAPAY
   OTHER
 }
+
+enum DeliveryPromoScope {
+  GLOBAL
+  STORE
+  ZONE
+  STORE_ZONE
+}
+
+enum PromoDiscountType {
+  FIXED_PRICE
+  DISCOUNT_AMOUNT
+}

@@ -167,9 +167,13 @@ export class WalletService {
 
     // 3. Update Delivery Driver Wallet
     if (order.deliveryId) {
+      // Delivery promo subsidy: the customer paid a discounted fee but the driver
+      // always earns the full contractual (original) base price. The platform absorbs
+      // the difference (deliveryDiscount) — deducted from admin wallet above.
+      const promoSubsidy = Number(order.deliveryDiscount ?? 0);
       let driverEarnings = isFreeDeliveryFortune && originalShippingFee > 0
         ? originalShippingFee
-        : shipping;
+        : shipping + promoSubsidy;
 
       // If non-partner store with discount and driver paid full price cash (FULL_PRICE),
       // the driver paid the discount out of pocket, so the platform reimburses the driver's wallet!

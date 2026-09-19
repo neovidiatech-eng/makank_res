@@ -460,15 +460,23 @@ export class OrderService {
     );
 
     // 3. Delivery
-    const deliveryPrice =
+    const deliveryCalc =
       data.type === OrderType.PICKUP
-        ? 0
-        : (await this.helpers.getDeliveryPrice(
+        ? {
+            finalShipping: 0,
+            originalShipping: 0,
+            discountAmount: 0,
+            isPromotional: false,
+            promotionId: null as number | null,
+            promotionBadgeText: null as string | null,
+          }
+        : await this.helpers.getDeliveryPrice(
             data.addressId,
             branchId,
             subtotal,
             data.zoneId,
-          )) + (data.tip ?? 0);
+          );
+    const deliveryPrice = deliveryCalc.finalShipping + (data.tip ?? 0);
 
     // Resolve the delivery-destination zone from the address coords so coupon
     // zone restrictions can be enforced here — the single validation chokepoint
@@ -572,6 +580,12 @@ export class OrderService {
       fortuneDiscount: rewardDiscount,
       isFreeDeliveryFortune,
       originalShippingFee: deliveryPrice,
+      // Promo-layer delivery breakdown (for wallet settlement + mobile API)
+      deliveryDiscountAmount: deliveryCalc.discountAmount,
+      deliveryPromotionId: deliveryCalc.promotionId,
+      deliveryIsPromotional: deliveryCalc.isPromotional,
+      deliveryPromotionBadge: deliveryCalc.promotionBadgeText,
+      deliveryOriginalShipping: deliveryCalc.originalShipping,
       zoneId,
       items: validatedItems,
       bundles: pricedBundles,
@@ -671,6 +685,12 @@ export class OrderService {
       originalShippingFee,
       items,
       shipping,
+      // Promo-layer delivery breakdown
+      deliveryDiscountAmount,
+      deliveryPromotionId,
+      deliveryIsPromotional,
+      deliveryPromotionBadge,
+      deliveryOriginalShipping,
       // Delivery-destination zone, resolved from the address coords inside
       // calculateOrder (null for PICKUP / no match). Reused here so the stored
       // Order.zoneId is the exact zone the coupon was validated against.
@@ -755,6 +775,9 @@ export class OrderService {
           globalCommission: globalCommission,
           storeCommission: storeCommission,
           shipping: shipping,
+          originalShipping: deliveryOriginalShipping,
+          deliveryDiscount: deliveryDiscountAmount,
+          promotionId: deliveryPromotionId,
           tax: tax,
           couponId,
           addressId,
@@ -928,6 +951,12 @@ export class OrderService {
           originalShippingFee: originalShippingFee || shipping,
           storeFortuneSubsidy: (fortuneDiscount || 0) / 2,
           storeFortuneContribution: (fortuneDiscount || 0) / 2,
+          // Delivery promo breakdown — consumed by mobile app and wallet settlement
+          deliveryFee: shipping,
+          originalDeliveryFee: deliveryOriginalShipping,
+          hasDeliveryDiscount: deliveryIsPromotional || false,
+          deliveryDiscount: deliveryDiscountAmount || 0,
+          promotionBadge: deliveryPromotionBadge ?? null,
         },
         estimatedArrivalMinutes,
         paymentMethod: data.paymentMethod,

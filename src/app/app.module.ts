@@ -61,6 +61,7 @@ import { HomeModule } from 'src/_modules/home/home.module';
 import { LogsModule } from 'src/_modules/logs/logs.module';
 import { StoreTemplateModule } from 'src/_modules/store-template/store-template.module';
 import { VariationTemplateModule } from 'src/_modules/variation-template/variation-template.module';
+import { DeliveryPromotionModule } from 'src/_modules/delivery-promotion/delivery-promotion.module';
 
 const I18N_DIR = path.join(process.cwd(), './i18n');
 
@@ -131,6 +132,7 @@ const I18N_DIR = path.join(process.cwd(), './i18n');
     StoreTemplateModule,
     BundleModule,
     EmployeeModule,
+    DeliveryPromotionModule,
   ],
   controllers: [AppController, SwaggerDiffController],
   providers: [

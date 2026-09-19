@@ -17,8 +17,31 @@ model Zone {
   StoreZonePrices      StoreZonePrice[]
   OrderStations        OrderStation[]
   ArchivedOrders       ArchivedOrder[]
+  DeliveryPromotions   DeliveryPromotion[]
   City                 City?                 @relation(fields: [cityId], references: [id])
 
   @@index([cityId], map: "zones_city_id_fkey")
   @@map("zones")
+}
+
+model DeliveryPromotion {
+  id           Int                @id @default(autoincrement())
+  name         String
+  badgeText    String?            @map("badge_text")
+  scope        DeliveryPromoScope @default(GLOBAL)
+  discountType PromoDiscountType  @default(FIXED_PRICE)
+  promoValue   Float              @map("promo_value")
+  storeId      Int?               @map("store_id")
+  zoneId       Int?               @map("zone_id")
+  startDate    DateTime?          @map("start_date")
+  endDate      DateTime?          @map("end_date")
+  isActive     Boolean            @default(true) @map("is_active")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  Store        Store?             @relation(fields: [storeId], references: [id])
+  Zone         Zone?              @relation(fields: [zoneId], references: [id])
+
+  @@index([storeId], map: "delivery_promotions_store_id_fkey")
+  @@index([zoneId], map: "delivery_promotions_zone_id_fkey")
+  @@map("delivery_promotions")
 }

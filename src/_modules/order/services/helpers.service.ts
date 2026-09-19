@@ -38,6 +38,7 @@ import {
   selectOrderByIdForValidationOBJ,
   selectOrderByIdForValidationOBJType,
 } from '../prisma-args/order.helpers.prisma.arg';
+import { DeliveryPromotionService, DeliveryPriceCalculation } from 'src/_modules/delivery-promotion/delivery-promotion.service';
 
 @Injectable()
 export class HelpersService {
@@ -48,6 +49,7 @@ export class HelpersService {
     private readonly settingService: PrivateSettingService,
     private readonly serviceHelper: ServiceModuleHelper,
     private readonly zoneService: ZoneService,
+    private readonly deliveryPromotionService: DeliveryPromotionService,
   ) {}
   async verifyCoupon(
     couponCode: string,
@@ -547,8 +549,17 @@ export class HelpersService {
     branchId: Id,
     totalPrice: number,
     customerSelectedZoneId?: Id | null,
-  ) {
-    if (!addressId && !customerSelectedZoneId) return 0;
+  ): Promise<DeliveryPriceCalculation> {
+    const noDelivery: DeliveryPriceCalculation = {
+      finalShipping: 0,
+      originalShipping: 0,
+      discountAmount: 0,
+      isPromotional: false,
+      promotionId: null,
+      promotionBadgeText: null,
+    };
+
+    if (!addressId && !customerSelectedZoneId) return noDelivery;
 
     const [address, branch] = await Promise.all([
       addressId
@@ -558,7 +569,7 @@ export class HelpersService {
         ? this.prisma.branch.findUnique({ where: { id: branchId } })
         : null,
     ]);
-    if (!branch) return 0;
+    if (!branch) return noDelivery;
 
     // Check free delivery threshold
     const freeDeliveryOverSet = await this.prisma.settings.findUnique({
@@ -568,7 +579,7 @@ export class HelpersService {
       freeDeliveryOverSet &&
       totalPrice >= parseFloat(freeDeliveryOverSet.value)
     ) {
-      return 0;
+      return noDelivery;
     }
 
     const settings = await this.settingService.getSettings([
@@ -586,6 +597,9 @@ export class HelpersService {
       settings.globalZonePricingEnabled !== 0 &&
       settings.globalZonePricingEnabled !== '0';
 
+    let basePrice: number | null = null;
+    let resolvedZoneId: number | null = null;
+
     if (isZonePricingActive) {
       // Product decision: the zone the customer explicitly picked from the
       // dropdown (customerSelectedZoneId) takes priority for pricing over the
@@ -593,27 +607,30 @@ export class HelpersService {
       // "reference-only" zoneId in the app. Only falls through to the resolved
       // zone / km-formula when the selected zone has no price of its own.
       if (customerSelectedZoneId != null) {
+        resolvedZoneId = customerSelectedZoneId as number;
         const selectedStoreZonePrice =
           await this.zoneService.getStoreZoneDeliveryPrice(
             branch.storeId,
             customerSelectedZoneId,
           );
         if (selectedStoreZonePrice != null) {
-          return selectedStoreZonePrice;
-        }
-        const selectedZonePrice = await this.zoneService.getZoneDeliveryPrice(
-          customerSelectedZoneId,
-        );
-        if (selectedZonePrice != null) {
-          return selectedZonePrice;
+          basePrice = selectedStoreZonePrice;
+        } else {
+          const selectedZonePrice = await this.zoneService.getZoneDeliveryPrice(
+            customerSelectedZoneId,
+          );
+          if (selectedZonePrice != null) {
+            basePrice = selectedZonePrice;
+          }
         }
       }
 
-      if (address?.lat != null && address?.lng != null) {
+      if (basePrice == null && address?.lat != null && address?.lng != null) {
         const zoneId = await this.zoneService.resolveZoneId(
           address.lat,
           address.lng,
         );
+        resolvedZoneId = zoneId;
 
         // Per-store zone pricing: only applies when the admin has specifically
         // enabled it for this branch's store (Store.zonePricingEnabled) and the
@@ -624,61 +641,65 @@ export class HelpersService {
           zoneId,
         );
         if (storeZonePrice != null) {
-          return storeZonePrice;
-        }
-
-        // App-wide zone-based pricing: if the customer's address falls inside a
-        // zone the admin gave a fixed delivery price, use it directly instead of
-        // the per-km formula below.
-        const zonePrice = await this.zoneService.getZoneDeliveryPrice(zoneId);
-        if (zonePrice != null) {
-          return zonePrice;
+          basePrice = storeZonePrice;
+        } else {
+          // App-wide zone-based pricing: if the customer's address falls inside a
+          // zone the admin gave a fixed delivery price, use it directly instead of
+          // the per-km formula below.
+          const zonePrice = await this.zoneService.getZoneDeliveryPrice(zoneId);
+          if (zonePrice != null) {
+            basePrice = zonePrice;
+          }
         }
       }
     }
 
-    const rawKm = settings.shippingKMCharge;
-    const shippingKMCharge =
-      rawKm !== undefined && rawKm !== null && rawKm !== '' && !isNaN(+rawKm)
-        ? +rawKm
-        : 10;
-    const deliveryCommission = +settings.deliveryCommission || 0;
+    if (basePrice == null) {
+      const rawKm = settings.shippingKMCharge;
+      const shippingKMCharge =
+        rawKm !== undefined && rawKm !== null && rawKm !== '' && !isNaN(+rawKm)
+          ? +rawKm
+          : 10;
+      const deliveryCommission = +settings.deliveryCommission || 0;
 
-    // When shippingKMCharge is 0 or negligible (<= 0.001, e.g. 0.0001 configured in dashboard),
-    // delivery price is the flat fixed fee (e.g. 15 EGP) across all zones.
-    if (shippingKMCharge <= 0.001) {
-      return deliveryCommission;
-    }
-
-    if (!address?.lat || !address?.lng || !branch?.lat || !branch?.lng) {
-      return deliveryCommission;
-    }
-
-    // Calculate distance
-    let distance = 0;
-    try {
-      const details = await this.mapService.getBatchDetails(
-        address.lat,
-        address.lng,
-        [{ lat: branch.lat, lng: branch.lng }],
-      );
-      if (details[0]?.distance !== undefined) {
-        distance = details[0].distance;
+      // When shippingKMCharge is 0 or negligible (<= 0.001, e.g. 0.0001 configured in dashboard),
+      // delivery price is the flat fixed fee (e.g. 15 EGP) across all zones.
+      if (shippingKMCharge <= 0.001) {
+        basePrice = deliveryCommission;
+      } else if (!address?.lat || !address?.lng || !branch?.lat || !branch?.lng) {
+        basePrice = deliveryCommission;
       } else {
-        distance =
-          calculateDistance(address.lat, address.lng, branch.lat, branch.lng) /
-          1000;
+        // Calculate distance
+        let distance = 0;
+        try {
+          const details = await this.mapService.getBatchDetails(
+            address.lat,
+            address.lng,
+            [{ lat: branch.lat, lng: branch.lng }],
+          );
+          if (details[0]?.distance !== undefined) {
+            distance = details[0].distance;
+          } else {
+            distance =
+              calculateDistance(address.lat, address.lng, branch.lat, branch.lng) /
+              1000;
+          }
+        } catch (e) {
+          distance =
+            calculateDistance(address.lat, address.lng, branch.lat, branch.lng) /
+            1000;
+        }
+        basePrice =
+          Math.round((distance * shippingKMCharge + deliveryCommission) * 100) / 100;
       }
-    } catch (e) {
-      distance =
-        calculateDistance(address.lat, address.lng, branch.lat, branch.lng) /
-        1000;
     }
 
-    // Calculate price
-    return (
-      Math.round((distance * shippingKMCharge + deliveryCommission) * 100) / 100
+    // Apply promotion overlay (priority cascade: STORE_ZONE > STORE > ZONE > GLOBAL)
+    const promo = await this.deliveryPromotionService.getActivePromotionForContext(
+      branch.storeId,
+      resolvedZoneId,
     );
+    return this.deliveryPromotionService.applyPromotion(basePrice, promo);
   }
 
   /**
