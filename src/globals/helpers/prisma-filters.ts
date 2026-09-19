@@ -61,6 +61,29 @@ export function filterJsonKeyWithRawSQL<T>(
       trimmedValue.toUpperCase(),
       trimmedValue[0].toUpperCase() + trimmedValue.slice(1).toLowerCase(),
     ]);
+
+    // Arabic letter variants so search matches regardless of alef/hamza/taa marbouta
+    const arabicNormalizedAlif = trimmedValue.replace(/[أإآ]/g, 'ا');
+    const arabicNormalizedTaa = trimmedValue.replace(/ة/g, 'ه');
+    const arabicNormalizedHaa = trimmedValue.replace(/ه/g, 'ة');
+    const arabicNormalizedYaa = trimmedValue.replace(/ى/g, 'ي');
+    const arabicNormalizedAlefMaksura = trimmedValue.replace(/ي/g, 'ى');
+    const arabicFullNormalized = trimmedValue
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ى/g, 'ي');
+
+    variants.add(arabicNormalizedAlif);
+    variants.add(arabicNormalizedTaa);
+    variants.add(arabicNormalizedHaa);
+    variants.add(arabicNormalizedYaa);
+    variants.add(arabicNormalizedAlefMaksura);
+    variants.add(arabicFullNormalized);
+
+    if (trimmedValue.startsWith('ا')) {
+      variants.add('أ' + trimmedValue.slice(1));
+      variants.add('إ' + trimmedValue.slice(1));
+    }
     const filter = [];
     languages.forEach((element: { key: string }) => {
       variants.forEach((variant) => {

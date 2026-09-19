@@ -25,6 +25,9 @@ export const getStoreArgs = (
   const { orderBy, page, limit, ...filter } = query;
   const dateRange = resolveDateRangeFilter(query as any);
   const searchStr = (query.search || query.q || query.name || '').trim();
+  if (searchStr && !filter.name) {
+    filter.name = searchStr;
+  }
 
   const searchArray = [
     filterKey<Store>(filter, 'id'),
