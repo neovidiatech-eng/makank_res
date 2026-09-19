@@ -1,7 +1,8 @@
 // Unit tests for template-driven store creation: store creation no longer
 // resolves a Module; category inheritance is delegated to StoreTemplateService
 // inside the same transaction.
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { StoreService } from '../services/store.service';
 
 type AnyFn = jest.Mock;
@@ -611,5 +612,32 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
     expect(prisma.storeZonePrice.deleteMany).toHaveBeenCalledWith({
       where: { storeId: 10, zoneId: 1 },
     });
+  });
+
+  it('scenario 7: setZonePrices rejects Store users with ForbiddenException', async () => {
+    const service = buildService({} as any);
+    const storeUser: any = { Role: { roleKey: RolesKeys.STORE } };
+
+    await expect(
+      service.setZonePrices(10, { zonePrices: [{ zoneId: 1, price: 20 }] }, storeUser),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('scenario 8: deleteZonePrice rejects Store users with ForbiddenException', async () => {
+    const service = buildService({} as any);
+    const storeUser: any = { Role: { roleKey: RolesKeys.STORE } };
+
+    await expect(
+      service.deleteZonePrice(10, 1, storeUser),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('scenario 9: toggleZonePricing rejects Store users with ForbiddenException', async () => {
+    const service = buildService({} as any);
+    const storeUser: any = { Role: { roleKey: RolesKeys.STORE } };
+
+    await expect(
+      service.toggleZonePricing(10, true, storeUser),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

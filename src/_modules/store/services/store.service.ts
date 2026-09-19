@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { NotificationType, Prisma } from '@prisma/client';
 import { NotificationService } from 'src/globals/services/notification.service';
 import { PrismaService } from 'src/globals/services/prisma.service';
@@ -1036,7 +1036,10 @@ export class StoreService {
   // Admin-only toggle — see PATCH /stores/:id/zone-pricing/toggle. Turning this
   // off does not delete the store's StoreZonePrice rows, just stops them from
   // applying (they resume working the moment it's re-enabled).
-  async toggleZonePricing(id: Id, enabled: boolean) {
+  async toggleZonePricing(id: Id, enabled: boolean, user?: CurrentUser) {
+    if (user && user.Role?.roleKey && user.Role.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
     const store = await this.prisma.store.findUnique({ where: { id } });
     if (!store) {
       throw new NotFoundException('Store not found');
@@ -1513,6 +1516,9 @@ export class StoreService {
   }
 
   async setZonePrices(id: any, payload: any, user?: CurrentUser) {
+    if (user && user.Role?.roleKey && user.Role.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
     const storeId = await this.resolveStoreId(id, user);
 
     let entries: { zoneId: number; price: number }[] = [];
@@ -1569,6 +1575,9 @@ export class StoreService {
   }
 
   async deleteZonePrice(id: any, zoneId: number, user?: CurrentUser) {
+    if (user && user.Role?.roleKey && user.Role.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
     const storeId = await this.resolveStoreId(id, user);
     await this.prisma.storeZonePrice.deleteMany({ where: { storeId, zoneId: Number(zoneId) } });
     return this.getZonePrices(storeId, user);

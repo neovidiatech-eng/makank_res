@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -216,8 +217,12 @@ export class StoreController {
     @Res() res: Response,
     @Param() { id }: RequiredIdParam,
     @Body() { enabled }: ToggleStoreZonePricingDTO,
+    @CurrentUser() user: CurrentUser,
   ) {
-    await this.service.toggleZonePricing(id, enabled);
+    if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
+    await this.service.toggleZonePricing(id, enabled, user);
     return this.response.success(
       res,
       'store zone pricing toggled successfully',
@@ -403,26 +408,32 @@ export class StoreController {
   }
 
   @Patch(['/me/zone-prices', '/zone-prices', '/:id/zone-prices'])
-  @Auth({ prefix })
+  @Auth({ prefix: 'store-zone-pricing' })
   async setZonePrices(
     @Res() res: Response,
     @Param('id') id: string | undefined,
     @Body() body: any,
     @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
     const targetId = id ?? (user?.storeId ? String(user.storeId) : 'me');
     const data = await this.service.setZonePrices(targetId, body, user);
     return this.response.success(res, 'store zone prices updated successfully', data);
   }
 
   @Delete(['/me/zone-prices/:zoneId', '/zone-prices/:zoneId', '/:id/zone-prices/:zoneId'])
-  @Auth({ prefix })
+  @Auth({ prefix: 'store-zone-pricing' })
   async deleteZonePrice(
     @Res() res: Response,
     @Param('id') id: string | undefined,
     @Param('zoneId', ParseIntPipe) zoneId: number,
     @CurrentUser() user: CurrentUser,
   ) {
+    if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
+    }
     const targetId = id ?? (user?.storeId ? String(user.storeId) : 'me');
     const data = await this.service.deleteZonePrice(targetId, zoneId, user);
     return this.response.success(res, 'store zone price removed successfully', data);
