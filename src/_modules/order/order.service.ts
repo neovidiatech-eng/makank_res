@@ -2010,8 +2010,8 @@ export class OrderService {
     }
 
     if (status === OrderStatus.DELIVERED) {
-      for (const item of (order as any).OrderItems) {
-        await this.calculateBestSeller(item.serviceId);
+      for (const item of (order as any).OrderItems ?? []) {
+        await this.calculateBestSeller(item.serviceId, item.quantity || 1);
       }
     }
 
@@ -2210,40 +2210,21 @@ export class OrderService {
     });
     return count;
   }
-  private async calculateBestSeller(serviceId: Id) {
+  private async calculateBestSeller(serviceId: Id, quantity: number = 1) {
     if (!serviceId) return;
-    await this.prisma.service.update({
-      where: {
-        id: serviceId,
-      },
-      data: {
-        totalOrders: {
-          increment: 1,
-        },
-      },
-    });
-    const best10 = await this.prisma.service.findMany({
-      where: { available: true, status: 'ACTIVE' },
-      orderBy: { totalOrders: 'desc' },
-      take: 10,
-    });
-    await this.prisma.service.updateMany({
-      where: {
-        mostSeller: true,
-      },
-      data: {
-        mostSeller: false,
-      },
-    });
-    for (let i = 0; i < best10.length; i += 1) {
+    try {
       await this.prisma.service.update({
         where: {
-          id: best10[i].id,
+          id: serviceId,
         },
         data: {
-          mostSeller: true,
+          totalOrders: {
+            increment: quantity,
+          },
         },
       });
+    } catch (e) {
+      // Ignore if service was deleted or not found
     }
   }
   async assign(body: AssignOrderDTO) {

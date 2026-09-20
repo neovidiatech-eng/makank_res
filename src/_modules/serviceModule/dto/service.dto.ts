@@ -125,6 +125,10 @@ export class FilterServiceDTO extends PaginationParamsDTO {
   categoryId?: Id;
 
   @Optional()
+  @ValidateNumber()
+  cityId?: Id;
+
+  @Optional()
   @ValidateBoolean()
   bestRated?: boolean;
 

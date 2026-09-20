@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ServiceStatus } from '@prisma/client';
+import { OrderStatus, ServiceStatus } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { LogsService } from 'src/_modules/logs/logs.service';
 import { assertStoreAccepted } from 'src/globals/helpers/assert-store-accepted.helper';
+import { resolveCityForPoint } from 'src/globals/helpers/resolve-city-for-point.helper';
 import { firstOrMany } from 'src/globals/helpers/first-or-many';
 import { PrismaService } from 'src/globals/services/prisma.service';
 import { PrivateSettingService } from 'src/globals/services/settings.service';
@@ -126,7 +127,177 @@ export class ServiceModuleService {
     });
   }
 
+  async getMostOrdered(params: {
+    cityId?: number;
+    lat?: number;
+    lng?: number;
+    limit?: number;
+    customerId?: number;
+    days?: number;
+  }) {
+    const limit = Math.min(Math.max(params.limit ?? 10, 1), 50);
+    const days = params.days ?? 30;
+    const windowDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // 1. Resolve city from lat/lng if cityId not explicitly passed
+    let resolvedCityId = params.cityId;
+    if (!resolvedCityId && params.lat != null && params.lng != null) {
+      const resolved = await resolveCityForPoint(
+        this.prisma,
+        params.lat,
+        params.lng,
+      );
+      resolvedCityId = resolved?.id;
+    }
+
+    const baseStoreWhere = {
+      active: true,
+      deletedAt: null,
+      isBlocked: false,
+      ...(resolvedCityId
+        ? {
+            OR: [{ cityId: resolvedCityId }, { cityId: null }],
+          }
+        : {}),
+    };
+
+    const baseServiceWhere = {
+      status: ServiceStatus.ACTIVE,
+      available: true,
+      deletedAt: null,
+      Store: baseStoreWhere,
+    };
+
+    const validOrderStatuses = [
+      OrderStatus.PENDING,
+      OrderStatus.PREPARING,
+      OrderStatus.READY_PICKUP,
+      OrderStatus.ON_THE_WAY,
+      OrderStatus.DELIVERED,
+    ];
+
+    let rankedServiceIds: number[] = [];
+
+    // 2. Query top service IDs from OrderItems in the rolling window (e.g. 30 days)
+    if (this.prisma.orderItem?.groupBy) {
+      try {
+        const recentGrouped = await this.prisma.orderItem.groupBy({
+          by: ['serviceId'],
+          _sum: { quantity: true },
+          where: {
+            Order: {
+              createdAt: { gte: windowDate },
+              status: { in: validOrderStatuses },
+            },
+            Service: baseServiceWhere,
+          },
+          orderBy: {
+            _sum: { quantity: 'desc' },
+          },
+          take: limit,
+        });
+
+        rankedServiceIds = recentGrouped
+          .map((g) => g.serviceId)
+          .filter((id): id is number => id != null);
+      } catch (e) {
+        // Fall through gracefully if relations inside groupBy are unsupported in DB driver
+      }
+    }
+
+    // 3. Fallback Tier 1: If fewer than limit, query all-time top ordered items for this city
+    if (rankedServiceIds.length < limit && this.prisma.orderItem?.groupBy) {
+      try {
+        const allTimeGrouped = await this.prisma.orderItem.groupBy({
+          by: ['serviceId'],
+          _sum: { quantity: true },
+          where: {
+            Order: {
+              status: { in: validOrderStatuses },
+            },
+            Service: {
+              ...baseServiceWhere,
+              ...(rankedServiceIds.length > 0
+                ? { id: { notIn: rankedServiceIds } }
+                : {}),
+            },
+          },
+          orderBy: {
+            _sum: { quantity: 'desc' },
+          },
+          take: limit - rankedServiceIds.length,
+        });
+
+        for (const g of allTimeGrouped) {
+          if (g.serviceId && !rankedServiceIds.includes(g.serviceId)) {
+            rankedServiceIds.push(g.serviceId);
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 4. Fallback Tier 2: If still fewer than limit (e.g. brand new city with 0 orders),
+    // backfill with active, top-rated & available services in that city
+    if (rankedServiceIds.length < limit) {
+      const backfill = await this.prisma.service.findMany({
+        where: {
+          ...baseServiceWhere,
+          ...(rankedServiceIds.length > 0
+            ? { id: { notIn: rankedServiceIds } }
+            : {}),
+        },
+        select: { id: true },
+        orderBy: [{ rating: 'desc' }, { review: 'desc' }, { id: 'desc' }],
+        take: limit - rankedServiceIds.length,
+      });
+
+      for (const item of backfill) {
+        if (!rankedServiceIds.includes(item.id)) {
+          rankedServiceIds.push(item.id);
+        }
+      }
+    }
+
+    if (rankedServiceIds.length === 0) {
+      return [];
+    }
+
+    // 5. Fetch full service details and map with relations
+    const argsWithSelect = getServiceArgsWithSelect(params.customerId);
+    const services = await this.prisma.service.findMany({
+      where: {
+        id: { in: rankedServiceIds },
+        status: ServiceStatus.ACTIVE,
+        available: true,
+        deletedAt: null,
+      },
+      ...argsWithSelect,
+    });
+
+    const mapped = await this.helper.mapServices(services);
+
+    // 6. Preserve exact rank order
+    const orderMap = new Map<number, number>();
+    rankedServiceIds.forEach((id, index) => orderMap.set(id, index));
+
+    mapped.sort((a, b) => {
+      const rankA = orderMap.get(a.id) ?? 9999;
+      const rankB = orderMap.get(b.id) ?? 9999;
+      return rankA - rankB;
+    });
+
+    return mapped;
+  }
+
   async findAll(filters: FilterServiceDTO) {
+    if (filters?.mostSeller) {
+      return this.getMostOrdered({
+        cityId: filters.cityId,
+        limit: filters.limit ? +filters.limit : 10,
+        customerId: filters.customerId,
+      });
+    }
+
     const languages = await this.Language.getCashedLanguages();
     const args = getServiceArgs(filters, languages);
     const argsWithSelect = getServiceArgsWithSelect(
@@ -150,6 +321,15 @@ export class ServiceModuleService {
   }
 
   async count(filters: FilterServiceDTO) {
+    if (filters?.mostSeller) {
+      const items = (await this.getMostOrdered({
+        cityId: filters.cityId,
+        limit: filters.limit ? +filters.limit : 10,
+        customerId: filters.customerId,
+      })) as any[];
+      return items.length;
+    }
+
     const languages = await this.Language.getCashedLanguages();
     const args = getServiceArgs(filters, languages);
     const total = await this.prisma.service.count({ where: args.where });

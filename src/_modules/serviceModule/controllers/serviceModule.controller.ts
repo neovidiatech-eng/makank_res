@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -53,6 +54,35 @@ export class ServiceModuleController {
     private readonly service: ServiceModuleService,
     private readonly response: ResponseService,
   ) {}
+
+  @Get('most-ordered')
+  @Auth({ prefix, visitor: true })
+  @UseInterceptors(AuthServiceInterceptor)
+  @ApiQuery({ name: 'cityId', required: false, type: Number })
+  @ApiQuery({ name: 'lat', required: false, type: Number })
+  @ApiQuery({ name: 'lng', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async getMostOrdered(
+    @Res() res: Response,
+    @Query('cityId') cityId?: string,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+    @Query('limit') limit?: string,
+    @CurrentUser() user?: any,
+  ) {
+    const data = await this.service.getMostOrdered({
+      cityId: cityId ? +cityId : undefined,
+      lat: lat ? +lat : undefined,
+      lng: lng ? +lng : undefined,
+      limit: limit ? +limit : 10,
+      customerId: user?.id,
+    });
+    return this.response.success(
+      res,
+      'Most ordered services fetched successfully',
+      data,
+    );
+  }
 
   @Get(['/', '/:id'])
   @Auth({ prefix, visitor: true })
