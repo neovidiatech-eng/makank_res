@@ -41,6 +41,7 @@ export const selectZoneOBJ = () => {
     active: true,
     cityId: true,
     deliveryPrice: true,
+    deliveryPriceAfterDiscount: true,
   };
   return selectArgs;
 };

@@ -624,6 +624,19 @@ export class HelpersService {
             selectedStoreZoneEntry.priceAfterDiscount < selectedStoreZoneEntry.price
           ) {
             explicitDiscountPrice = selectedStoreZoneEntry.priceAfterDiscount;
+          } else {
+            const selectedZoneEntry =
+              typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
+                ? await this.zoneService.getZoneDeliveryPriceEntry(
+                    customerSelectedZoneId,
+                  )
+                : null;
+            if (
+              selectedZoneEntry?.priceAfterDiscount != null &&
+              selectedZoneEntry.priceAfterDiscount < basePrice
+            ) {
+              explicitDiscountPrice = selectedZoneEntry.priceAfterDiscount;
+            }
           }
         } else {
           const selectedStoreZonePrice =
@@ -686,6 +699,17 @@ export class HelpersService {
             storeZoneEntry.priceAfterDiscount < storeZoneEntry.price
           ) {
             explicitDiscountPrice = storeZoneEntry.priceAfterDiscount;
+          } else if (zoneId != null) {
+            const zoneEntry =
+              typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
+                ? await this.zoneService.getZoneDeliveryPriceEntry(zoneId)
+                : null;
+            if (
+              zoneEntry?.priceAfterDiscount != null &&
+              zoneEntry.priceAfterDiscount < basePrice
+            ) {
+              explicitDiscountPrice = zoneEntry.priceAfterDiscount;
+            }
           }
         } else {
           const storeZonePrice = await this.zoneService.getStoreZoneDeliveryPrice(
@@ -1150,27 +1174,83 @@ export class HelpersService {
       throw new BadRequestException('يجب تحديد مكانين على الأقل');
     }
 
-    // App-wide zone-based pricing. If the final destination falls within a zone
-    // that has a fixed price, we use that price as the base delivery fee.
-    // The extra fee per additional stop is calculated and added separately in
-    // OrderService, so we don't need to add it here.
-    const lastStop = stops[stops.length - 1];
-    if (lastStop.zoneId != null) {
-      const selectedZonePrice = await this.zoneService.getZoneDeliveryPrice(
-        lastStop.zoneId,
+    const settings = await this.settingService.getSettings([
+      'globalZonePricingEnabled',
+      'customDeliveryKMCharge',
+      'customDeliveryBaseFee',
+      'deliveryCommission',
+    ]);
+
+    const isZonePricingActive =
+      settings.globalZonePricingEnabled !== false &&
+      settings.globalZonePricingEnabled !== 'false' &&
+      settings.globalZonePricingEnabled !== 0 &&
+      settings.globalZonePricingEnabled !== '0';
+
+    if (isZonePricingActive) {
+      // App-wide zone-based pricing. If the final destination falls within a zone
+      // that has a fixed price, we use that price as the base delivery fee.
+      // The extra fee per additional stop is calculated and added separately in
+      // OrderService, so we don't need to add it here.
+      const lastStop = stops[stops.length - 1];
+      if (lastStop.zoneId != null) {
+        const selectedZoneEntry =
+          typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
+            ? await this.zoneService.getZoneDeliveryPriceEntry(lastStop.zoneId)
+            : null;
+        if (selectedZoneEntry != null) {
+          return selectedZoneEntry.priceAfterDiscount != null &&
+            selectedZoneEntry.priceAfterDiscount < selectedZoneEntry.price
+            ? selectedZoneEntry.priceAfterDiscount
+            : selectedZoneEntry.price;
+        }
+        const selectedZonePrice = await this.zoneService.getZoneDeliveryPrice(
+          lastStop.zoneId,
+        );
+        if (selectedZonePrice != null) {
+          return selectedZonePrice;
+        }
+      }
+
+      const resolvedZoneId = await this.zoneService.resolveZoneId(
+        lastStop.lat,
+        lastStop.lng,
       );
-      if (selectedZonePrice != null) {
-        return selectedZonePrice;
+      if (resolvedZoneId != null) {
+        const zoneEntry =
+          typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
+            ? await this.zoneService.getZoneDeliveryPriceEntry(resolvedZoneId)
+            : null;
+        if (zoneEntry != null) {
+          return zoneEntry.priceAfterDiscount != null &&
+            zoneEntry.priceAfterDiscount < zoneEntry.price
+            ? zoneEntry.priceAfterDiscount
+            : zoneEntry.price;
+        }
+        const zonePrice = await this.zoneService.getZoneDeliveryPrice(resolvedZoneId);
+        if (zonePrice != null) {
+          return zonePrice;
+        }
       }
     }
-    
-    const resolvedZoneId = await this.zoneService.resolveZoneId(
-      lastStop.lat,
-      lastStop.lng,
-    );
-    const zonePrice = await this.zoneService.getZoneDeliveryPrice(resolvedZoneId);
-    if (zonePrice != null) {
-      return zonePrice;
+
+    // Zone pricing is inactive or zone price not found — fallback to fixed base fee / per-km formula.
+    const rawKm = settings.customDeliveryKMCharge;
+    const kmCharge =
+      rawKm !== undefined && rawKm !== null && rawKm !== '' && !isNaN(+rawKm)
+        ? +rawKm
+        : 10;
+    const baseFee =
+      settings.customDeliveryBaseFee !== undefined &&
+      settings.customDeliveryBaseFee !== null &&
+      settings.customDeliveryBaseFee !== '' &&
+      !isNaN(+settings.customDeliveryBaseFee)
+        ? +settings.customDeliveryBaseFee
+        : +settings.deliveryCommission || 0;
+
+    // When kmCharge is 0 or negligible (<= 0.001), delivery price is the flat fixed base fee.
+    if (kmCharge <= 0.001) {
+      return baseFee;
     }
 
     let totalDistance = 0;
@@ -1211,16 +1291,7 @@ export class HelpersService {
       totalDistance += segmentDistance;
     }
 
-    // Custom delivery has its own km rate and base fee — deliberately not
-    // shippingKMCharge/deliveryCommission, which price regular store deliveries.
-    const settings = await this.settingService.getSettings([
-      'customDeliveryKMCharge',
-      'customDeliveryBaseFee',
-    ]);
-    const kmCharge = +settings.customDeliveryKMCharge || 10;
-    const baseFee = +settings.customDeliveryBaseFee || 0;
-
-    return totalDistance * kmCharge + baseFee;
+    return Math.round((totalDistance * kmCharge + baseFee) * 100) / 100;
   }
 
   // Custom delivery's own platform commission on the declared items/purchases cost —

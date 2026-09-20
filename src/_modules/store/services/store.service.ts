@@ -1556,18 +1556,21 @@ export class StoreService {
         const storeEntry = storeZonePricingEnabled && typeof this.zoneService.getStoreZonePriceEntry === 'function'
           ? await this.zoneService.getStoreZonePriceEntry(storeId, zone.id)
           : null;
-        const zoneEntry = storeEntry
-          ? null
-          : (typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
-              ? await this.zoneService.getZoneDeliveryPriceEntry(zone.id)
-              : null);
+        const zoneEntry =
+          typeof this.zoneService.getZoneDeliveryPriceEntry === 'function'
+            ? await this.zoneService.getZoneDeliveryPriceEntry(zone.id)
+            : null;
 
         let price: number | null = null;
         let priceAfterDiscount: number | null = null;
 
         if (storeEntry) {
           price = storeEntry.price;
-          priceAfterDiscount = storeEntry.priceAfterDiscount;
+          priceAfterDiscount =
+            storeEntry.priceAfterDiscount ??
+            (zoneEntry?.priceAfterDiscount != null && zoneEntry.priceAfterDiscount < storeEntry.price
+              ? zoneEntry.priceAfterDiscount
+              : null);
         } else if (zoneEntry) {
           price = zoneEntry.price;
           priceAfterDiscount = zoneEntry.priceAfterDiscount;
@@ -1714,10 +1717,8 @@ export class StoreService {
 
     // 1. Update Zone defaults (new stores / stores with no override inherit these automatically).
     // 2. Ensure all stores have zonePricingEnabled so the cascade works.
-    // NOTE: We intentionally do NOT touch existing StoreZonePrice rows — stores that
-    // already have their own per-zone override keep it.  "Apply to all" sets the
-    // global floor, not a forced reset.  Admin can still delete a store's override
-    // manually (deleteZonePrice) to revert it to the global price.
+    // NOTE: StoreZonePrice custom base prices are preserved, while any store without
+    // its own explicit discount override automatically inherits the Zone's global discount.
     await this.prisma.$transaction([
       ...normalizedEntries.map((entry) =>
         this.prisma.zone.update({

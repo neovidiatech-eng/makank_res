@@ -386,4 +386,162 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
       ]);
     });
   });
+
+  describe('HelpersService.getCustomDeliveryPrice', () => {
+    let mockZoneService: any;
+    let mockSettingsService: any;
+    let mockMapService: any;
+    let helpers: HelpersService;
+
+    beforeEach(() => {
+      mockZoneService = {
+        getZoneDeliveryPrice: jest.fn().mockResolvedValue(40),
+        getZoneDeliveryPriceEntry: jest.fn().mockResolvedValue({
+          price: 40,
+          priceAfterDiscount: 25,
+        }),
+        resolveZoneId: jest.fn().mockResolvedValue(1),
+      };
+
+      mockMapService = {
+        getBatchDetails: jest.fn().mockResolvedValue([{ distance: 5 }]),
+      };
+    });
+
+    it('bypasses zone pricing when globalZonePricingEnabled is false and returns fixed baseFee when kmCharge is 0', async () => {
+      mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: false,
+          customDeliveryKMCharge: '0',
+          customDeliveryBaseFee: '15',
+          deliveryCommission: '15',
+        }),
+      };
+
+      helpers = new HelpersService(
+        null as any,
+        null as any,
+        mockMapService,
+        mockSettingsService,
+        null as any,
+        mockZoneService,
+        null as any,
+      );
+
+      const stops = [
+        { lat: 30.0, lng: 31.0 },
+        { lat: 30.1, lng: 31.1, zoneId: 1 },
+      ];
+
+      const price = await helpers.getCustomDeliveryPrice(stops);
+      expect(price).toBe(15);
+      expect(mockZoneService.getZoneDeliveryPrice).not.toHaveBeenCalled();
+      expect(mockZoneService.getZoneDeliveryPriceEntry).not.toHaveBeenCalled();
+      expect(mockMapService.getBatchDetails).not.toHaveBeenCalled();
+    });
+
+    it('calculates km distance formula when globalZonePricingEnabled is false and kmCharge > 0', async () => {
+      mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: false,
+          customDeliveryKMCharge: '2',
+          customDeliveryBaseFee: '10',
+        }),
+      };
+
+      helpers = new HelpersService(
+        null as any,
+        null as any,
+        mockMapService,
+        mockSettingsService,
+        null as any,
+        mockZoneService,
+        null as any,
+      );
+
+      const stops = [
+        { lat: 30.0, lng: 31.0 },
+        { lat: 30.1, lng: 31.1, zoneId: 1 },
+      ];
+
+      const price = await helpers.getCustomDeliveryPrice(stops);
+      // distance: 5 km * 2 + 10 = 20
+      expect(price).toBe(20);
+      expect(mockZoneService.getZoneDeliveryPrice).not.toHaveBeenCalled();
+    });
+
+    it('applies zone priceAfterDiscount when globalZonePricingEnabled is true and discount exists', async () => {
+      mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: true,
+          customDeliveryKMCharge: '2',
+          customDeliveryBaseFee: '10',
+        }),
+      };
+
+      helpers = new HelpersService(
+        null as any,
+        null as any,
+        mockMapService,
+        mockSettingsService,
+        null as any,
+        mockZoneService,
+        null as any,
+      );
+
+      const stops = [
+        { lat: 30.0, lng: 31.0 },
+        { lat: 30.1, lng: 31.1, zoneId: 1 },
+      ];
+
+      const price = await helpers.getCustomDeliveryPrice(stops);
+      expect(price).toBe(25); // priceAfterDiscount from zoneEntry
+    });
+  });
+
+  describe('HelpersService.getDeliveryPrice — Global Zone Discount Fallback', () => {
+    it('falls back to global zone discount when store override has null discount', async () => {
+      const mockPrisma = {
+        address: { findUnique: jest.fn().mockResolvedValue({ id: 1, lat: 30.0444, lng: 31.2357 }) },
+        branch: { findUnique: jest.fn().mockResolvedValue({ id: 10, storeId: 100, lat: 30.05, lng: 31.24 }) },
+        settings: { findUnique: jest.fn().mockResolvedValue(null) },
+      };
+
+      const mockZoneService = {
+        getStoreZonePriceEntry: jest.fn().mockResolvedValue({
+          price: 40,
+          priceAfterDiscount: null, // Store has no explicit discount
+        }),
+        getZoneDeliveryPriceEntry: jest.fn().mockResolvedValue({
+          price: 40,
+          priceAfterDiscount: 20, // Global zone has 20 EGP discount
+        }),
+        resolveZoneId: jest.fn().mockResolvedValue(5),
+      };
+
+      const mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: true,
+          shippingKMCharge: 10,
+          deliveryCommission: 5,
+        }),
+      };
+
+      const helpers = new HelpersService(
+        mockPrisma as any,
+        null as any,
+        null as any,
+        mockSettingsService as any,
+        null as any,
+        mockZoneService as any,
+        mockDeliveryPromotionService as any,
+      );
+
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 5);
+      expect(result.finalShipping).toBe(20);
+      expect(result.originalShipping).toBe(40);
+      expect(result.discountAmount).toBe(20);
+      expect(result.isPromotional).toBe(true);
+    });
+  });
 });
