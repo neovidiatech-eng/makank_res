@@ -4018,26 +4018,33 @@ export class OrderService {
     const payToStoreAmount =
       isPartnerStore || isCustomDelivery ? 0 : storeNetEarnings;
     const invoiceSummary = (order.invoice as any)?.summary || {};
+    const promoSubsidy = Number(
+      (order as any).deliveryDiscount ?? invoiceSummary.deliveryDiscount ?? 0,
+    );
     const isFreeDelivery = Boolean(
       invoiceSummary.isFreeDeliveryFortune ||
       invoiceSummary.freeDelivery ||
-      (order.type === OrderType.DELIVERY && shipping === 0 && (invoiceSummary.deliveryDiscount > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
+      (order.type === OrderType.DELIVERY && shipping === 0 && (promoSubsidy > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
     );
     const originalDeliveryPrice = Number(
-      invoiceSummary.originalShippingFee ??
-        (invoiceSummary.deliveryDiscount != null
-          ? shipping + Number(invoiceSummary.deliveryDiscount)
-          : shipping),
+      (order as any).originalShipping && Number((order as any).originalShipping) > 0
+        ? (order as any).originalShipping
+        : invoiceSummary.originalShippingFee ??
+            (invoiceSummary.deliveryDiscount != null || promoSubsidy > 0
+              ? shipping + promoSubsidy
+              : shipping),
     );
     const fortuneDiscount = Number(invoiceSummary.fortuneDiscount || 0);
 
-    const driverEarnings = isFreeDelivery
-      ? (originalDeliveryPrice > 0 ? originalDeliveryPrice : shipping)
+    const driverEarnings = isFreeDelivery || promoSubsidy > 0
+      ? (originalDeliveryPrice > 0 ? originalDeliveryPrice : shipping + promoSubsidy)
       : shipping;
 
     const freeDeliveryNotice = isFreeDelivery
       ? 'عرض توصيل مجاني - لا يتم تحصيل مصاريف توصيل من العميل ومستحقاتك تضاف لمحفظتك'
-      : null;
+      : promoSubsidy > 0
+        ? 'عرض توصيل مخفض - يتم تحصيل المبلغ المخفض فقط ومتبقي مستحقاتك يضاف لمحفظتك'
+        : null;
 
     const fortuneRewardDetails = fortuneDiscount > 0 || isFreeDelivery
       ? {
@@ -4066,6 +4073,7 @@ export class OrderService {
         paymentMethodName,
         isFreeDelivery,
         freeDeliveryNotice,
+        driverEarnings,
         paymentMethod: order.paymentMethod ?? PaymentMethod.CASH,
         paymentStatus: order.paymentStatus ?? PaymentStatus.UNPAID,
         transferType: order.transferType ?? null,

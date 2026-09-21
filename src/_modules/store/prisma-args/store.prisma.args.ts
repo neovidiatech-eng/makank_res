@@ -29,9 +29,60 @@ export const getStoreArgs = (
     filter.name = searchStr;
   }
 
+  const storeNameFilter = filterJsonKeyWithRawSQL<Store>(
+    filter,
+    'name',
+    languages,
+  );
+  const serviceNameFilter = filterJsonKeyWithRawSQL(
+    { name: filter.name },
+    'name',
+    languages,
+  );
+  const categoryNameFilter = filterJsonKeyWithRawSQL(
+    { name: filter.name },
+    'name',
+    languages,
+  );
+
+  const nameCondition =
+    enforceVisible && searchStr && storeNameFilter
+      ? {
+          OR: [
+            storeNameFilter,
+            ...(serviceNameFilter
+              ? [
+                  {
+                    Services: {
+                      some: {
+                        status: 'ACTIVE' as any,
+                        deletedAt: null,
+                        available: true,
+                        ...serviceNameFilter,
+                      },
+                    },
+                  },
+                ]
+              : []),
+            ...(categoryNameFilter
+              ? [
+                  {
+                    SubCategories: {
+                      some: {
+                        deletedAt: null,
+                        ...categoryNameFilter,
+                      },
+                    },
+                  },
+                ]
+              : []),
+          ],
+        }
+      : storeNameFilter;
+
   const searchArray = [
     filterKey<Store>(filter, 'id'),
-    filterJsonKeyWithRawSQL<Store>(filter, 'name', languages),
+    nameCondition,
     searchStr && Number.isInteger(Number(searchStr)) && Number(searchStr) > 0 && {
       id: Number(searchStr),
     },
@@ -51,7 +102,9 @@ export const getStoreArgs = (
         ],
       },
     filterKey<Store>(filter, 'planId'),
-    filterKey<Store>(filter, 'cityId'),
+    (filter?.cityId != null && !isNaN(Number(filter.cityId)) && Number(filter.cityId) > 0)
+      ? { cityId: Number(filter.cityId) }
+      : undefined,
     filterKey<Store>(filter, 'isStoreAccepted'),
     filterKey<Store>(filter, 'isPartner'),
     filterKey<Store>(filter, 'isVerified'),
@@ -65,17 +118,13 @@ export const getStoreArgs = (
         },
       },
     },
-    enforceVisible && {
-      // A store whose auto-derived city was later deactivated disappears
-      // from the customer app; cityId: null (never resolved/backfilled yet)
-      // stays visible so this doesn't retroactively hide unconfigured stores.
-      OR: [{ cityId: null }, { city: { active: true } }],
-    },
-    // When we know which city the customer is in, show only that city's stores
-    // OR stores that are not yet assigned to any city (cityId = null) so that
-    // existing stores created before city-gating was configured don't disappear.
-    resolvedCityId != null && {
-      OR: [{ cityId: null }, { cityId: resolvedCityId }],
+    enforceVisible &&
+      ((filter?.cityId != null && !isNaN(Number(filter.cityId)) && Number(filter.cityId) > 0) || resolvedCityId != null
+        ? { city: { active: true } }
+        : { OR: [{ cityId: null }, { city: { active: true } }] }),
+    // Strict city isolation: when we know which city the customer is in, show only that city's stores.
+    resolvedCityId != null && (filter?.cityId == null || isNaN(Number(filter.cityId)) || Number(filter.cityId) <= 0) && {
+      cityId: resolvedCityId,
     },
 
     filter.active !== undefined && {

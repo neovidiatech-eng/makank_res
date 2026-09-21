@@ -34,6 +34,7 @@ const buildService = (storeRows: any[], cities: any[] = [cairoCity]) => {
     store: { findMany: jest.fn().mockResolvedValue(storeRows) },
     coupon: { findMany: jest.fn().mockResolvedValue([]) },
     city: { findMany: jest.fn().mockResolvedValue(cities) },
+    service: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const nearestService = { getNearestStores: jest.fn().mockResolvedValue([]) };
   const Language = { getCashedLanguages: jest.fn().mockResolvedValue([]) };

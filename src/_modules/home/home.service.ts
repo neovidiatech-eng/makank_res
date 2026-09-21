@@ -6,26 +6,28 @@ import { PrismaService } from 'src/globals/services/prisma.service';
 export class HomeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getHome(lat?: number, lng?: number) {
-    // Resolve the caller's city from coordinates so banners can be scoped.
+  async getHome(lat?: number, lng?: number, cityId?: number) {
+    // Resolve the caller's city directly from cityId if provided, or from coordinates.
     // Falls back gracefully: no city resolved → no city filter applied (safe
     // for single-city deployments and unauthenticated / GPS-off callers).
-    const city =
-      lat != null && lng != null
-        ? await resolveCityForPoint(this.prisma, lat, lng)
-        : null;
+    const validCityId = cityId != null && !isNaN(cityId) && cityId > 0 ? cityId : undefined;
+    let resolvedCityId = validCityId;
+    if (!resolvedCityId && lat != null && lng != null && !isNaN(lat) && !isNaN(lng)) {
+      const city = await resolveCityForPoint(this.prisma, lat, lng);
+      resolvedCityId = city?.id;
+    }
 
     // Banner visibility: show banners that either (a) are targeted to a zone
     // belonging to the caller's city, OR (b) have no zone targeting at all
     // (global banners). When no city is resolved, fall back to showing all
     // active banners (preserves the existing single-city behaviour).
     // NOTE: The Prisma relation on Banner is `Zones` (→ BannerZone[]).
-    const bannerCityFilter = city
+    const bannerCityFilter = resolvedCityId
       ? {
           OR: [
             {
               Zones: {
-                some: { Zone: { cityId: city.id } },
+                some: { Zone: { cityId: resolvedCityId } },
               },
             },
             { Zones: { none: {} } },

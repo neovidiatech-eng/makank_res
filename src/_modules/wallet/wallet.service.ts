@@ -93,33 +93,38 @@ export class WalletService {
     // Fortune Wheel breakdown from invoice summary
     const invoiceSummary = (order.invoice as any)?.summary || {};
     const fortuneDiscount = Number(invoiceSummary.fortuneDiscount || 0);
+    const promoSubsidy = Number(
+      (order as any).deliveryDiscount ?? invoiceSummary.deliveryDiscount ?? 0,
+    );
     const isFreeDeliveryFortune = Boolean(
       invoiceSummary.isFreeDeliveryFortune ||
       invoiceSummary.freeDelivery ||
-      (order.type === 'DELIVERY' && shipping === 0 && (invoiceSummary.deliveryDiscount > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
+      (order.type === 'DELIVERY' && shipping === 0 && (promoSubsidy > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
     );
     const originalShippingFee = Number(
-      invoiceSummary.originalShippingFee ??
-        (invoiceSummary.deliveryDiscount != null
-          ? shipping + Number(invoiceSummary.deliveryDiscount)
-          : shipping),
+      (order as any).originalShipping && Number((order as any).originalShipping) > 0
+        ? (order as any).originalShipping
+        : invoiceSummary.originalShippingFee ??
+            (invoiceSummary.deliveryDiscount != null || promoSubsidy > 0
+              ? shipping + promoSubsidy
+              : shipping),
     );
 
-    // Free delivery cost is borne by the platform at order completion
-    const freeDeliveryDriverCost =
+    // Delivery subsidy (free delivery or promo discount) is borne by the platform at order completion
+    const platformDeliverySubsidy =
       isFreeDeliveryFortune && originalShippingFee > 0
         ? originalShippingFee
-        : 0;
+        : promoSubsidy;
 
-    // 1. Update Admin Wallet (deducts freeDeliveryDriverCost if platform subsidized free delivery)
+    // 1. Update Admin Wallet (deducts platformDeliverySubsidy if platform subsidized delivery)
     const adminWallet = await tx.adminWallet.findFirst();
     if (adminWallet) {
       await tx.adminWallet.update({
         where: { id: adminWallet.id },
         data: {
-          totalEarning: { increment: adminCommission - freeDeliveryDriverCost },
-          currentBalance: { increment: adminCommission - freeDeliveryDriverCost },
-          total: { increment: adminCommission - freeDeliveryDriverCost },
+          totalEarning: { increment: adminCommission - platformDeliverySubsidy },
+          currentBalance: { increment: adminCommission - platformDeliverySubsidy },
+          total: { increment: adminCommission - platformDeliverySubsidy },
         },
       });
     }
@@ -228,31 +233,36 @@ export class WalletService {
 
     const invoiceSummary = (order.invoice as any)?.summary || {};
     const fortuneDiscount = Number(invoiceSummary.fortuneDiscount || 0);
+    const promoSubsidy = Number(
+      (order as any).deliveryDiscount ?? invoiceSummary.deliveryDiscount ?? 0,
+    );
     const isFreeDeliveryFortune = Boolean(
       invoiceSummary.isFreeDeliveryFortune ||
       invoiceSummary.freeDelivery ||
-      (order.type === 'DELIVERY' && shipping === 0 && (invoiceSummary.deliveryDiscount > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
+      (order.type === 'DELIVERY' && shipping === 0 && (promoSubsidy > 0 || (invoiceSummary.originalShippingFee != null && invoiceSummary.originalShippingFee > 0))),
     );
     const originalShippingFee = Number(
-      invoiceSummary.originalShippingFee ??
-        (invoiceSummary.deliveryDiscount != null
-          ? shipping + Number(invoiceSummary.deliveryDiscount)
-          : shipping),
+      (order as any).originalShipping && Number((order as any).originalShipping) > 0
+        ? (order as any).originalShipping
+        : invoiceSummary.originalShippingFee ??
+            (invoiceSummary.deliveryDiscount != null || promoSubsidy > 0
+              ? shipping + promoSubsidy
+              : shipping),
     );
 
-    const freeDeliveryDriverCost =
+    const platformDeliverySubsidy =
       isFreeDeliveryFortune && originalShippingFee > 0
         ? originalShippingFee
-        : 0;
+        : promoSubsidy;
 
     const adminWallet = await tx.adminWallet.findFirst();
     if (adminWallet) {
       await tx.adminWallet.update({
         where: { id: adminWallet.id },
         data: {
-          totalEarning: { decrement: adminCommission - freeDeliveryDriverCost },
-          currentBalance: { decrement: adminCommission - freeDeliveryDriverCost },
-          total: { decrement: adminCommission - freeDeliveryDriverCost },
+          totalEarning: { decrement: adminCommission - platformDeliverySubsidy },
+          currentBalance: { decrement: adminCommission - platformDeliverySubsidy },
+          total: { decrement: adminCommission - platformDeliverySubsidy },
         },
       });
     }
@@ -297,7 +307,7 @@ export class WalletService {
     if (order.deliveryId) {
       let driverEarnings = isFreeDeliveryFortune && originalShippingFee > 0
         ? originalShippingFee
-        : shipping;
+        : shipping + promoSubsidy;
       if (!isPartnerStore && discountAmount > 0 && nonPartnerPaymentOption === 'FULL_PRICE') {
         driverEarnings += discountAmount;
       }

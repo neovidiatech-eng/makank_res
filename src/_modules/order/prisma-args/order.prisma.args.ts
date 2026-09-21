@@ -36,11 +36,13 @@ export const getOrderArgs = (query: FilterOrderDTO, languages: Language[]) => {
     },
     // Delivery-destination city: derived through the order's resolved zone (Zone.cityId).
     // Keeps city/zone on the same axis (City ⊃ Zone) and covers custom-delivery orders.
-    query.cityId && {
-      Zone: {
-        cityId: query?.cityId,
+    query.cityId &&
+      !isNaN(Number(query.cityId)) &&
+      Number(query.cityId) > 0 && {
+        Zone: {
+          cityId: Number(query.cityId),
+        },
       },
-    },
     // Single search box: order id (exact, when numeric) OR customer name/phone
     // (substring — MySQL's default collation is already case-insensitive;
     // unlike Postgres/Mongo, Prisma's `mode: 'insensitive'` isn't valid here

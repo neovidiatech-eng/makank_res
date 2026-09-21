@@ -40,9 +40,9 @@ export const getServiceArgs = (
     filterKey<Service>(filter, 'mostSeller'),
     filterKey<Service>(filter, 'status'),
     filterKey<Service>(filter, 'available'),
-    filter.cityId && {
+    filter?.cityId != null && !isNaN(Number(filter.cityId)) && Number(filter.cityId) > 0 && {
       Store: {
-        OR: [{ cityId: filter.cityId }, { cityId: null }],
+        cityId: Number(filter.cityId),
       },
     },
 

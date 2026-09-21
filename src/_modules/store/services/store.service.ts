@@ -476,7 +476,7 @@ export class StoreService {
 
     const storeIds = storesArray.map((s: any) => s?.id).filter(Boolean);
     const discountedServices =
-      storeIds.length > 0
+      storeIds.length > 0 && this.prisma.service
         ? await this.prisma.service.findMany({
             where: {
               storeId: { in: storeIds },

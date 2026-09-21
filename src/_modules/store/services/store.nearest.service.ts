@@ -66,6 +66,11 @@ export class StoreNearestService {
     )`);
       params.push(filter.favouriteCustomerId);
     }
+    const parsedCityId = Number(filter?.cityId);
+    if (filter?.cityId != null && !isNaN(parsedCityId) && parsedCityId > 0) {
+      whereParts.push(`s.cityId = ?`);
+      params.push(parsedCityId);
+    }
 
     return {
       sql: whereParts.length ? `AND ${whereParts.join(' AND ')}` : '',
@@ -170,14 +175,22 @@ export class StoreNearestService {
       limit,
     );
 
-    // City isolation: when a cityId is resolved, exclude stores that belong
-    // to a different city. Stores with cityId = null remain visible everywhere
-    // (backward-compat for stores not yet backfilled).
-    const resolvedCity = await resolveCityForPoint(this.prisma, userLat, userLng);
-    const resolvedCityId = resolvedCity?.id ?? null;
-    if (resolvedCityId != null) {
+    // City isolation: when a cityId is provided or resolved, exclude stores that belong
+    // to a different city.
+    const parsedFilterCityId = Number(filter?.cityId);
+    const validFilterCityId =
+      filter?.cityId != null && !isNaN(parsedFilterCityId) && parsedFilterCityId > 0
+        ? parsedFilterCityId
+        : null;
+
+    const resolvedCity =
+      !validFilterCityId && userLat && userLng
+        ? await resolveCityForPoint(this.prisma, userLat, userLng)
+        : null;
+    const targetCityId = validFilterCityId ?? (resolvedCity?.id ?? null);
+    if (targetCityId != null) {
       results = results.filter(
-        (s: any) => s.cityId == null || s.cityId === resolvedCityId,
+        (s: any) => s.cityId === targetCityId,
       );
     }
 
