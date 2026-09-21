@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+ï»¿import { BadRequestException } from '@nestjs/common';
 import { HelpersService } from '../services/helpers.service';
 import { AssignmentService } from '../services/assignment.service';
 import { HomeService } from '../../home/home.service';
@@ -7,7 +7,7 @@ import * as resolveCityHelper from 'src/globals/helpers/resolve-city-for-point.h
 import * as polygonHelper from 'src/globals/helpers/point-in-polygon.helper';
 import { AssignmentStatus, OrderType } from '@prisma/client';
 
-describe('Cross-City Complete Isolation Test — Mahalla vs Tanta vs Hurghada', () => {
+describe('Cross-City Complete Isolation Test â€” Mahalla vs Tanta vs Hurghada', () => {
   // City 1: El-Mahalla El-Kubra (cityId: 1, lat: 30.97, lng: 31.16)
   // City 2: Tanta (cityId: 2, lat: 30.78, lng: 31.00)
   // City 3: Hurghada (cityId: 3, lat: 27.25, lng: 33.81)
@@ -147,14 +147,14 @@ describe('Cross-City Complete Isolation Test — Mahalla vs Tanta vs Hurghada', ()
       };
 
       // When customer in Mahalla tries to use Tanta coupon
-      expect(() => {
-        helpersService.isCouponValid(couponForTantaOnly as any, 100, mahallaZoneId);
-      }).toThrow(BadRequestException);
+      await expect(
+        helpersService.isCouponValid(couponForTantaOnly as any, 100, mahallaZoneId),
+      ).rejects.toThrow(BadRequestException);
 
       // When customer in Tanta uses it -> allowed
-      expect(() => {
-        helpersService.isCouponValid(couponForTantaOnly as any, 100, tantaZoneId);
-      }).not.toThrow();
+      await expect(
+        helpersService.isCouponValid(couponForTantaOnly as any, 100, tantaZoneId),
+      ).resolves.not.toThrow();
     });
   });
 

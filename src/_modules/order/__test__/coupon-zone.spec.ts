@@ -70,41 +70,43 @@ describe('Coupon — zone restrictions', () => {
   });
 
   describe('isCouponValid — zone gating', () => {
-    it('global coupon (no CouponZones) passes for a real zone', () => {
-      expect(() =>
+    it('global coupon (no CouponZones) passes for a real zone', async () => {
+      await expect(
         helpers.isCouponValid(baseCoupon() as any, 100, 5),
-      ).not.toThrow();
+      ).resolves.not.toThrow();
     });
 
-    it('global coupon (no CouponZones) passes when zoneId is null', () => {
-      expect(() =>
+    it('global coupon (no CouponZones) passes when zoneId is null', async () => {
+      await expect(
         helpers.isCouponValid(baseCoupon() as any, 100, null),
-      ).not.toThrow();
+      ).resolves.not.toThrow();
     });
 
-    it('zone-restricted coupon passes when zoneId matches a linked zone', () => {
+    it('zone-restricted coupon passes when zoneId matches a linked zone', async () => {
       const coupon = baseCoupon({
         CouponZones: [{ zoneId: 5 }, { zoneId: 7 }],
       });
-      expect(() => helpers.isCouponValid(coupon as any, 100, 7)).not.toThrow();
+      await expect(
+        helpers.isCouponValid(coupon as any, 100, 7),
+      ).resolves.not.toThrow();
     });
 
-    it('zone-restricted coupon is rejected for a non-matching zone', () => {
+    it('zone-restricted coupon is rejected for a non-matching zone', async () => {
       const coupon = baseCoupon({
         CouponZones: [{ zoneId: 5 }, { zoneId: 7 }],
       });
-      expect(() => helpers.isCouponValid(coupon as any, 100, 9)).toThrow(
-        'Coupon is not valid for this delivery zone',
-      );
+      await expect(
+        helpers.isCouponValid(coupon as any, 100, 9),
+      ).rejects.toThrow('Coupon is not valid for this delivery zone');
     });
 
-    it('zone-restricted coupon is rejected when zoneId is null (PICKUP / no zone)', () => {
+    it('zone-restricted coupon is rejected when zoneId is null (PICKUP / no zone)', async () => {
       const coupon = baseCoupon({
         CouponZones: [{ zoneId: 5 }],
       });
-      expect(() => helpers.isCouponValid(coupon as any, 100, null)).toThrow(
-        'Coupon is not valid for this delivery zone',
-      );
+      await expect(
+        helpers.isCouponValid(coupon as any, 100, null),
+      ).rejects.toThrow('Coupon is not valid for this delivery zone');
     });
   });
 });

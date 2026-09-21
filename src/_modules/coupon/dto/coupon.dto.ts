@@ -42,9 +42,9 @@ export class CreateCouponDTO {
   @ValidateNumber()
   maxUsage: number;
 
-  @Required()
+  @Optional()
   @ValidateNumber()
-  usageCount: number;
+  usageCount?: number;
 
   @Required()
   @ValidateNumber()

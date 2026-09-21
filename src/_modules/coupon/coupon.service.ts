@@ -45,6 +45,7 @@ export class CouponService {
       const coupon = await tx.coupon.create({
         data: {
           ...data,
+          usageCount: data.usageCount ?? 0,
         },
       });
       if (storeIds?.length) {

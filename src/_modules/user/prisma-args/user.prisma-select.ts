@@ -307,31 +307,74 @@ export const SelectUserCouponObj = () => {
     id: true,
     code: true,
     title: true,
+    discountType: true,
+    discountValue: true,
+    maxDiscountValue: true,
+    minDiscountValue: true,
+    minOrderAmount: true,
+    startDate: true,
+    endDate: true,
+    maxUsage: true,
+    usageCount: true,
+    type: true,
+    CouponZones: {
+      select: {
+        zoneId: true,
+        Zone: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    },
   };
   return selectArgs;
 };
 
-export const getUserCouponArgs = (query: FilterUserCouponDTO, userId: Id) => {
+export const getUserCouponArgs = (
+  query: FilterUserCouponDTO,
+  userId: Id,
+  isFirstOrder: boolean = false,
+) => {
   const { page, limit } = query;
+  const now = new Date();
+
+  const typeConditions: Prisma.CouponWhereInput[] = [
+    {
+      type: CouponType.USER_WISE,
+      UserCoupons: {
+        some: {
+          userId,
+        },
+      },
+    },
+    {
+      type: CouponType.ALL_USERS,
+    },
+  ];
+
+  if (isFirstOrder) {
+    typeConditions.push({
+      type: CouponType.FIRST_ORDER,
+    });
+  }
 
   return {
     ...paginateOrNot({ limit, page }, false),
     select: SelectUserCouponObj(),
     where: {
       active: true,
-      OR: [
-        {
-          type: CouponType.USER_WISE,
-          UserCoupons: {
-            some: {
-              userId,
-            },
-          },
+      expired: false,
+      startDate: { lte: now },
+      endDate: { gte: now },
+      Orders: {
+        none: {
+          userId,
+          status: { notIn: ['CANCELLED', 'REJECTED', 'PAYMENT_FAILD'] },
         },
-        {
-          type: CouponType.ALL_USERS,
-        },
-      ],
+      },
+      OR: typeConditions,
     },
   } satisfies Prisma.CouponFindManyArgs;
 };

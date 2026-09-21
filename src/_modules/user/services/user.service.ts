@@ -447,7 +447,14 @@ export class UserService {
   }
 
   async getCoupons(userId: Id, filters?: FilterUserCouponDTO) {
-    const args = getUserCouponArgs(filters, userId);
+    const userOrderCount = await this.prisma.order.count({
+      where: {
+        userId,
+        status: { notIn: ['CANCELLED', 'REJECTED', 'PAYMENT_FAILD'] },
+      },
+    });
+    const isFirstOrder = userOrderCount === 0;
+    const args = getUserCouponArgs(filters, userId, isFirstOrder);
     const data = await this.prisma.coupon.findMany({
       ...args,
     });

@@ -71,13 +71,14 @@ export class HelpersService {
       },
       select: selectCouponOBJ(storeId, userId),
     });
-    this.isCouponValid(coupon, totalPrice, zoneId);
+    await this.isCouponValid(coupon, totalPrice, zoneId, userId);
     return this.extractDiscount(coupon, totalPrice);
   }
-  isCouponValid(
+  async isCouponValid(
     coupon: SelectCouponObjType,
     totalPrice: number,
     zoneId: number | null,
+    userId?: Id,
   ) {
     if (!coupon) throw new BadRequestException('Coupon not found');
     if (!coupon.active) throw new BadRequestException('Coupon is not active');
@@ -114,7 +115,20 @@ export class HelpersService {
         break;
       case CouponType.FIRST_ORDER:
         if (coupon?.Orders?.length)
-          throw new BadRequestException('Coupon is not valid for this user');
+          throw new BadRequestException(
+            'Coupon has already been used by this user',
+          );
+        if (userId && this.prisma) {
+          const pastOrdersCount = await this.prisma.order.count({
+            where: {
+              userId,
+              status: { notIn: ['CANCELLED', 'REJECTED', 'PAYMENT_FAILD'] },
+            },
+          });
+          if (pastOrdersCount > 0) {
+            throw new BadRequestException('Coupon is valid for first order only');
+          }
+        }
         break;
       case CouponType.ALL_USERS:
         if (coupon?.Orders?.length)
