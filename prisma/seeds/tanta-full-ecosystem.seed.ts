@@ -1012,6 +1012,68 @@ export async function seedTantaFullEcosystem(prismaClient: PrismaClient) {
     create: { branchId: mahallaBranch.id, zoneId: MAHALLA_ZONE_CONFIG.id },
   });
 
+  // 7b. Ensure Restaurant StoreTemplate & TemplateCategories exist
+  let restaurantTemplate = await prismaClient.storeTemplate.findFirst({
+    where: {
+      OR: [
+        { moduleType: 'restaurant' },
+        { name: { path: ['en'], equals: 'Restaurant' } },
+        { name: { path: ['ar'], equals: 'مطاعم' } },
+        { name: { path: ['ar'], equals: 'مطعم' } },
+      ],
+      deletedAt: null,
+    },
+    include: { categories: true },
+  });
+
+  if (!restaurantTemplate) {
+    restaurantTemplate = await prismaClient.storeTemplate.create({
+      data: {
+        name: { ar: 'مطاعم', en: 'Restaurants' },
+        description: { ar: 'أشهى المأكولات والمطاعم في طنطا', en: 'Best restaurants in Tanta' },
+        moduleType: 'restaurant',
+        active: true,
+        order: 1,
+        image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500',
+      },
+      include: { categories: true },
+    });
+  }
+
+  const standardTemplateCategories = [
+    { name: { ar: 'وجبات رئيسية', en: 'Main Dishes' }, order: 1, keywords: ['وجبات', 'أطباق', 'صواني', 'محاشي', 'باستا', 'مكرونة'] },
+    { name: { ar: 'سندوتشات', en: 'Sandwiches' }, order: 2, keywords: ['سندوتش', 'برجر', 'شاورما', 'تيك أواي'] },
+    { name: { ar: 'بيتزا وفطائر', en: 'Pizza & Pies' }, order: 3, keywords: ['بيتزا', 'فطير', 'فطائر'] },
+    { name: { ar: 'كشري وطواجن', en: 'Koshary & Casseroles' }, order: 4, keywords: ['كشري', 'طاجن', 'طواجن'] },
+    { name: { ar: 'مشويات وكباب', en: 'Grills & Kebab' }, order: 5, keywords: ['مشوي', 'مشويات', 'كباب', 'لحوم'] },
+    { name: { ar: 'كريب ووافل', en: 'Crepes & Waffles' }, order: 6, keywords: ['كريب', 'وافل'] },
+    { name: { ar: 'حلويات ومشروبات', en: 'Desserts & Drinks' }, order: 7, keywords: ['حلو', 'حلويات', 'عصير', 'مشروب', 'تورت', 'نوتيلا'] },
+    { name: { ar: 'مأكولات بحرية', en: 'Seafood' }, order: 8, keywords: ['سمك', 'جمبري', 'بحريات', 'سي فود'] },
+  ];
+
+  const templateCatMappingList: { id: number; keywords: string[] }[] = [];
+  for (const catDef of standardTemplateCategories) {
+    let existing = restaurantTemplate.categories.find((c: any) => {
+      const arName = typeof c.name === 'object' ? (c.name as any)?.ar : String(c.name);
+      return arName === catDef.name.ar;
+    });
+
+    if (!existing) {
+      existing = await prismaClient.templateCategory.create({
+        data: {
+          name: catDef.name,
+          order: catDef.order,
+          templateId: restaurantTemplate.id,
+        },
+      });
+    }
+
+    templateCatMappingList.push({
+      id: existing.id,
+      keywords: catDef.keywords,
+    });
+  }
+
   // 8. Seed 10 Tanta Stores with Owners, Branches, Wallets, Schedules, & BranchZones
   for (let sIdx = 0; sIdx < TANTA_STORES.length; sIdx++) {
     const s = TANTA_STORES[sIdx];
@@ -1167,12 +1229,39 @@ export async function seedTantaFullEcosystem(prismaClient: PrismaClient) {
       });
     }
 
+    // StoreTemplateApplication
+    if (restaurantTemplate) {
+      await prismaClient.storeTemplateApplication.upsert({
+        where: {
+          storeId_templateId: {
+            storeId: s.id,
+            templateId: restaurantTemplate.id,
+          },
+        },
+        update: { order: sIdx + 1 },
+        create: {
+          storeId: s.id,
+          templateId: restaurantTemplate.id,
+          order: sIdx + 1,
+        },
+      });
+    }
+
     // Categories & Products
     for (const cat of s.categories) {
+      const arName = typeof cat.name === 'object' ? (cat.name as any)?.ar : String(cat.name);
+      let matchedTemplateCategoryId = templateCatMappingList[0]?.id;
+      for (const mapping of templateCatMappingList) {
+        if (mapping.keywords.some(k => arName.includes(k))) {
+          matchedTemplateCategoryId = mapping.id;
+          break;
+        }
+      }
+
       await prismaClient.category.upsert({
         where: { id: cat.id },
-        update: { name: cat.name, storeId: s.id, active: true },
-        create: { id: cat.id, name: cat.name, storeId: s.id, active: true },
+        update: { name: cat.name, storeId: s.id, active: true, templateCategoryId: matchedTemplateCategoryId ?? null },
+        create: { id: cat.id, name: cat.name, storeId: s.id, active: true, templateCategoryId: matchedTemplateCategoryId ?? null },
       });
 
       for (const svc of cat.services) {
