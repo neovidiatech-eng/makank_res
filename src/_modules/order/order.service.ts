@@ -579,13 +579,26 @@ export class OrderService {
       rewardId,
       fortuneDiscount: rewardDiscount,
       isFreeDeliveryFortune,
-      originalShippingFee: deliveryPrice,
+      originalShippingFee: deliveryCalc.originalShipping + (data.tip ?? 0),
+      hasDeliveryDiscount:
+        deliveryCalc.isPromotional ||
+        deliveryCalc.discountAmount > 0 ||
+        isFreeDeliveryFortune,
+      deliveryDiscount: isFreeDeliveryFortune
+        ? deliveryCalc.originalShipping
+        : deliveryCalc.discountAmount,
       // Promo-layer delivery breakdown (for wallet settlement + mobile API)
-      deliveryDiscountAmount: deliveryCalc.discountAmount,
+      deliveryDiscountAmount: isFreeDeliveryFortune
+        ? deliveryCalc.originalShipping
+        : deliveryCalc.discountAmount,
       deliveryPromotionId: deliveryCalc.promotionId,
-      deliveryIsPromotional: deliveryCalc.isPromotional,
-      deliveryPromotionBadge: deliveryCalc.promotionBadgeText,
-      deliveryOriginalShipping: deliveryCalc.originalShipping,
+      deliveryIsPromotional:
+        deliveryCalc.isPromotional || isFreeDeliveryFortune,
+      deliveryPromotionBadge: isFreeDeliveryFortune
+        ? 'توصيل مجاني'
+        : deliveryCalc.promotionBadgeText,
+      deliveryOriginalShipping:
+        deliveryCalc.originalShipping + (data.tip ?? 0),
       zoneId,
       items: validatedItems,
       bundles: pricedBundles,

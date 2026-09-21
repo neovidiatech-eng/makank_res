@@ -470,7 +470,7 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
       expect(mockZoneService.getZoneDeliveryPrice).not.toHaveBeenCalled();
     });
 
-    it('applies zone priceAfterDiscount when globalZonePricingEnabled is true and discount exists', async () => {
+    it('custom delivery calculates using its own baseFee and kmCharge, independent of store zone prices', async () => {
       mockSettingsService = {
         getSettings: jest.fn().mockResolvedValue({
           globalZonePricingEnabled: true,
@@ -495,7 +495,10 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
       ];
 
       const price = await helpers.getCustomDeliveryPrice(stops);
-      expect(price).toBe(25); // priceAfterDiscount from zoneEntry
+      // distance: 5 km * 2 + 10 = 20 (does NOT use zone price of 25)
+      expect(price).toBe(20);
+      expect(mockZoneService.getZoneDeliveryPriceEntry).not.toHaveBeenCalled();
+      expect(mockZoneService.getZoneDeliveryPrice).not.toHaveBeenCalled();
     });
   });
 
