@@ -10,7 +10,9 @@ export const getCityArgs = (query: FilterCityDTO, languages: Language[]) => {
   const { page, limit, ...filter } = query;
   const searchArray = [
     filterKey<City>(filter, 'id'),
-    filterKey<City>(filter, 'active'),
+    filter.active !== undefined
+      ? filterKey<City>(filter, 'active')
+      : { active: true },
     filterJsonKeyWithRawSQL<City>(filter, 'name', languages),
   ].filter(Boolean) as Prisma.CityWhereInput[];
   return {
