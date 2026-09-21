@@ -19,6 +19,7 @@ import { seedService } from './service.seed';
 import { seedSettings } from './settings.seed';
 import { seedComprehensiveData } from './comprehensive.seed';
 import { seedStoreTemplates } from './store-template.seed';
+import { seedTantaFullEcosystem } from './tanta-full-ecosystem.seed';
 
 const prisma = new PrismaClient();
 
@@ -33,7 +34,8 @@ async function main() {
   await seedNotification(prisma);
   await seedSettings(prisma);
   // await prisma.settings.deleteMany().catch(() => {});
-  await seedComprehensiveData(prisma);
+  await seedTantaFullEcosystem(prisma);
+  // await seedComprehensiveData(prisma);
   // await seedStoreTemplates(prisma);
 
   await prisma.$disconnect();
