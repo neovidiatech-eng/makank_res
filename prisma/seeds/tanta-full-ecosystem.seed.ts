@@ -821,21 +821,23 @@ export async function seedTantaFullEcosystem(prismaClient: PrismaClient) {
 
   // 3. Admin user & wallet
   const adminRole = await prismaClient.role.findFirst({ where: { roleKey: RolesKeys.ADMIN } });
-  await prismaClient.user.upsert({
-    where: { id: 2 },
-    update: { email: 'admin@makanak.com', roleKey: RolesKeys.ADMIN },
-    create: {
-      id: 2,
-      name: 'System Admin',
-      email: 'admin@makanak.com',
-      phone: '+201000000001',
-      password: hash('Admin@1234'),
-      verified: true,
-      active: true,
-      roleId: adminRole!.id,
-      roleKey: RolesKeys.ADMIN,
-    },
+  const existingAdmin = await prismaClient.user.findFirst({
+    where: { email: 'admin@makanak.com', roleKey: RolesKeys.ADMIN },
   });
+  if (!existingAdmin) {
+    await prismaClient.user.create({
+      data: {
+        name: 'System Admin',
+        email: 'admin@makanak.com',
+        phone: '+201000000001',
+        password: hash('Admin@1234'),
+        verified: true,
+        active: true,
+        roleId: adminRole!.id,
+        roleKey: RolesKeys.ADMIN,
+      },
+    });
+  }
   await prismaClient.adminWallet.upsert({
     where: { id: 1 },
     update: {},
