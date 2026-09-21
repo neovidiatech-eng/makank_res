@@ -8,13 +8,11 @@ async function main() {
   // 1. Find or Create Restaurant StoreTemplate
   let restaurantTemplate = await prisma.storeTemplate.findFirst({
     where: {
+      deletedAt: null,
       OR: [
         { moduleType: 'restaurant' },
-        { name: { path: ['en'], equals: 'Restaurant' } },
-        { name: { path: ['ar'], equals: 'مطاعم' } },
-        { name: { path: ['ar'], equals: 'مطعم' } },
+        { id: 1 },
       ],
-      deletedAt: null,
     },
     include: { categories: true },
   });
@@ -49,9 +47,10 @@ async function main() {
   ];
 
   const templateCategoryMap: { id: number; keywords: string[] }[] = [];
+  const existingCategories = (restaurantTemplate as any).categories ?? [];
 
   for (const catDef of standardCategories) {
-    let existing = restaurantTemplate.categories.find((c: any) => {
+    let existing = existingCategories.find((c: any) => {
       const arName = typeof c.name === 'object' ? (c.name as any)?.ar : String(c.name);
       return arName === catDef.name.ar;
     });
