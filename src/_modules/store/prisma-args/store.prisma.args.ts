@@ -267,6 +267,13 @@ export const selectStoreOBJ = (includeBundles = false) => {
     logo: true,
     cover: true,
     createdAt: true,
+    cityId: true,
+    city: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
     freeDelivery: true,
     isPartner: true,
     isVerified: true,
