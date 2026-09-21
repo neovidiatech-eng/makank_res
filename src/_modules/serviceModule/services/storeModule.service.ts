@@ -151,7 +151,7 @@ export class ServiceModuleService {
     }
 
     const baseStoreWhere = {
-      active: true,
+      isStoreAccepted: true,
       deletedAt: null,
       isBlocked: false,
       ...(resolvedCityId
