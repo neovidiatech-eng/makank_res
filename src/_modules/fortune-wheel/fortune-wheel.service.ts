@@ -11,10 +11,13 @@ import {
 import { firstOrMany } from 'src/globals/helpers/first-or-many';
 import { prismaPagination } from 'src/globals/helpers/pagination-params';
 import { PrismaService } from 'src/globals/services/prisma.service';
+import { resolveCityForPoint } from 'src/globals/helpers/resolve-city-for-point.helper';
 import {
   CreateFortuneWheelItemDTO,
   FilterFortuneWheelItemDTO,
   FilterUserRewardDTO,
+  FortuneWheelEligibilityQueryDTO,
+  SpinFortuneWheelDTO,
   UpdateFortuneWheelItemDTO,
   UpdateFortuneWheelSettingsDTO,
 } from './dto/fortune-wheel.dto';
@@ -34,6 +37,24 @@ export class FortuneWheelService {
     const { sortOrder, ...data } = body;
     this.validateItemPayload(data);
 
+    if (data.storeId && !data.cityId) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: data.storeId },
+        select: { cityId: true },
+      });
+      if (store?.cityId) {
+        data.cityId = store.cityId;
+      }
+    } else if (data.storeId && data.cityId) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: data.storeId },
+        select: { cityId: true },
+      });
+      if (store?.cityId && store.cityId !== data.cityId) {
+        throw new BadRequestException('المتجر المختار لا ينتمي إلى هذه المدينة');
+      }
+    }
+
     const resolvedSortOrder =
       sortOrder !== undefined ? sortOrder : await this.nextSortOrder();
 
@@ -48,7 +69,26 @@ export class FortuneWheelService {
       this.validateItemPayload(body);
     }
 
-    const payload = this.normalizeItemPayload(body);
+    const data = { ...body };
+    if (data.storeId && !data.cityId) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: data.storeId },
+        select: { cityId: true },
+      });
+      if (store?.cityId) {
+        data.cityId = store.cityId;
+      }
+    } else if (data.storeId && data.cityId) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: data.storeId },
+        select: { cityId: true },
+      });
+      if (store?.cityId && store.cityId !== data.cityId) {
+        throw new BadRequestException('المتجر المختار لا ينتمي إلى هذه المدينة');
+      }
+    }
+
+    const payload = this.normalizeItemPayload(data);
     await this.prisma.fortuneWheelItem.update({
       where: { id },
       data: payload,
@@ -107,10 +147,43 @@ export class FortuneWheelService {
   // User-facing display logic (backend is the source of truth)
   // ---------------------------------------------------------------------------
 
-  async getEligibility(userId: Id) {
+  async getEligibility(
+    userId: Id,
+    query?: FortuneWheelEligibilityQueryDTO,
+  ) {
     const settings = await this.getOrCreateSettings();
+
+    const cityId =
+      query?.cityId != null &&
+      !isNaN(Number(query.cityId)) &&
+      Number(query.cityId) > 0
+        ? Number(query.cityId)
+        : undefined;
+
+    let resolvedCityId = cityId;
+    if (
+      !resolvedCityId &&
+      query?.lat != null &&
+      query?.lng != null &&
+      !isNaN(Number(query.lat)) &&
+      !isNaN(Number(query.lng))
+    ) {
+      const city = await resolveCityForPoint(
+        this.prisma,
+        Number(query.lat),
+        Number(query.lng),
+      );
+      resolvedCityId = city?.id;
+    }
+
+    const itemWhere: Prisma.FortuneWheelItemWhereInput = {
+      isActive: true,
+      deletedAt: null,
+      ...(resolvedCityId ? { cityId: resolvedCityId } : {}),
+    };
+
     const items = await this.prisma.fortuneWheelItem.findMany({
-      where: { isActive: true, deletedAt: null },
+      where: itemWhere,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       select: {
         id: true,
@@ -123,11 +196,19 @@ export class FortuneWheelService {
         maxOrderAmount: true,
         rewardExpiryHours: true,
         storeId: true,
+        cityId: true,
         Store: {
           select: {
             id: true,
             name: true,
             logo: true,
+            cityId: true,
+          },
+        },
+        City: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -176,15 +257,44 @@ export class FortuneWheelService {
   // Spin + reward
   // ---------------------------------------------------------------------------
 
-  async spin(userId: Id) {
+  async spin(userId: Id, body?: SpinFortuneWheelDTO) {
+    const cityId =
+      body?.cityId != null &&
+      !isNaN(Number(body.cityId)) &&
+      Number(body.cityId) > 0
+        ? Number(body.cityId)
+        : undefined;
+
+    let resolvedCityId = cityId;
+    if (
+      !resolvedCityId &&
+      body?.lat != null &&
+      body?.lng != null &&
+      !isNaN(Number(body.lat)) &&
+      !isNaN(Number(body.lng))
+    ) {
+      const city = await resolveCityForPoint(
+        this.prisma,
+        Number(body.lat),
+        Number(body.lng),
+      );
+      resolvedCityId = city?.id;
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const settings = await this.getOrCreateSettings(tx);
       if (!settings.isEnabled) {
         throw new BadRequestException('Fortune wheel is not enabled');
       }
 
+      const itemWhere: Prisma.FortuneWheelItemWhereInput = {
+        isActive: true,
+        deletedAt: null,
+        ...(resolvedCityId ? { cityId: resolvedCityId } : {}),
+      };
+
       const items = await tx.fortuneWheelItem.findMany({
-        where: { isActive: true, deletedAt: null },
+        where: itemWhere,
         select: {
           id: true,
           displayName: true,
@@ -196,11 +306,19 @@ export class FortuneWheelService {
           maxOrderAmount: true,
           rewardExpiryHours: true,
           storeId: true,
+          cityId: true,
           Store: {
             select: {
               id: true,
               name: true,
               logo: true,
+              cityId: true,
+            },
+          },
+          City: {
+            select: {
+              id: true,
+              name: true,
             },
           },
         },
@@ -251,7 +369,9 @@ export class FortuneWheelService {
             displayName: wonItem.displayName,
             rewardType: wonItem.rewardType,
             storeId: wonItem.storeId,
+            cityId: wonItem.cityId ?? resolvedCityId ?? null,
             Store: wonItem.Store,
+            City: wonItem.City,
           },
           reward: null,
         };
@@ -261,11 +381,15 @@ export class FortuneWheelService {
         ? new Date(now.getTime() + wonItem.rewardExpiryHours * 60 * 60 * 1000)
         : null;
 
+      const rewardCityId =
+        wonItem.cityId ?? wonItem.Store?.cityId ?? resolvedCityId ?? null;
+
       const reward = await tx.fortuneWheelUserReward.create({
         data: {
           userId,
           itemId: wonItem.id,
           storeId: wonItem.storeId,
+          cityId: rewardCityId,
           rewardType: wonItem.rewardType,
           rewardValue: wonItem.rewardValue,
           maxDiscount: wonItem.maxDiscount,
@@ -282,6 +406,12 @@ export class FortuneWheelService {
               logo: true,
             },
           },
+          City: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       });
 
@@ -296,13 +426,17 @@ export class FortuneWheelService {
           minOrderAmount: wonItem.minOrderAmount,
           maxOrderAmount: wonItem.maxOrderAmount,
           storeId: wonItem.storeId,
+          cityId: wonItem.cityId ?? rewardCityId,
           Store: wonItem.Store,
+          City: wonItem.City,
         },
         reward: {
           id: reward.id,
           expiresAt,
           storeId: reward.storeId,
+          cityId: reward.cityId,
           Store: reward.Store,
+          City: reward.City,
         },
       };
     });

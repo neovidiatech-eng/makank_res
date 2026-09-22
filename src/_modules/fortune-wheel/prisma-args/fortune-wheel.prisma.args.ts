@@ -16,6 +16,7 @@ export const getFortuneWheelItemArgs = (query: FilterFortuneWheelItemDTO) => {
     filterKey<FortuneWheelItem>(filter, 'rewardType'),
     filterKey<FortuneWheelItem>(filter, 'isActive'),
     filterKey<FortuneWheelItem>(filter, 'storeId'),
+    filterKey<FortuneWheelItem>(filter, 'cityId'),
   ].filter(Boolean) as Prisma.FortuneWheelItemWhereInput[];
 
   const orderArray = [
@@ -48,11 +49,19 @@ export const selectFortuneWheelItemOBJ = () => {
     maxOrderAmount: true,
     rewardExpiryHours: true,
     storeId: true,
+    cityId: true,
     Store: {
       select: {
         id: true,
         name: true,
         logo: true,
+        cityId: true,
+      },
+    },
+    City: {
+      select: {
+        id: true,
+        name: true,
       },
     },
     isActive: true,
@@ -74,11 +83,18 @@ export const selectFortuneWheelUserRewardOBJ = () => {
     id: true,
     itemId: true,
     storeId: true,
+    cityId: true,
     Store: {
       select: {
         id: true,
         name: true,
         logo: true,
+      },
+    },
+    City: {
+      select: {
+        id: true,
+        name: true,
       },
     },
     rewardType: true,

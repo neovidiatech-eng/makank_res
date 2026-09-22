@@ -49,12 +49,44 @@ export class CreateFortuneWheelItemDTO {
   storeId?: number;
 
   @Optional()
+  @ValidateNumber()
+  cityId?: number;
+
+  @Optional()
   @ValidateBoolean()
   isActive?: boolean;
 
   @Optional()
   @ValidateNumber()
   sortOrder?: number;
+}
+
+export class FortuneWheelEligibilityQueryDTO {
+  @Optional()
+  @ValidateNumber()
+  cityId?: number;
+
+  @Optional()
+  @ValidateNumber()
+  lat?: number;
+
+  @Optional()
+  @ValidateNumber()
+  lng?: number;
+}
+
+export class SpinFortuneWheelDTO {
+  @Optional()
+  @ValidateNumber()
+  cityId?: number;
+
+  @Optional()
+  @ValidateNumber()
+  lat?: number;
+
+  @Optional()
+  @ValidateNumber()
+  lng?: number;
 }
 
 export class UpdateFortuneWheelItemDTO extends PartialType(
@@ -106,6 +138,22 @@ export class FilterFortuneWheelItemDTO extends PaginationParamsDTO {
   @Optional()
   @ValidateNumber()
   storeId?: number;
+
+  @Optional()
+  @ValidateNumber()
+  cityId?: number;
+
+  @Optional()
+  @ValidateNumber()
+  userCityId?: number;
+
+  @Optional()
+  @ValidateNumber()
+  lat?: number;
+
+  @Optional()
+  @ValidateNumber()
+  lng?: number;
 
   @Optional()
   orderBy?: SortFortuneWheelItemDTO[];

@@ -10,6 +10,8 @@ model City {
   deletedAt       DateTime? @map("deleted_at")
   Store           Store[]
   Zone            Zone[]
+  FortuneWheelItems       FortuneWheelItem[]
+  FortuneWheelUserRewards FortuneWheelUserReward[]
 
   @@map("city")
 }

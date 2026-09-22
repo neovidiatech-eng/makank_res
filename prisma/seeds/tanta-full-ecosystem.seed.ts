@@ -1530,6 +1530,7 @@ export async function seedTantaFullEcosystem(prismaClient: PrismaClient) {
         maxDiscount: item.maxDiscount,
         minOrderAmount: item.minOrderAmount,
         rewardExpiryHours: item.rewardExpiryHours,
+        cityId: 2,
         isActive: true,
       },
       create: {
@@ -1538,6 +1539,7 @@ export async function seedTantaFullEcosystem(prismaClient: PrismaClient) {
         rewardType: item.rewardType,
         rewardValue: item.rewardValue,
         storeId: item.storeId,
+        cityId: 2,
         weight: item.weight,
         maxDiscount: item.maxDiscount,
         minOrderAmount: item.minOrderAmount,

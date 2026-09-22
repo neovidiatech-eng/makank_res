@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiQuery, ApiTags, PartialType } from '@nestjs/swagger';
@@ -26,6 +27,8 @@ import {
   CreateFortuneWheelItemDTO,
   FilterFortuneWheelItemDTO,
   FilterUserRewardDTO,
+  FortuneWheelEligibilityQueryDTO,
+  SpinFortuneWheelDTO,
   UpdateFortuneWheelItemDTO,
   UpdateFortuneWheelSettingsDTO,
 } from './dto/fortune-wheel.dto';
@@ -77,8 +80,13 @@ export class FortuneWheelController {
 
   @Get('/eligibility')
   @Auth()
-  async eligibility(@Res() res: Response, @CurrentUser('id') userId: Id) {
-    const data = await this.service.getEligibility(userId);
+  @ApiQuery({ type: PartialType(FortuneWheelEligibilityQueryDTO) })
+  async eligibility(
+    @Res() res: Response,
+    @CurrentUser('id') userId: Id,
+    @Query() query: FortuneWheelEligibilityQueryDTO,
+  ) {
+    const data = await this.service.getEligibility(userId, query);
     return this.response.success(
       res,
       'Fortune wheel eligibility fetched successfully',
@@ -99,8 +107,12 @@ export class FortuneWheelController {
 
   @Post('/spin')
   @Auth()
-  async spin(@Res() res: Response, @CurrentUser('id') userId: Id) {
-    const data = await this.service.spin(userId);
+  async spin(
+    @Res() res: Response,
+    @CurrentUser('id') userId: Id,
+    @Body() body: SpinFortuneWheelDTO,
+  ) {
+    const data = await this.service.spin(userId, body);
     return this.response.success(res, 'Fortune wheel spun successfully', data);
   }
 
