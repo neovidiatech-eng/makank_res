@@ -172,4 +172,94 @@ describe('FortuneWheelService - City Scoping', () => {
     expect(result.isWin).toBe(true);
     expect(result.wonItem.cityId).toBe(1);
   });
+
+  it('returns shouldShow: false when a city has 0 items in getEligibility', async () => {
+    const prisma = {
+      fortuneWheelSettings: {
+        findFirst: jest.fn().mockResolvedValue({ id: 1, isEnabled: true, displayIntervalHours: 24 }),
+      },
+      fortuneWheelItem: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      fortuneWheelUserState: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+
+    const service = new FortuneWheelService(prisma as any);
+    const result = await service.getEligibility(1, { cityId: 99 });
+
+    expect(result.shouldShow).toBe(false);
+    expect(result.items).toEqual([]);
+  });
+
+  it('throws BadRequestException in spin() when a city has 0 items', async () => {
+    const tx = {
+      fortuneWheelSettings: {
+        findFirst: jest.fn().mockResolvedValue({ id: 1, isEnabled: true, displayIntervalHours: 24 }),
+      },
+      fortuneWheelItem: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn((cb) => cb(tx)),
+    };
+
+    const service = new FortuneWheelService(prisma as any);
+    await expect(service.spin(1, { cityId: 99 })).rejects.toThrow(
+      'No active fortune wheel items',
+    );
+  });
+
+  it('resolves cityId from lat and lng coordinates in getEligibility', async () => {
+    const itemTanta = makeItem({ id: 201, cityId: 2 });
+    const prisma = {
+      fortuneWheelSettings: {
+        findFirst: jest.fn().mockResolvedValue({ id: 1, isEnabled: true, displayIntervalHours: 24 }),
+      },
+      city: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 2, lat: 30.788, lng: 31.002, radius: 15, toleranceRadius: 5, coordinates: null },
+        ]),
+      },
+      fortuneWheelItem: {
+        findMany: jest.fn().mockResolvedValue([itemTanta]),
+      },
+      fortuneWheelUserState: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+
+    const service = new FortuneWheelService(prisma as any);
+    const result = await service.getEligibility(1, { lat: 30.788, lng: 31.002 });
+
+    expect(prisma.city.findMany).toHaveBeenCalled();
+    expect(prisma.fortuneWheelItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          cityId: 2,
+        }),
+      }),
+    );
+    expect(result.items.length).toBe(1);
+    expect(result.items[0].cityId).toBe(2);
+  });
+
+  it('update() rejects store with mismatched cityId', async () => {
+    const prisma = {
+      store: {
+        findUnique: jest.fn().mockResolvedValue({ id: 50, cityId: 1 }), // Mahalla store
+      },
+    };
+
+    const service = new FortuneWheelService(prisma as any);
+    await expect(
+      service.update(10, {
+        storeId: 50,
+        cityId: 2, // Mismatched Tanta
+      }),
+    ).rejects.toThrow('المتجر المختار لا ينتمي إلى هذه المدينة');
+  });
 });
