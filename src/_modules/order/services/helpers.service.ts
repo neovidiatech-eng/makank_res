@@ -1071,14 +1071,12 @@ export class HelpersService {
     if (reward.expiresAt && reward.expiresAt <= now)
       throw new BadRequestException('Reward has expired');
 
-    if (
-      reward.storeId !== null &&
-      orderStoreId !== undefined &&
-      reward.storeId !== orderStoreId
-    ) {
-      throw new BadRequestException(
-        'هذه الجائزة صالحة فقط للطلب من المطعم المحدد في عجلة الحظ',
-      );
+    if (reward.storeId !== null) {
+      if (!orderStoreId || reward.storeId !== orderStoreId) {
+        throw new BadRequestException(
+          'هذه الجائزة صالحة فقط للطلب من المطعم المحدد في عجلة الحظ',
+        );
+      }
     }
 
     if (
