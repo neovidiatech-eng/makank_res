@@ -82,6 +82,8 @@ export const selectOrderOBJ = (filters: FilterOrderDTO, userId?: Id) => {
     couponId: true,
     date: true,
     createdAt: true,
+    preparingAt: true,
+    readyAt: true,
     addressId: true,
     adminNote: true,
     userId: true,

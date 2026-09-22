@@ -1868,6 +1868,35 @@ export class OrderService {
       }
     }
 
+    const nowIso = new Date().toISOString();
+    const existingInvoice =
+      order.invoice && typeof order.invoice === 'object'
+        ? (order.invoice as Record<string, any>)
+        : {};
+    const existingTimeline =
+      existingInvoice.timeline && typeof existingInvoice.timeline === 'object'
+        ? { ...existingInvoice.timeline }
+        : {};
+
+    if (updatedStatus === OrderStatus.PREPARING && !existingTimeline.preparingAt) {
+      existingTimeline.preparingAt = nowIso;
+    } else if (updatedStatus === OrderStatus.READY_PICKUP && !existingTimeline.readyAt) {
+      existingTimeline.readyAt = nowIso;
+    } else if (updatedStatus === OrderStatus.ON_THE_WAY && !existingTimeline.onTheWayAt) {
+      existingTimeline.onTheWayAt = nowIso;
+    } else if (updatedStatus === OrderStatus.DELIVERED && !existingTimeline.deliveredAt) {
+      existingTimeline.deliveredAt = nowIso;
+    } else if (updatedStatus === OrderStatus.CANCELLED && !existingTimeline.cancelledAt) {
+      existingTimeline.cancelledAt = nowIso;
+    } else if (updatedStatus === OrderStatus.REJECTED && !existingTimeline.rejectedAt) {
+      existingTimeline.rejectedAt = nowIso;
+    }
+
+    const updatedInvoice = {
+      ...existingInvoice,
+      timeline: existingTimeline,
+    };
+
     await this.prisma.$transaction(async (tx) => {
       await tx.order.update({
         where: {
@@ -1875,6 +1904,7 @@ export class OrderService {
         },
         data: {
           status: updatedStatus,
+          invoice: updatedInvoice,
           ...(nonPartnerPaymentOption && {
             nonPartnerPaymentOption,
           }),
