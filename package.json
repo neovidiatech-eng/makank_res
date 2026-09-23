@@ -7,7 +7,6 @@
   "license": "UNLICENSED",
   "scripts": {
     "db:seed": "ts-node -r tsconfig-paths/register prisma/seeds/seed.ts",
-    "clean:tanta": "ts-node -r tsconfig-paths/register scripts/clean-tanta.ts",
     "seed:permissions": "ts-node -r tsconfig-paths/register prisma/seeds/permissionAndRoles.seed.ts",
     "seed": "ts-node auto2.seed.ts",
     "build": "npm run build:dist",
