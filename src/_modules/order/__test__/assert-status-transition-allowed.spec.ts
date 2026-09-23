@@ -3,7 +3,7 @@
 // order straight to DELIVERED, which triggers wallet payouts without the
 // order ever being prepared, picked up, or delivered. This locks each role
 // to the handful of transitions it actually owns.
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { OrderStatus, OrderType } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { HelpersService } from '../services/helpers.service';
@@ -57,19 +57,29 @@ describe('HelpersService.assertStatusTransitionAllowed', () => {
   });
 
   it('lets the store accept, reject, and mark ready for pickup', () => {
-    for (const status of [
-      OrderStatus.PREPARING,
-      OrderStatus.REJECTED,
-      OrderStatus.READY_PICKUP,
-    ]) {
-      expect(() =>
-        helpers.assertStatusTransitionAllowed(
-          userOf(RolesKeys.STORE),
-          orderOf(OrderStatus.PENDING),
-          status,
-        ),
-      ).not.toThrow();
-    }
+    expect(() =>
+      helpers.assertStatusTransitionAllowed(
+        userOf(RolesKeys.STORE),
+        orderOf(OrderStatus.PENDING),
+        OrderStatus.PREPARING,
+      ),
+    ).not.toThrow();
+
+    expect(() =>
+      helpers.assertStatusTransitionAllowed(
+        userOf(RolesKeys.STORE),
+        orderOf(OrderStatus.PENDING),
+        OrderStatus.REJECTED,
+      ),
+    ).not.toThrow();
+
+    expect(() =>
+      helpers.assertStatusTransitionAllowed(
+        userOf(RolesKeys.STORE),
+        orderOf(OrderStatus.PREPARING),
+        OrderStatus.READY_PICKUP,
+      ),
+    ).not.toThrow();
   });
 
   it('blocks the store from marking a DELIVERY order as delivered', () => {
@@ -112,5 +122,31 @@ describe('HelpersService.assertStatusTransitionAllowed', () => {
         OrderStatus.PREPARING,
       ),
     ).toThrow(ForbiddenException);
+  });
+
+  it('blocks transitions from terminal states', () => {
+    for (const terminal of [
+      OrderStatus.DELIVERED,
+      OrderStatus.CANCELLED,
+      OrderStatus.REJECTED,
+    ]) {
+      expect(() =>
+        helpers.assertStatusTransitionAllowed(
+          userOf(RolesKeys.STORE),
+          orderOf(terminal),
+          OrderStatus.PREPARING,
+        ),
+      ).toThrow(BadRequestException);
+    }
+  });
+
+  it('blocks invalid transitions according to the state machine', () => {
+    expect(() =>
+      helpers.assertStatusTransitionAllowed(
+        userOf(RolesKeys.STORE),
+        orderOf(OrderStatus.PENDING),
+        OrderStatus.READY_PICKUP,
+      ),
+    ).toThrow(BadRequestException);
   });
 });

@@ -142,22 +142,40 @@ describe('Driver & Restaurant App Impact Verification', () => {
     it('safely scopes order query by cityId when passed as a valid number or string', () => {
       const argsNum = getOrderArgs({ cityId: 5 } as any, []);
       expect(argsNum.where.AND).toEqual(
-        expect.arrayContaining([{ Zone: { cityId: 5 } }]),
+        expect.arrayContaining([
+          {
+            OR: [
+              { Zone: { cityId: 5 } },
+              { Branch: { Store: { cityId: 5 } } },
+            ],
+          },
+        ]),
       );
 
       const argsStr = getOrderArgs({ cityId: '12' as any } as any, []);
       expect(argsStr.where.AND).toEqual(
-        expect.arrayContaining([{ Zone: { cityId: 12 } }]),
+        expect.arrayContaining([
+          {
+            OR: [
+              { Zone: { cityId: 12 } },
+              { Branch: { Store: { cityId: 12 } } },
+            ],
+          },
+        ]),
       );
     });
 
     it('ignores invalid or non-positive cityId values gracefully', () => {
       const argsNaN = getOrderArgs({ cityId: 'abc' as any } as any, []);
-      const cityFilterInNaN = argsNaN.where.AND?.some((c: any) => c.Zone && 'cityId' in c.Zone);
+      const cityFilterInNaN = argsNaN.where.AND?.some((c: any) =>
+        c.OR?.some((item: any) => item?.Zone && 'cityId' in item.Zone),
+      );
       expect(cityFilterInNaN).toBe(false);
 
       const argsZero = getOrderArgs({ cityId: 0 as any } as any, []);
-      const cityFilterInZero = argsZero.where.AND?.some((c: any) => c.Zone && 'cityId' in c.Zone);
+      const cityFilterInZero = argsZero.where.AND?.some((c: any) =>
+        c.OR?.some((item: any) => item?.Zone && 'cityId' in item.Zone),
+      );
       expect(cityFilterInZero).toBe(false);
     });
   });

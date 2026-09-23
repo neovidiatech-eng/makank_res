@@ -38,6 +38,7 @@ const buildService = (
     user: { findUnique: jest.fn().mockResolvedValue({ name: 'Ahmed' }) },
     store: {
       findUnique: jest.fn().mockResolvedValue({ isStoreAccepted: true }),
+      findFirst: jest.fn().mockImplementation(() => prisma.store.findUnique()),
       update: jest.fn(),
     },
     serviceSize: { aggregate: jest.fn().mockResolvedValue({ _min: { price: null } }) },

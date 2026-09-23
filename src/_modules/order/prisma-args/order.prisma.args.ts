@@ -39,9 +39,10 @@ export const getOrderArgs = (query: FilterOrderDTO, languages: Language[]) => {
     query.cityId &&
       !isNaN(Number(query.cityId)) &&
       Number(query.cityId) > 0 && {
-        Zone: {
-          cityId: Number(query.cityId),
-        },
+        OR: [
+          { Zone: { cityId: Number(query.cityId) } },
+          { Branch: { Store: { cityId: Number(query.cityId) } } },
+        ],
       },
     // Single search box: order id (exact, when numeric) OR customer name/phone
     // (substring — MySQL's default collation is already case-insensitive;

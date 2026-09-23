@@ -681,7 +681,7 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
     ]);
   });
 
-  it('scenario 12: setAllStoresZonePrices updates Zone defaults and enables zone pricing without touching StoreZonePrice overrides', async () => {
+  it('scenario 12: setAllStoresZonePrices updates Zone defaults, enables zone pricing, and clears StoreZonePrice overrides', async () => {
     const prisma = {
       zone: {
         count: jest.fn().mockResolvedValue(2),
@@ -690,6 +690,7 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
       },
       storeZonePrice: {
         updateMany: jest.fn().mockReturnValue({}),
+        deleteMany: jest.fn().mockReturnValue({}),
       },
       store: {
         updateMany: jest.fn().mockReturnValue({}),
@@ -718,7 +719,9 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
     expect(prisma.store.updateMany).toHaveBeenCalledWith({
       data: { zonePricingEnabled: true },
     });
-    // Store-specific overrides must NOT be touched — they keep their custom prices
-    expect(prisma.storeZonePrice.updateMany).not.toHaveBeenCalled();
+    // Store-specific overrides must be deleted so stores adopt generalized price
+    expect(prisma.storeZonePrice.deleteMany).toHaveBeenCalledWith({
+      where: { zoneId: { in: [1, 2] } },
+    });
   });
 });

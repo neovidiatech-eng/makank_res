@@ -1729,6 +1729,9 @@ export class StoreService {
           },
         }),
       ),
+      this.prisma.storeZonePrice.deleteMany({
+        where: { zoneId: { in: zoneIds } },
+      }),
       this.prisma.store.updateMany({
         data: { zonePricingEnabled: true },
       }),

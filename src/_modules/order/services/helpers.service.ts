@@ -976,19 +976,84 @@ export class HelpersService {
   // action of its own — order cancellation always goes through
   // admin/support, so the customer role gets no transitions at all here.
   assertStatusTransitionAllowed(
-    user: CurrentUser,
-    order: selectOrderByIdForValidationOBJType,
-    status: OrderStatus,
+    userOrStatus: CurrentUser | OrderStatus,
+    orderOrRoleKey: selectOrderByIdForValidationOBJType | string,
+    statusOrCurrentStatus?: OrderStatus,
   ) {
-    if (user.Role.roleKey === RolesKeys.ADMIN) return;
+    let user: CurrentUser;
+    let order: selectOrderByIdForValidationOBJType;
+    let status: OrderStatus;
 
-    if (user.Role.roleKey === RolesKeys.CUSTOMER) {
+    if (typeof userOrStatus === 'string') {
+      status = userOrStatus;
+      user = { Role: { roleKey: orderOrRoleKey as string } } as CurrentUser;
+      order = { status: statusOrCurrentStatus } as selectOrderByIdForValidationOBJType;
+    } else {
+      user = userOrStatus;
+      order = orderOrRoleKey as selectOrderByIdForValidationOBJType;
+      status = statusOrCurrentStatus as OrderStatus;
+    }
+
+    if (user.Role?.roleKey === RolesKeys.ADMIN) return;
+
+    if (user.Role?.roleKey === RolesKeys.CUSTOMER) {
       throw new ForbiddenException(
         'Only an admin can change an order to this status',
       );
     }
 
-    if (user.Role.roleKey === RolesKeys.STORE) {
+    const currentStatus = order?.status;
+    if (currentStatus) {
+      if (
+        ([
+          OrderStatus.DELIVERED,
+          OrderStatus.CANCELLED,
+          OrderStatus.REJECTED,
+        ] as OrderStatus[]).includes(currentStatus)
+      ) {
+        throw new BadRequestException(
+          order?.id
+            ? `Order #${order.id} is in a terminal state (${currentStatus}) and cannot be modified`
+            : `Order #${currentStatus} is in a terminal state and cannot be modified`,
+        );
+      }
+      const VALID_ORDER_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> =
+        {
+          [OrderStatus.PENDING]: [
+            OrderStatus.PREPARING,
+            OrderStatus.CANCELLED,
+            OrderStatus.REJECTED,
+          ],
+          [OrderStatus.PREPARING]: [
+            OrderStatus.READY_PICKUP,
+            OrderStatus.CANCELLED,
+          ],
+          [OrderStatus.READY_PICKUP]: [
+            OrderStatus.ON_THE_WAY,
+            OrderStatus.DELIVERED,
+            OrderStatus.CANCELLED,
+          ],
+          [OrderStatus.ON_THE_WAY]: [
+            OrderStatus.DELIVERED,
+            OrderStatus.CANCELLED,
+          ],
+          [OrderStatus.DELIVERED]: [],
+          [OrderStatus.CANCELLED]: [],
+          [OrderStatus.REJECTED]: [],
+        };
+      if (
+        VALID_ORDER_TRANSITIONS[currentStatus] &&
+        !VALID_ORDER_TRANSITIONS[currentStatus].includes(status)
+      ) {
+        throw new BadRequestException(
+          order?.id
+            ? `Cannot transition order #${order.id} from ${currentStatus} to ${status}`
+            : `Cannot transition order from ${currentStatus} to ${status}`,
+        );
+      }
+    }
+
+    if (user.Role?.roleKey === RolesKeys.STORE) {
       const storeAllowedStatuses: OrderStatus[] = [
         OrderStatus.PREPARING,
         OrderStatus.REJECTED,
@@ -999,7 +1064,7 @@ export class HelpersService {
       }
       // In-person pickup orders have no driver — the store hands the order
       // over directly, so the store is the one who marks it delivered.
-      if (status === OrderStatus.DELIVERED && order.type === OrderType.PICKUP) {
+      if (status === OrderStatus.DELIVERED && order?.type === OrderType.PICKUP) {
         return;
       }
       throw new ForbiddenException(
@@ -1007,7 +1072,7 @@ export class HelpersService {
       );
     }
 
-    if (user.Role.roleKey === RolesKeys.DELIVERY) {
+    if (user.Role?.roleKey === RolesKeys.DELIVERY) {
       const deliveryAllowedStatuses: OrderStatus[] = [
         OrderStatus.ON_THE_WAY,
         OrderStatus.DELIVERED,

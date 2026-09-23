@@ -513,8 +513,8 @@ export class StoreController {
     @Filter({ dto: FilterStoreDTO }) filters: FilterStoreDTO,
     @CurrentUser() user: User,
   ) {
-    if (user && user.roleKey === RolesKeys.CUSTOMER)
-      filters.customerId = user.id;
+    const userRoleKey = (user as any)?.Role?.roleKey ?? (user as any)?.roleKey;
+    if (user && userRoleKey === RolesKeys.CUSTOMER) filters.customerId = user.id;
     const data = await this.service.findAll(filters, user ? false : true);
     const total = isOne(filters?.id)
       ? undefined
