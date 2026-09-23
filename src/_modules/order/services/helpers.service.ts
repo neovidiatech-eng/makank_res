@@ -1203,7 +1203,7 @@ export class HelpersService {
     }
 
     // 2. Specific Custom Delivery Zone Price check (if configured for this destination zone)
-    if (destinationZoneId) {
+    if (destinationZoneId && typeof this.zoneService.getCustomDeliveryZonePriceEntry === 'function') {
       const customZoneEntry =
         await this.zoneService.getCustomDeliveryZonePriceEntry(
           destinationZoneId,
@@ -1215,7 +1215,9 @@ export class HelpersService {
 
     // 3. Fallback: Default custom delivery price for remaining zones OR per-KM formula
     const defaultCustomPrice =
-      await this.zoneService.getCustomDeliveryDefaultPrice();
+      typeof this.zoneService.getCustomDeliveryDefaultPrice === 'function'
+        ? await this.zoneService.getCustomDeliveryDefaultPrice()
+        : null;
 
     const settings = await this.settingService.getSettings([
       'customDeliveryKMCharge',

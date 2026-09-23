@@ -20,6 +20,22 @@ export const selectOrderByIdForValidationOBJ = () => {
     paidWithWallet: true,
     userId: true,
     Customer: { select: { id: true } },
+    invoice: true,
+    Branch: {
+      select: {
+        id: true,
+        lat: true,
+        lng: true,
+        address: true,
+        Store: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+          },
+        },
+      },
+    },
     OrderItems: {
       select: {
         serviceId: true,

@@ -1576,6 +1576,19 @@ export class OrderService {
           }
 
           this.attachCustomProgress(order as any);
+          if ((order as any).Branch?.Store) {
+            const storeObj = {
+              id: (order as any).Branch.Store.id,
+              name: (order as any).Branch.Store.name,
+              isPartner: (order as any).Branch.Store.isPartner,
+            };
+            if (!order.invoice || typeof order.invoice !== 'object' || Object.keys(order.invoice).length === 0) {
+              order.invoice = { store: storeObj };
+            } else if (!(order.invoice as any).store) {
+              (order.invoice as any).store = storeObj;
+            }
+            (order as any).storeName = (order as any).Branch.Store.name;
+          }
           Object.assign(order, {
             estimatedArrivalMinutes: estimatedTime,
             canDeliver: canDeliver,
@@ -1892,8 +1905,21 @@ export class OrderService {
       existingTimeline.rejectedAt = nowIso;
     }
 
+    // Preserve existing invoice and heal store info if missing
+    const healedStore =
+      existingInvoice.store ||
+      ((order as any).Branch?.Store
+        ? {
+            id: (order as any).Branch.Store.id,
+            name: (order as any).Branch.Store.name,
+            logo: (order as any).Branch.Store.logo,
+            address: (order as any).Branch.address,
+          }
+        : undefined);
+
     const updatedInvoice = {
       ...existingInvoice,
+      ...(healedStore && { store: healedStore }),
       timeline: existingTimeline,
     };
 
