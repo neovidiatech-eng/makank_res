@@ -35,10 +35,10 @@ export class PrivateSettingService {
 
       return { [s.setting]: value };
     });
-    if (isOne) return processedSettings?.at(0) as any;
+    if (isOne) return (processedSettings?.at(0) ?? {}) as any;
 
     const returnedSettings = {};
-    processedSettings.forEach((setting) => {
+    (processedSettings ?? []).forEach((setting) => {
       const key = Object.keys(setting)[0];
       returnedSettings[key] = setting[key];
     });

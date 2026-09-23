@@ -112,7 +112,7 @@ export const getStoreArgs = (
     (filter?.zeroOrdersOnly || filter?.orderFilter === StoreOrderFilterEnum.ZERO_ORDERS) && {
       branches: {
         none: {
-          Orders: {
+          orders: {
             some: {},
           },
         },

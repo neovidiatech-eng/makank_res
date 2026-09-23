@@ -470,9 +470,10 @@ export class StoreService {
     if (shouldUseNearest && stores) {
       stores.forEach((s) => nearestBranchMap.set(s.id, s));
     }
-    const deliveryPrice = await this.settingService.getSettings([
+    const deliveryPriceSettings = await this.settingService.getSettings([
       'shippingKMCharge',
     ]);
+    const deliveryPrice = deliveryPriceSettings ?? {};
 
     const storeIds = storesArray.map((s: any) => s?.id).filter(Boolean);
     const discountedServices =
