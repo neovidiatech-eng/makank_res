@@ -144,4 +144,52 @@ describe('Custom Delivery (المندوب الخاص) Zone Pricing & Remaining Z
     const customPrice = await helpers.getCustomDeliveryPrice([pickupStop, dropoffZone10]);
     expect(customPrice).toBe(40);
   });
+
+  it('Scenario 7: New City with a newly created Zone (no custom price set yet) -> smoothly falls back to default remaining price without error', async () => {
+    // New City (cityId: 99) with new Zone 999
+    const newCityDropoff = { lat: 31.20, lng: 29.90, zoneId: 999 };
+    // New zone has no entry in customDeliveryZonePrices yet
+    mockZoneService.getCustomDeliveryZonePriceEntry.mockResolvedValue(null);
+    mockZoneService.getCustomDeliveryDefaultPrice.mockResolvedValue(30); // Default for remaining zones is 30 EGP
+    mockSettingsService.getSettings.mockResolvedValue({
+      customDeliveryKMCharge: 0,
+      customDeliveryBaseFee: 15,
+    });
+
+    const price = await helpers.getCustomDeliveryPrice([pickupStop, newCityDropoff]);
+
+    // Must return default price 30 EGP safely with zero errors
+    expect(price).toBe(30);
+    expect(mockZoneService.getCustomDeliveryZonePriceEntry).toHaveBeenCalledWith(999);
+  });
+
+  it('Scenario 8: New City with a configured Custom Delivery Price (e.g. 75 EGP) -> returns the specific price immediately', async () => {
+    // New City (cityId: 99) with new Zone 999
+    const newCityDropoff = { lat: 31.20, lng: 29.90, zoneId: 999 };
+    mockZoneService.getCustomDeliveryZonePriceEntry.mockImplementation((id: number) => {
+      if (id === 999) return Promise.resolve({ price: 75, priceAfterDiscount: null });
+      return Promise.resolve(null);
+    });
+
+    const price = await helpers.getCustomDeliveryPrice([pickupStop, newCityDropoff]);
+
+    expect(price).toBe(75);
+  });
+
+  it('Scenario 9: Multi-stop custom delivery ending in a new city -> base zone fee is calculated cleanly', async () => {
+    // Pickup -> Intermediate Stop -> Dropoff in New City Zone 999
+    const intermediateStop = { lat: 30.50, lng: 30.50, zoneId: 50 };
+    const newCityDropoff = { lat: 31.20, lng: 29.90, zoneId: 999 };
+
+    mockZoneService.getCustomDeliveryZonePriceEntry.mockImplementation((id: number) => {
+      if (id === 999) return Promise.resolve({ price: 80, priceAfterDiscount: null });
+      return Promise.resolve(null);
+    });
+
+    const price = await helpers.getCustomDeliveryPrice([pickupStop, intermediateStop, newCityDropoff]);
+
+    // Destination stop determines the base zone delivery fee (80 EGP)
+    expect(price).toBe(80);
+  });
 });
+
