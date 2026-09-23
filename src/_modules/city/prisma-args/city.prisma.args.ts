@@ -15,8 +15,29 @@ export const getCityArgs = (query: FilterCityDTO, languages: Language[]) => {
       : { active: true },
     filterJsonKeyWithRawSQL<City>(filter, 'name', languages),
   ].filter(Boolean) as Prisma.CityWhereInput[];
+  let pagination: { take?: number; skip?: number } | undefined;
+
+  if (limit !== undefined) {
+    const numLimit = Number(limit);
+    if (numLimit === -1) {
+      pagination = undefined;
+    } else {
+      const parsedPage = page ? Math.max(1, Number(page)) : 1;
+      pagination = {
+        take: numLimit,
+        skip: (parsedPage - 1) * numLimit,
+      };
+    }
+  } else if (page !== undefined) {
+    pagination = paginateOrNot({ limit, page }, query?.id);
+  } else {
+    // When neither limit nor page is provided (e.g. mobile apps / dropdown selectors),
+    // do not paginate or clamp to 10; return all active cities so all cities appear.
+    pagination = undefined;
+  }
+
   return {
-    ...paginateOrNot({ limit, page }, query?.id),
+    ...pagination,
     where: {
       AND: searchArray,
     },

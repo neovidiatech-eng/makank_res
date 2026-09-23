@@ -20,9 +20,25 @@ export const getZoneArgs = (query: FilterZoneDTO, languages: Language[]) => {
     Boolean,
   ) as Prisma.ZoneOrderByWithRelationInput[];
 
-  const pagination = paginateOrNot({ limit, page }, query?.id);
-  if (pagination && limit !== undefined) {
-    pagination.take = limit === -1 ? undefined : limit;
+  let pagination: { take?: number; skip?: number } | undefined;
+
+  if (limit !== undefined) {
+    const numLimit = Number(limit);
+    if (numLimit === -1) {
+      pagination = undefined;
+    } else {
+      const parsedPage = page ? Math.max(1, Number(page)) : 1;
+      pagination = {
+        take: numLimit,
+        skip: (parsedPage - 1) * numLimit,
+      };
+    }
+  } else if (page !== undefined) {
+    pagination = paginateOrNot({ limit, page }, query?.id);
+  } else {
+    // When neither limit nor page is provided (e.g. fetching zones for a city),
+    // return all zones so none are omitted.
+    pagination = undefined;
   }
 
   return {
