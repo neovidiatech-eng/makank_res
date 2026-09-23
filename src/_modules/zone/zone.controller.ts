@@ -42,6 +42,39 @@ export class ZoneController {
     return this.response.created(res, 'zone created successfully');
   }
 
+  @Get('/custom-delivery-prices')
+  @Auth({ prefix, visitor: true })
+  async getCustomDeliveryPrices(@Res() res: Response) {
+    const data = await this.service.getCustomDeliveryZonePrices();
+    return this.response.success(
+      res,
+      'custom delivery zone prices fetched successfully',
+      data,
+    );
+  }
+
+  @Patch('/custom-delivery-prices')
+  @Auth({ prefix })
+  async updateCustomDeliveryPrices(
+    @Res() res: Response,
+    @Body()
+    body: {
+      defaultPrice?: number;
+      zonePrices?: Array<{
+        zoneId: number;
+        price: number | null;
+        priceAfterDiscount?: number | null;
+      }>;
+    },
+  ) {
+    const data = await this.service.updateCustomDeliveryZonePrices(body);
+    return this.response.success(
+      res,
+      'custom delivery zone prices updated successfully',
+      data,
+    );
+  }
+
   @Patch('/:id')
   @Auth({ prefix })
   @ApiRequiredIdParam()

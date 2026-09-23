@@ -286,6 +286,18 @@ export const settingTypes = [
     value: '2.000000000000000000000000000000',
     type: DataType.NUMBER,
   },
+  {
+    setting: 'customDeliveryDefaultPrice',
+    domain: SettingDomain.ORDER,
+    value: '0',
+    type: DataType.NUMBER,
+  },
+  {
+    setting: 'customDeliveryZonePrices',
+    domain: SettingDomain.ORDER,
+    value: '{}',
+    type: DataType.JSON,
+  },
   // Custom-delivery's own platform commission on the declared items/purchases cost —
   // independent of businessOrderCommissionRate(ForAll)/Type, which price store orders.
   // Seeded to match the current shared values (enabled, 0, FIXED) so nothing changes

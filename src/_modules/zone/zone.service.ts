@@ -291,4 +291,196 @@ export class ZoneService {
     }
     return null;
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Custom Delivery (المندوب الخاص) Zone Pricing
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Retrieves the specific custom delivery price entry for a single zone.
+   * Returns { price, priceAfterDiscount } or null if not configured.
+   */
+  async getCustomDeliveryZonePriceEntry(
+    zoneId?: Id | null,
+  ): Promise<{ price: number; priceAfterDiscount: number | null } | null> {
+    if (zoneId == null) return null;
+    const row = await this.prisma.settings.findUnique({
+      where: { setting: 'customDeliveryZonePrices' },
+    });
+    if (!row?.value) return null;
+    try {
+      const map = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+      const entry = map[String(zoneId)] ?? map[Number(zoneId)];
+      if (entry == null) return null;
+      const price = typeof entry === 'number' ? entry : Number(entry.price);
+      if (isNaN(price) || price <= 0) return null;
+      const priceAfterDiscount =
+        typeof entry === 'object' && entry.priceAfterDiscount != null
+          ? Number(entry.priceAfterDiscount)
+          : null;
+      return {
+        price,
+        priceAfterDiscount:
+          priceAfterDiscount != null && !isNaN(priceAfterDiscount) && priceAfterDiscount > 0
+            ? priceAfterDiscount
+            : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves the default custom delivery price for all remaining zones.
+   */
+  async getCustomDeliveryDefaultPrice(): Promise<number> {
+    const row = await this.prisma.settings.findUnique({
+      where: { setting: 'customDeliveryDefaultPrice' },
+    });
+    const val = Number(row?.value);
+    return !isNaN(val) && val > 0 ? val : 0;
+  }
+
+  /**
+   * Returns all active zones with their configured custom delivery prices
+   * and the global default price for remaining zones.
+   */
+  async getCustomDeliveryZonePrices() {
+    const [zones, settingsRow, defaultPriceRow] = await Promise.all([
+      this.prisma.zone.findMany({
+        where: { active: true },
+        select: { id: true, name: true, cityId: true, deliveryPrice: true },
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.settings.findUnique({
+        where: { setting: 'customDeliveryZonePrices' },
+      }),
+      this.prisma.settings.findUnique({
+        where: { setting: 'customDeliveryDefaultPrice' },
+      }),
+    ]);
+
+    let pricesMap: Record<string, any> = {};
+    if (settingsRow?.value) {
+      try {
+        pricesMap =
+          typeof settingsRow.value === 'string'
+            ? JSON.parse(settingsRow.value)
+            : settingsRow.value;
+      } catch {}
+    }
+
+    const defaultPrice = Number(defaultPriceRow?.value) || 0;
+
+    const mappedZones = zones.map((z) => {
+      const entry = pricesMap[String(z.id)] ?? pricesMap[z.id];
+      const price =
+        entry != null
+          ? typeof entry === 'number'
+            ? entry
+            : entry.price != null
+              ? Number(entry.price)
+              : null
+          : null;
+      const priceAfterDiscount =
+        entry != null && typeof entry === 'object' && entry.priceAfterDiscount != null
+          ? Number(entry.priceAfterDiscount)
+          : null;
+
+      return {
+        zoneId: z.id,
+        name: z.name,
+        cityId: z.cityId,
+        storeDeliveryPrice: z.deliveryPrice,
+        price: price != null && !isNaN(price) && price > 0 ? price : null,
+        priceAfterDiscount:
+          priceAfterDiscount != null && !isNaN(priceAfterDiscount) && priceAfterDiscount > 0
+            ? priceAfterDiscount
+            : null,
+      };
+    });
+
+    return {
+      defaultPrice,
+      zones: mappedZones,
+    };
+  }
+
+  /**
+   * Updates custom delivery zone prices and optional default price for remaining zones.
+   */
+  async updateCustomDeliveryZonePrices(data: {
+    defaultPrice?: number | null;
+    zonePrices?: Array<{
+      zoneId: number;
+      price: number | null;
+      priceAfterDiscount?: number | null;
+    }>;
+  }) {
+    // 1. Update defaultPrice if provided
+    if (data.defaultPrice !== undefined && data.defaultPrice !== null) {
+      const defVal = Number(data.defaultPrice) || 0;
+      await this.prisma.settings.upsert({
+        where: { setting: 'customDeliveryDefaultPrice' },
+        create: {
+          setting: 'customDeliveryDefaultPrice',
+          domain: 'ORDER',
+          dataType: 'NUMBER',
+          value: String(defVal),
+        },
+        update: {
+          value: String(defVal),
+        },
+      });
+    }
+
+    // 2. Update specific zone prices if provided
+    if (Array.isArray(data.zonePrices)) {
+      const existingRow = await this.prisma.settings.findUnique({
+        where: { setting: 'customDeliveryZonePrices' },
+      });
+      let pricesMap: Record<string, any> = {};
+      if (existingRow?.value) {
+        try {
+          pricesMap =
+            typeof existingRow.value === 'string'
+              ? JSON.parse(existingRow.value)
+              : existingRow.value;
+        } catch {}
+      }
+
+      for (const item of data.zonePrices) {
+        const zId = String(item.zoneId);
+        if (item.price == null || item.price <= 0 || isNaN(Number(item.price))) {
+          delete pricesMap[zId];
+        } else {
+          pricesMap[zId] = {
+            price: Number(item.price),
+            priceAfterDiscount:
+              item.priceAfterDiscount != null &&
+              Number(item.priceAfterDiscount) > 0 &&
+              !isNaN(Number(item.priceAfterDiscount))
+                ? Number(item.priceAfterDiscount)
+                : null,
+          };
+        }
+      }
+
+      const jsonStr = JSON.stringify(pricesMap);
+      await this.prisma.settings.upsert({
+        where: { setting: 'customDeliveryZonePrices' },
+        create: {
+          setting: 'customDeliveryZonePrices',
+          domain: 'ORDER',
+          dataType: 'JSON',
+          value: jsonStr,
+        },
+        update: {
+          value: jsonStr,
+        },
+      });
+    }
+
+    return this.getCustomDeliveryZonePrices();
+  }
 }

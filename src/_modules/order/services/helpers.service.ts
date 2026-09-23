@@ -1186,6 +1186,37 @@ export class HelpersService {
       throw new BadRequestException('يجب تحديد مكانين على الأقل');
     }
 
+    // 1. Destination stop is the final dropoff
+    const destinationStop = stops[stops.length - 1];
+    let destinationZoneId: number | null =
+      destinationStop?.zoneId != null ? Number(destinationStop.zoneId) : null;
+
+    if (
+      !destinationZoneId &&
+      destinationStop?.lat != null &&
+      destinationStop?.lng != null
+    ) {
+      destinationZoneId = await this.zoneService.resolveZoneId(
+        destinationStop.lat,
+        destinationStop.lng,
+      );
+    }
+
+    // 2. Specific Custom Delivery Zone Price check (if configured for this destination zone)
+    if (destinationZoneId) {
+      const customZoneEntry =
+        await this.zoneService.getCustomDeliveryZonePriceEntry(
+          destinationZoneId,
+        );
+      if (customZoneEntry && customZoneEntry.price > 0) {
+        return customZoneEntry.priceAfterDiscount ?? customZoneEntry.price;
+      }
+    }
+
+    // 3. Fallback: Default custom delivery price for remaining zones OR per-KM formula
+    const defaultCustomPrice =
+      await this.zoneService.getCustomDeliveryDefaultPrice();
+
     const settings = await this.settingService.getSettings([
       'customDeliveryKMCharge',
       'customDeliveryBaseFee',
@@ -1200,14 +1231,16 @@ export class HelpersService {
         ? +rawKm
         : 10;
     const baseFee =
-      settings.customDeliveryBaseFee !== undefined &&
-      settings.customDeliveryBaseFee !== null &&
-      settings.customDeliveryBaseFee !== '' &&
-      !isNaN(+settings.customDeliveryBaseFee)
-        ? +settings.customDeliveryBaseFee
-        : +settings.deliveryCommission || 0;
+      defaultCustomPrice > 0
+        ? defaultCustomPrice
+        : settings.customDeliveryBaseFee !== undefined &&
+            settings.customDeliveryBaseFee !== null &&
+            settings.customDeliveryBaseFee !== '' &&
+            !isNaN(+settings.customDeliveryBaseFee)
+          ? +settings.customDeliveryBaseFee
+          : +settings.deliveryCommission || 0;
 
-    // When kmCharge is 0 or negligible (<= 0.001), delivery price is the flat fixed base fee.
+    // When kmCharge is 0 or negligible (<= 0.001), delivery price is the flat fixed base/default fee.
     if (kmCharge <= 0.001) {
       return baseFee;
     }
