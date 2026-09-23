@@ -79,7 +79,7 @@ model StoreZonePrice {
   priceAfterDiscount Float?   @map("price_after_discount")
   createdAt          DateTime @default(now()) @map("created_at")
   Store     Store    @relation(fields: [storeId], references: [id])
-  Zone      Zone     @relation(fields: [zoneId], references: [id])
+  Zone      Zone?    @relation(fields: [zoneId], references: [id])
 
   @@unique([storeId, zoneId])
   @@index([zoneId], map: "store_zone_prices_zone_id_fkey")
