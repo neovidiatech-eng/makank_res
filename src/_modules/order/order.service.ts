@@ -1837,33 +1837,9 @@ export class OrderService {
     let deliveryLat = lat;
     let deliveryLng = lng;
 
-    // Store accepting (-> PREPARING) is the first point a driver may be searched
-    // for — never at order creation. In AUTO assignment mode we don't search
-    // immediately either: we schedule it `driverAssignmentDelaySeconds` (default
-    // 8min) out via assignmentReadyAt, and AssignmentTimerService's cron picks it
-    // up then. In MANUAL mode we schedule nothing — the admin assigns directly via
-    // the existing /orders/assign flow, unaffected by any of this. Only applies to
-    // regular in-app store orders (DELIVERY); PICKUP has no driver to assign, and
-    // CUSTOM_DELIVERY/ONLINE never reach this status via changeStatus at all (they
-    // have their own creation-time assignment flow).
-    let scheduledAssignmentReadyAt: Date | null = null;
-    if (
-      status === OrderStatus.PREPARING &&
-      order.type === OrderType.DELIVERY &&
-      !order.deliveryId
-    ) {
-      const { deliveryAssignmentMode } = await this.settingService.getSettings([
-        'deliveryAssignmentMode',
-      ]);
-      if (deliveryAssignmentMode === 'AUTO') {
-        const { driverAssignmentDelaySeconds } =
-          await this.settingService.getSettings([
-            'driverAssignmentDelaySeconds',
-          ]);
-        const delaySeconds = Number(driverAssignmentDelaySeconds) || 480;
-        scheduledAssignmentReadyAt = new Date(Date.now() + delaySeconds * 1000);
-      }
-    }
+    // Store accepting (-> PREPARING) is the point a driver is searched for immediately,
+    // so the order appears to delivery drivers right away while food is being prepared.
+    // No delayed assignment scheduling — handleOrderAssignment fires immediately below.
 
     if (updatedStatus === OrderStatus.ON_THE_WAY && order.deliveryId) {
       if (
@@ -1944,9 +1920,6 @@ export class OrderService {
               deliveryLat: deliveryLat,
               deliveryLng: deliveryLng,
             }),
-          ...(scheduledAssignmentReadyAt && {
-            assignmentReadyAt: scheduledAssignmentReadyAt,
-          }),
           ...(updatedStatus === OrderStatus.PREPARING && {
             preparingAt: new Date(),
             ...(user.Role?.roleKey === RolesKeys.STORE && {
@@ -2180,23 +2153,35 @@ export class OrderService {
       );
     }
 
-    // Fallback: assign a driver at READY_PICKUP if none is assigned yet. Skipped
-    // while a PREPARING-triggered AUTO-mode delay (assignmentReadyAt) is still in
-    // the future — the cron in AssignmentTimerService owns that window and this
-    // fallback would otherwise defeat the intentional 8-minute wait by assigning
-    // early whenever the store races through to READY_PICKUP quickly. If
-    // assignmentReadyAt is null (e.g. MANUAL mode was active at acceptance time)
-    // or already past, this still fires as the safety net it always was.
-    const stillWaitingForScheduledAutoAssign =
-      (order as any).assignmentReadyAt &&
-      (order as any).assignmentReadyAt > new Date();
+    // 1. Assign driver IMMEDIATELY when store accepts the order (PREPARING)
+    if (
+      status === OrderStatus.PREPARING &&
+      !order.deliveryId &&
+      order.type !== OrderType.PICKUP
+    ) {
+      try {
+        await this.assignmentService.handleOrderAssignment(order.id);
+      } catch (err) {
+        this.logger.error(
+          `Failed to assign driver for order ${order.id} upon PREPARING: ${err?.message}`,
+        );
+      }
+    }
+
+    // 2. Safety fallback: if no driver was assigned during PREPARING (e.g. no driver was available earlier),
+    // re-attempt assignment when order reaches READY_PICKUP
     if (
       status === OrderStatus.READY_PICKUP &&
       !order.deliveryId &&
-      order.type !== OrderType.PICKUP &&
-      !stillWaitingForScheduledAutoAssign
+      order.type !== OrderType.PICKUP
     ) {
-      await this.assignmentService.handleOrderAssignment(order.id);
+      try {
+        await this.assignmentService.handleOrderAssignment(order.id);
+      } catch (err) {
+        this.logger.error(
+          `Failed fallback driver assignment for order ${order.id} upon READY_PICKUP: ${err?.message}`,
+        );
+      }
     }
 
     // Apply a deferred AFK break once the driver finishes their last active trip.
