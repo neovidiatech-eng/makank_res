@@ -585,9 +585,11 @@ export class StoreTemplateService {
     }
 
     // 6. Paginate
-    const start = (page - 1) * limit;
-    const paginatedData = limit
-      ? mergedData.slice(start, start + limit)
+    const safePage = Number(page) > 0 ? Number(page) : 1;
+    const safeLimit = Number(limit) > 0 ? Number(limit) : 0;
+    const start = (safePage - 1) * safeLimit;
+    const paginatedData = safeLimit > 0
+      ? mergedData.slice(start, start + safeLimit)
       : mergedData;
 
     return paginatedData;
