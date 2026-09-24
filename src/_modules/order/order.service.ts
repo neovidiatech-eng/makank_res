@@ -1542,58 +1542,84 @@ export class OrderService {
       const orders = Array.isArray(data) ? data : [data];
       await Promise.all(
         orders.map(async (order) => {
-          const deliveryDetailsRaw =
-            order.Delivery?.['User']?.['DeliveryDetails'];
-          const deliveryDetails = Array.isArray(deliveryDetailsRaw)
-            ? deliveryDetailsRaw[0]
-            : deliveryDetailsRaw;
-          const estimatedTime =
-            order.Delivery &&
-            deliveryDetails?.lat !== undefined &&
-            deliveryDetails?.lng !== undefined
-              ? await this.calculateDeliveryLiveETA(
-                  order.id,
-                  deliveryDetails.lat,
-                  deliveryDetails.lng,
-                )
-              : 0;
-
-          let canDeliver = true;
-          if (
-            filters.lat &&
-            filters.lng &&
-            order.Branch?.lat &&
-            order.Branch?.lng
-          ) {
-            const distance =
-              calculateDistance(
-                filters.lat,
-                filters.lng,
-                order.Branch.lat,
-                order.Branch.lng,
-              ) / 1000;
-            canDeliver = distance <= storeNearestByKM;
-          }
-
-          this.attachCustomProgress(order as any);
-          if ((order as any).Branch?.Store) {
-            const storeObj = {
-              id: (order as any).Branch.Store.id,
-              name: (order as any).Branch.Store.name,
-              isPartner: (order as any).Branch.Store.isPartner,
-            };
-            if (!order.invoice || typeof order.invoice !== 'object' || Object.keys(order.invoice).length === 0) {
-              order.invoice = { store: storeObj };
-            } else if (!(order.invoice as any).store) {
-              (order.invoice as any).store = storeObj;
+          try {
+            // Safely parse invoice if stored as string in old records
+            if (typeof (order as any).invoice === 'string') {
+              try {
+                (order as any).invoice = JSON.parse((order as any).invoice);
+              } catch (_) {
+                (order as any).invoice = {};
+              }
             }
-            (order as any).storeName = (order as any).Branch.Store.name;
+            if (
+              !(order as any).invoice ||
+              typeof (order as any).invoice !== 'object' ||
+              Array.isArray((order as any).invoice)
+            ) {
+              (order as any).invoice = {};
+            }
+
+            const deliveryDetailsRaw =
+              order.Delivery?.['User']?.['DeliveryDetails'];
+            const deliveryDetails = Array.isArray(deliveryDetailsRaw)
+              ? deliveryDetailsRaw[0]
+              : deliveryDetailsRaw;
+            const estimatedTime =
+              order.Delivery &&
+              deliveryDetails?.lat !== undefined &&
+              deliveryDetails?.lng !== undefined
+                ? await this.calculateDeliveryLiveETA(
+                    order.id,
+                    deliveryDetails.lat,
+                    deliveryDetails.lng,
+                  )
+                : 0;
+
+            let canDeliver = true;
+            if (
+              filters.lat &&
+              filters.lng &&
+              order.Branch?.lat &&
+              order.Branch?.lng
+            ) {
+              const distance =
+                calculateDistance(
+                  filters.lat,
+                  filters.lng,
+                  order.Branch.lat,
+                  order.Branch.lng,
+                ) / 1000;
+              canDeliver = distance <= storeNearestByKM;
+            }
+
+            this.attachCustomProgress(order as any);
+            if ((order as any).Branch?.Store) {
+              const storeObj = {
+                id: (order as any).Branch.Store.id,
+                name: (order as any).Branch.Store.name,
+                isPartner: (order as any).Branch.Store.isPartner,
+              };
+              if (
+                !order.invoice ||
+                typeof order.invoice !== 'object' ||
+                Object.keys(order.invoice).length === 0
+              ) {
+                order.invoice = { store: storeObj };
+              } else if (!(order.invoice as any).store) {
+                (order.invoice as any).store = storeObj;
+              }
+              (order as any).storeName = (order as any).Branch.Store.name;
+            }
+            Object.assign(order, {
+              estimatedArrivalMinutes: estimatedTime,
+              canDeliver: canDeliver,
+              ratingEligibility: this.buildRatingEligibility(order as any),
+            });
+          } catch (orderErr) {
+            this.logger.error(
+              `[OrderService] Error decorating order #${order?.id}: ${orderErr?.message}`,
+            );
           }
-          Object.assign(order, {
-            estimatedArrivalMinutes: estimatedTime,
-            canDeliver: canDeliver,
-            ratingEligibility: this.buildRatingEligibility(order as any),
-          });
         }),
       );
 

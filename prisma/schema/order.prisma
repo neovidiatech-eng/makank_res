@@ -31,7 +31,7 @@ model Order {
   transferAccountNumber   String?                   @map("transfer_account_number")
   status                  OrderStatus               @default(PENDING)
   type                    OrderType                 @default(DELIVERY)
-  invoice                 Json
+  invoice                 Json?
   tip                     Float                     @default(0)
   branchId                Int?                      @map("branch_id")
   category                OrderCategory             @default(IMMEDIATE)
@@ -65,7 +65,7 @@ model Order {
   Address                 Address?                  @relation(fields: [addressId], references: [id])
   Branch                  Branch?                   @relation(fields: [branchId], references: [id])
   Coupon                  Coupon?                   @relation(fields: [couponId], references: [id])
-  Customer                User                      @relation("CustomerOrders", fields: [userId], references: [id])
+  Customer                User?                     @relation("CustomerOrders", fields: [userId], references: [id])
   Delivery                DeliveryDetails?          @relation(fields: [deliveryId], references: [userId])
   Specialist              Specialist?               @relation(fields: [specialistId], references: [id])
   CustomerSelectedZone    Zone?                     @relation("CustomerSelectedZoneOrders", fields: [customerSelectedZoneId], references: [id])
@@ -98,7 +98,7 @@ model OrderItem {
   OrderItemAddons OrderItemAddon[]
   OrderBundle     OrderBundle?     @relation(fields: [orderBundleId], references: [id])
   Order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  Service         Service          @relation(fields: [serviceId], references: [id])
+  Service         Service?         @relation(fields: [serviceId], references: [id])
   Size            ServiceSize?     @relation(fields: [sizeId], references: [id])
 
   @@index([orderId], map: "order_item_order_id_fkey")
@@ -132,7 +132,7 @@ model OrderItemAddon {
   id          Int          @id @default(autoincrement())
   orderItemId Int          @map("order_item_id")
   addonId     Int          @map("addon_id")
-  Addon       ServiceAddon @relation(fields: [addonId], references: [id])
+  Addon       ServiceAddon? @relation(fields: [addonId], references: [id])
   OrderItem   OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@index([addonId], map: "order_item_addons_addon_id_fkey")

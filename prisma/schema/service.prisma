@@ -28,8 +28,8 @@ model Service {
   OrderItems         OrderItem[]
   Addons             ServiceAddon[]
   Sizes              ServiceSize[]
-  Category           Category             @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  Store              Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  Category           Category?            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  Store              Store?               @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([storeId], map: "services_store_id_fkey")
   @@index([categoryId], map: "services_category_id_fkey")
@@ -58,7 +58,7 @@ model ServiceSize {
   deletedAt          DateTime?           @map("deleted_at")
   ArchivedOrderItems ArchivedOrderItem[]
   OrderItems         OrderItem[]
-  Service            Service             @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  Service            Service?            @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([serviceId], map: "service_sizes_service_id_fkey")
   @@map("service_sizes")
@@ -73,7 +73,7 @@ model ServiceAddon {
   deletedAt              DateTime?                @map("deleted_at")
   ArchivedOrderItemAddon ArchivedOrderItemAddon[]
   OrderItemAddon         OrderItemAddon[]
-  Service                Service                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  Service                Service?                 @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([serviceId], map: "service_addons_service_id_fkey")
   @@map("service_addons")

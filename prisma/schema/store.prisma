@@ -117,7 +117,7 @@ model Branch {
   ArchivedOrders    ArchivedOrder[]
   bank_accounts     bank_accounts[]
   BranchZones       BranchZone[]
-  Store             Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  Store             Store?          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   favorites         FavoriteStore[]
   orders            Order[]
   storeRating       StoreRating[]
