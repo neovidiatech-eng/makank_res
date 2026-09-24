@@ -46,8 +46,7 @@ export class StoreNearestService {
       )`);
       params.push(filter.templateCategoryId);
       params.push(filter.templateCategoryId);
-    }
-    if (filter?.templateId) {
+    } else if (filter?.templateId) {
       whereParts.push(`EXISTS (
       SELECT 1 FROM store_template_applications sta
       WHERE sta.store_id = s.id

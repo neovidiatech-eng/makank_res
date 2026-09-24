@@ -217,13 +217,14 @@ export const getStoreArgs = (
         },
       },
     },
-    filter?.templateId && {
-      TemplateApplications: {
-        some: {
-          templateId: filter.templateId,
+    !filter?.templateCategoryId &&
+      filter?.templateId && {
+        TemplateApplications: {
+          some: {
+            templateId: filter.templateId,
+          },
         },
       },
-    },
     enforceVisible && {
       isStoreAccepted: true,
       isBlocked: false,
