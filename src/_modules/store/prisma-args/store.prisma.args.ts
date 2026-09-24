@@ -191,12 +191,23 @@ export const getStoreArgs = (
       },
     },
     filter?.templateCategoryId && {
-      SubCategories: {
-        some: {
-          templateCategoryId: filter.templateCategoryId,
-          deletedAt: null,
+      OR: [
+        {
+          TemplateCategoryStores: {
+            some: {
+              templateCategoryId: filter.templateCategoryId,
+            },
+          },
         },
-      },
+        {
+          SubCategories: {
+            some: {
+              templateCategoryId: filter.templateCategoryId,
+              deletedAt: null,
+            },
+          },
+        },
+      ],
     },
     filter?.categoryId && {
       SubCategories: {

@@ -22,8 +22,9 @@ model TemplateCategory {
   templateId       Int               @map("template_id")
   deletedAt        DateTime?         @map("deleted_at")
   clonedCategories Category[]
-  template         StoreTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template         StoreTemplate           @relation(fields: [templateId], references: [id], onDelete: Cascade)
   services         TemplateService[]
+  stores           TemplateCategoryStore[]
 
   @@index([templateId])
   @@map("template_categories")
@@ -88,3 +89,20 @@ model StoreTemplateApplication {
   @@index([templateId])
   @@map("store_template_applications")
 }
+
+model TemplateCategoryStore {
+  id                 Int              @id @default(autoincrement())
+  templateCategoryId Int              @map("template_category_id")
+  storeId            Int              @map("store_id")
+  order              Int              @default(0)
+  createdAt          DateTime         @default(now()) @map("created_at")
+
+  templateCategory   TemplateCategory @relation(fields: [templateCategoryId], references: [id], onDelete: Cascade)
+  store              Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([templateCategoryId, storeId])
+  @@index([storeId])
+  @@index([templateCategoryId])
+  @@map("template_category_stores")
+}
+

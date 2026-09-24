@@ -7,7 +7,10 @@ import { LessThanField } from 'src/decorators/dto/validators/less-than-field.dec
 import { ValidateBoolean } from 'src/decorators/dto/validators/validate-boolean.decorator';
 import { ValidateName } from 'src/decorators/dto/validators/validate-json.decorator';
 import { ValidateObject } from 'src/decorators/dto/validators/validate-nested.decorator';
-import { ValidateNumber } from 'src/decorators/dto/validators/validate-number.decorator';
+import {
+  ValidateNumber,
+  ValidateNumberArray,
+} from 'src/decorators/dto/validators/validate-number.decorator';
 import { ValidateString } from 'src/decorators/dto/validators/validate-string.decorator';
 import { PaginationParamsDTO } from 'src/dtos/params/pagination-params.dto';
 
@@ -175,6 +178,18 @@ export class UpdateTemplateStoreOrderItemDTO {
 }
 
 export class ReorderTemplateStoresDTO {
+  @Required({ type: UpdateTemplateStoreOrderItemDTO, isArray: true })
+  @ValidateObject(UpdateTemplateStoreOrderItemDTO, true)
+  orders: UpdateTemplateStoreOrderItemDTO[];
+}
+
+export class AssignTemplateCategoryStoresDTO {
+  @Required({ type: Number, isArray: true })
+  @ValidateNumberArray({ allowNegative: false })
+  storeIds: number[];
+}
+
+export class ReorderTemplateCategoryStoresDTO {
   @Required({ type: UpdateTemplateStoreOrderItemDTO, isArray: true })
   @ValidateObject(UpdateTemplateStoreOrderItemDTO, true)
   orders: UpdateTemplateStoreOrderItemDTO[];

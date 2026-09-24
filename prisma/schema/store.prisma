@@ -54,6 +54,7 @@ model Store {
   StoreCoupons         StoreCoupons[]
   storeRatings         StoreRating[]
   TemplateApplications StoreTemplateApplication[]
+  TemplateCategoryStores TemplateCategoryStore[]
   ZonePrices           StoreZonePrice[]
   DeliveryPromotions   DeliveryPromotion[]
   VariationTemplates   VariationTemplate[]

@@ -10,10 +10,12 @@ import { filterJsonKeyWithRawSQL } from 'src/globals/helpers/prisma-filters';
 import { PrismaService } from 'src/globals/services/prisma.service';
 import {
   ApplyTemplateDTO,
+  AssignTemplateCategoryStoresDTO,
   CreateStoreTemplateDTO,
   CreateTemplateCategoryDTO,
   FilterStoreTemplateDTO,
   FilterTemplateCategoryDTO,
+  ReorderTemplateCategoryStoresDTO,
   ReorderTemplateStoresDTO,
   TemplateCategoryDTO,
   TemplateServiceDTO,
@@ -327,6 +329,133 @@ export class StoreTemplateService {
         this.prisma.storeTemplateApplication.updateMany({
           where: {
             templateId,
+            storeId: item.storeId,
+          },
+          data: {
+            order: item.order,
+          },
+        }),
+      ),
+    );
+  }
+
+  async getTemplateCategoryStores(categoryId: Id) {
+    const category = await this.prisma.templateCategory.findUnique({
+      where: { id: categoryId },
+    });
+    if (!category) throw new NotFoundException('Template category not found');
+
+    const assignedStores = await this.prisma.templateCategoryStore.findMany({
+      where: { templateCategoryId: categoryId },
+      include: {
+        store: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            cover: true,
+            cityId: true,
+            city: { select: { id: true, name: true } },
+            branches: {
+              where: { isMainBranch: true },
+              take: 1,
+              select: {
+                id: true,
+                address: true,
+                phone: true,
+                isActive: true,
+                closed: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Sort stores: order > 0 comes first ascending (1, 2, 3...), order === 0 at end
+    assignedStores.sort((a, b) => {
+      const rankA = a.order > 0 ? a.order : Number.MAX_SAFE_INTEGER;
+      const rankB = b.order > 0 ? b.order : Number.MAX_SAFE_INTEGER;
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+      return a.storeId - b.storeId;
+    });
+
+    return assignedStores.map((item) => ({
+      id: item.id,
+      storeId: item.storeId,
+      templateCategoryId: item.templateCategoryId,
+      order: item.order,
+      createdAt: item.createdAt,
+      store: {
+        id: item.store.id,
+        name: item.store.name,
+        logo: item.store.logo,
+        cover: item.store.cover,
+        cityId: item.store.cityId,
+        cityName: item.store.city?.name ?? null,
+        branch: item.store.branches?.[0] ?? null,
+      },
+    }));
+  }
+
+  async assignStoresToTemplateCategory(
+    categoryId: Id,
+    dto: AssignTemplateCategoryStoresDTO,
+  ) {
+    const category = await this.prisma.templateCategory.findUnique({
+      where: { id: categoryId },
+    });
+    if (!category) throw new NotFoundException('Template category not found');
+
+    await this.prisma.$transaction(
+      dto.storeIds.map((storeId) =>
+        this.prisma.templateCategoryStore.upsert({
+          where: {
+            templateCategoryId_storeId: {
+              templateCategoryId: categoryId,
+              storeId,
+            },
+          },
+          create: {
+            templateCategoryId: categoryId,
+            storeId,
+          },
+          update: {},
+        }),
+      ),
+    );
+  }
+
+  async removeStoreFromTemplateCategory(categoryId: Id, storeId: Id) {
+    const category = await this.prisma.templateCategory.findUnique({
+      where: { id: categoryId },
+    });
+    if (!category) throw new NotFoundException('Template category not found');
+
+    await this.prisma.templateCategoryStore.deleteMany({
+      where: {
+        templateCategoryId: categoryId,
+        storeId,
+      },
+    });
+  }
+
+  async reorderTemplateCategoryStores(
+    categoryId: Id,
+    dto: ReorderTemplateCategoryStoresDTO,
+  ) {
+    const category = await this.prisma.templateCategory.findUnique({
+      where: { id: categoryId },
+    });
+    if (!category) throw new NotFoundException('Template category not found');
+
+    await this.prisma.$transaction(
+      dto.orders.map((item) =>
+        this.prisma.templateCategoryStore.updateMany({
+          where: {
+            templateCategoryId: categoryId,
             storeId: item.storeId,
           },
           data: {

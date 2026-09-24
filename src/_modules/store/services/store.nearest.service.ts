@@ -31,12 +31,20 @@ export class StoreNearestService {
       params.push(filter.minRating);
     }
     if (filter?.templateCategoryId) {
-      whereParts.push(`EXISTS (
-      SELECT 1 FROM categories c
-      WHERE c.store_id = s.id
-        AND c.template_category_id = ?
-        AND c.deleted_at IS NULL
-    )`);
+      whereParts.push(`(
+        EXISTS (
+          SELECT 1 FROM template_category_stores tcs
+          WHERE tcs.store_id = s.id
+            AND tcs.template_category_id = ?
+        )
+        OR EXISTS (
+          SELECT 1 FROM categories c
+          WHERE c.store_id = s.id
+            AND c.template_category_id = ?
+            AND c.deleted_at IS NULL
+        )
+      )`);
+      params.push(filter.templateCategoryId);
       params.push(filter.templateCategoryId);
     }
     if (filter?.templateId) {

@@ -22,10 +22,12 @@ import { isOne } from 'src/globals/helpers/first-or-many';
 import { tag } from 'src/globals/helpers/tag.helper';
 import { ResponseService } from 'src/globals/services/response.service';
 import {
+  AssignTemplateCategoryStoresDTO,
   CreateStoreTemplateDTO,
   CreateTemplateCategoryDTO,
   FilterStoreTemplateDTO,
   FilterTemplateCategoryDTO,
+  ReorderTemplateCategoryStoresDTO,
   ReorderTemplateStoresDTO,
   UpdateStoreTemplateDTO,
   UpdateTemplateCategoryDTO,
@@ -123,6 +125,70 @@ export class StoreTemplateController {
   async deleteCategory(@Res() res: Response, @Param() { id }: RequiredIdParam) {
     await this.service.deleteTemplateCategory(id);
     return this.response.success(res, 'Template category deleted successfully');
+  }
+
+  @Get('/categories/:id/stores')
+  @Auth({ prefix, visitor: true })
+  @ApiRequiredIdParam()
+  async getCategoryStores(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+  ) {
+    const data = await this.service.getTemplateCategoryStores(id);
+    return this.response.success(
+      res,
+      'Template category stores fetched successfully',
+      data,
+    );
+  }
+
+  @Post('/categories/:id/stores')
+  @Auth({ prefix })
+  @ApiRequiredIdParam()
+  async assignCategoryStores(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() body: AssignTemplateCategoryStoresDTO,
+  ) {
+    await this.service.assignStoresToTemplateCategory(id, body);
+    return this.response.created(
+      res,
+      'Stores assigned to category successfully',
+    );
+  }
+
+  @Delete('/categories/:id/stores/:storeId')
+  @Auth({ prefix })
+  @ApiRequiredIdParam('id')
+  @ApiRequiredIdParam('storeId')
+  async removeCategoryStore(
+    @Res() res: Response,
+    @Param('id') id: string,
+    @Param('storeId') storeId: string,
+  ) {
+    await this.service.removeStoreFromTemplateCategory(
+      Number(id),
+      Number(storeId),
+    );
+    return this.response.success(
+      res,
+      'Store removed from category successfully',
+    );
+  }
+
+  @Patch('/categories/:id/stores/order')
+  @Auth({ prefix })
+  @ApiRequiredIdParam()
+  async reorderCategoryStores(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() body: ReorderTemplateCategoryStoresDTO,
+  ) {
+    await this.service.reorderTemplateCategoryStores(id, body);
+    return this.response.success(
+      res,
+      'Template category stores reordered successfully',
+    );
   }
 
   @Patch('/:id')
