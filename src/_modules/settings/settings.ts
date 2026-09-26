@@ -396,6 +396,14 @@ export const settingTypes = [
     value: 'true',
     type: DataType.BOOLEAN,
   },
+  // Global announcement for all stores (platform-wide announcement broadcast).
+  // Stores that do not set their own custom announcement inherit this message.
+  {
+    setting: 'globalStoreAnnouncement',
+    domain: SettingDomain.BUSINESS,
+    value: '',
+    type: DataType.STRING,
+  },
 ] as const satisfies readonly Setting[];
 
 export const SettingKeys = settingTypes.map((s) => s.setting);

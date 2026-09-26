@@ -17,7 +17,7 @@ import {
 } from '../dto/store.dto';
 
 import { BadRequestException } from '@nestjs/common';
-import { CommissionType, CouponType, OrderStatus } from '@prisma/client';
+import { CommissionType, CouponType, DataType, OrderStatus, SettingDomain } from '@prisma/client';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { ServiceModuleHelper } from 'src/_modules/serviceModule/services/serviceModule.helper.service';
 import { StoreTemplateService } from 'src/_modules/store-template/store-template.service';
@@ -470,9 +470,13 @@ export class StoreService {
     if (shouldUseNearest && stores) {
       stores.forEach((s) => nearestBranchMap.set(s.id, s));
     }
-    const deliveryPrice: any = (await this.settingService.getSettings([
+    const storeSettings: any = (await this.settingService.getSettings([
       'shippingKMCharge',
+      'globalStoreAnnouncement',
     ])) ?? {};
+    const deliveryPrice: any = storeSettings;
+    const globalStoreAnnouncement =
+      storeSettings.globalStoreAnnouncement?.trim() || null;
 
     const storeIds = storesArray.map((s: any) => s?.id).filter(Boolean);
     const discountedServices =
@@ -748,6 +752,7 @@ export class StoreService {
 
         const response = {
           ...storeRest,
+          announcement: store.announcement || globalStoreAnnouncement || null,
           templateOrder,
           order: templateOrder,
           branchId: branchData.branchId || branchData.id,
@@ -1425,8 +1430,9 @@ export class StoreService {
       throw new NotFoundException('Store not found');
     }
 
-    const { globalZonePricingEnabled } = await this.settingService.getSettings([
+    const { globalZonePricingEnabled, globalStoreAnnouncement } = await this.settingService.getSettings([
       'globalZonePricingEnabled',
+      'globalStoreAnnouncement',
     ]);
     const isGlobalActive =
       globalZonePricingEnabled !== false &&
@@ -1448,11 +1454,14 @@ export class StoreService {
         { price: row.price, priceAfterDiscount: row.priceAfterDiscount ?? null },
       ]),
     );
+    const globalAnn = (globalStoreAnnouncement as string)?.trim() || null;
     return {
       storeId,
       storeName: store.name,
       logo: store.logo,
       announcement: store.announcement ?? null,
+      globalAnnouncement: globalAnn,
+      effectiveAnnouncement: store.announcement || globalAnn,
       zonePricingEnabled: isGlobalActive && store.zonePricingEnabled,
       globalZonePricingEnabled: isGlobalActive,
       zones: zones.map((zone) => {
@@ -1472,8 +1481,9 @@ export class StoreService {
     if (user && user.Role?.roleKey && user.Role.roleKey !== RolesKeys.ADMIN) {
       throw new ForbiddenException('فقط لوحة التحكم (Dashboard) يمكنها تعديل أسعار المناطق');
     }
-    const { globalZonePricingEnabled } = await this.settingService.getSettings([
+    const { globalZonePricingEnabled, globalStoreAnnouncement } = await this.settingService.getSettings([
       'globalZonePricingEnabled',
+      'globalStoreAnnouncement',
     ]);
     const isGlobalActive =
       globalZonePricingEnabled !== false &&
@@ -1493,11 +1503,14 @@ export class StoreService {
       orderBy: { id: 'asc' },
     });
 
+    const globalAnn = (globalStoreAnnouncement as string)?.trim() || null;
     return {
       storeId: 'all',
       storeName: { ar: 'جميع المتاجر (تطبيق عام)', en: 'All Stores (Global Application)' },
       logo: null,
-      announcement: null,
+      announcement: globalAnn,
+      globalAnnouncement: globalAnn,
+      effectiveAnnouncement: globalAnn,
       zonePricingEnabled: isGlobalActive,
       globalZonePricingEnabled: isGlobalActive,
       zones: zones.map((zone) => ({
@@ -1508,6 +1521,22 @@ export class StoreService {
         priceAfterDiscount: zone.deliveryPriceAfterDiscount ?? null,
       })),
     };
+  }
+
+  async setGlobalAnnouncement(announcement: string | null) {
+    const value = announcement ? announcement.trim() : null;
+
+    await this.prisma.settings.upsert({
+      where: { setting: 'globalStoreAnnouncement' },
+      update: { value: value || '' },
+      create: {
+        setting: 'globalStoreAnnouncement',
+        value: value || '',
+        dataType: DataType.STRING,
+        domain: SettingDomain.BUSINESS,
+      },
+    });
+    return { announcement: value };
   }
 
   async getEffectiveZonePrices(id: any, user?: CurrentUser) {

@@ -518,6 +518,8 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
       storeName: mockStore.name,
       logo: mockStore.logo,
       announcement: mockStore.announcement,
+      globalAnnouncement: null,
+      effectiveAnnouncement: mockStore.announcement,
       zonePricingEnabled: true,
       globalZonePricingEnabled: true,
       zones: [
@@ -723,5 +725,72 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
     expect(prisma.storeZonePrice.deleteMany).toHaveBeenCalledWith({
       where: { zoneId: { in: [1, 2] } },
     });
+  });
+
+  it('scenario 13: setGlobalAnnouncement upserts setting in database', async () => {
+    const prisma = {
+      settings: {
+        upsert: jest.fn().mockResolvedValue({}),
+      },
+    };
+    const service = buildService(prisma as any);
+    const res = await service.setGlobalAnnouncement('عروض الجمعة البيضاء شغالة');
+    expect(res).toEqual({ announcement: 'عروض الجمعة البيضاء شغالة' });
+    expect(prisma.settings.upsert).toHaveBeenCalledWith({
+      where: { setting: 'globalStoreAnnouncement' },
+      update: { value: 'عروض الجمعة البيضاء شغالة' },
+      create: {
+        setting: 'globalStoreAnnouncement',
+        value: 'عروض الجمعة البيضاء شغالة',
+        dataType: 'STRING',
+        domain: 'BUSINESS',
+      },
+    });
+  });
+
+  it('scenario 14: getZonePrices inherits global announcement when store has none', async () => {
+    const mockStore = {
+      id: 10,
+      name: { ar: 'ماكدونالدز' },
+      logo: null,
+      announcement: null,
+      zonePricingEnabled: true,
+    };
+    const prisma = buildZonePricesPrisma(mockStore, []);
+    const service = buildService(prisma as any, {
+      settingService: {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: 'true',
+          globalStoreAnnouncement: 'عروض الجمعة البيضاء شغالة',
+        }),
+      },
+    });
+    const result = await service.getZonePrices(10);
+    expect(result.announcement).toBeNull();
+    expect(result.globalAnnouncement).toBe('عروض الجمعة البيضاء شغالة');
+    expect(result.effectiveAnnouncement).toBe('عروض الجمعة البيضاء شغالة');
+  });
+
+  it('scenario 15: getZonePrices uses store-specific announcement when set, overriding global', async () => {
+    const mockStore = {
+      id: 10,
+      name: { ar: 'ماكدونالدز' },
+      logo: null,
+      announcement: 'فرع التجمع مغلق للصيانة',
+      zonePricingEnabled: true,
+    };
+    const prisma = buildZonePricesPrisma(mockStore, []);
+    const service = buildService(prisma as any, {
+      settingService: {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: 'true',
+          globalStoreAnnouncement: 'عروض الجمعة البيضاء شغالة',
+        }),
+      },
+    });
+    const result = await service.getZonePrices(10);
+    expect(result.announcement).toBe('فرع التجمع مغلق للصيانة');
+    expect(result.globalAnnouncement).toBe('عروض الجمعة البيضاء شغالة');
+    expect(result.effectiveAnnouncement).toBe('فرع التجمع مغلق للصيانة');
   });
 });

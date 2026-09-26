@@ -418,6 +418,20 @@ export class StoreController {
     return this.response.success(res, 'all stores zone prices updated successfully', data);
   }
 
+  @Patch(['all/announcement', '/all/announcement'])
+  @Auth({ prefix: 'store-zone-pricing' })
+  async setGlobalAnnouncement(
+    @Res() res: Response,
+    @Body() body: { announcement?: string | null },
+    @CurrentUser() user: CurrentUser,
+  ) {
+    if (user?.Role?.roleKey !== RolesKeys.ADMIN) {
+      throw new ForbiddenException('فقط لوحة التحكم يمكنها تعديل الرسالة العامة للمنصة');
+    }
+    const result = await this.service.setGlobalAnnouncement(body?.announcement ?? null);
+    return this.response.success(res, 'تم تحديث الرسالة العامة للمنصة بنجاح', result);
+  }
+
   @Get(['/me/zone-prices', '/zone-prices', '/:id/zone-prices'])
   @Auth({ prefix })
   async getZonePrices(
