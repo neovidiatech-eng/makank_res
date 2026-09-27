@@ -18,6 +18,7 @@ export const getStoreTemplateArgs = (query: FilterStoreTemplateDTO) => {
     filterKey<StoreTemplate>(filter, 'id'),
     filterKey<StoreTemplate>(filter, 'active'),
     filterKey<StoreTemplate>(filter, 'moduleType'),
+    { deletedAt: null },
   ].filter(Boolean) as Prisma.StoreTemplateWhereInput[];
 
   const orderArray = [
