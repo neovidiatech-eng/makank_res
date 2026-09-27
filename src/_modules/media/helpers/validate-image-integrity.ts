@@ -15,7 +15,7 @@ import { openSync, readSync, closeSync, statSync } from 'fs';
 // customer uploads (e.g. wallet-transfer receipt screenshots) outright.
 const JPEG_EOI = Buffer.from([0xff, 0xd9]);
 const PNG_IEND = Buffer.from('IEND\xae\x42\x60\x82', 'binary');
-const TRAILING_WINDOW_BYTES = 65536; // 64KB — generous for any real trailing metadata
+const TRAILING_WINDOW_BYTES = 524288; // 512KB — generous for modern mobile screenshots with high-res thumbnails / EXIF trailers
 
 function readTrailingBytes(filePath: string, length: number): Buffer {
   const size = statSync(filePath).size;
@@ -34,13 +34,22 @@ function readTrailingBytes(filePath: string, length: number): Buffer {
 // Unknown/unsupported mimetypes are always treated as intact — this is a
 // truncation guard, not a full image validator.
 export function isImageFileIntact(filePath: string, mimetype: string): boolean {
-  if (mimetype === 'image/jpeg' || mimetype === 'image/jpg') {
-    const tail = readTrailingBytes(filePath, TRAILING_WINDOW_BYTES);
-    return tail.includes(JPEG_EOI);
+  try {
+    const size = statSync(filePath).size;
+    if (size < 2) return false;
+
+    const normalizedMime = mimetype?.toLowerCase() || '';
+
+    if (normalizedMime.includes('jpeg') || normalizedMime.includes('jpg')) {
+      const tail = readTrailingBytes(filePath, TRAILING_WINDOW_BYTES);
+      return tail.includes(JPEG_EOI);
+    }
+    if (normalizedMime.includes('png')) {
+      const tail = readTrailingBytes(filePath, TRAILING_WINDOW_BYTES);
+      return tail.includes(PNG_IEND);
+    }
+    return true;
+  } catch {
+    return false;
   }
-  if (mimetype === 'image/png') {
-    const tail = readTrailingBytes(filePath, TRAILING_WINDOW_BYTES);
-    return tail.includes(PNG_IEND);
-  }
-  return true;
 }
