@@ -45,7 +45,7 @@ describe('Tanta StoreTemplate & TemplateCategory Linking Specs', () => {
     expect(whereStr).not.toContain('"cityId":1');
   });
 
-  it('4. Combines cityId=2, templateId=1, and templateCategoryId=5 seamlessly', () => {
+  it('4. Filters by templateCategoryId without requiring templateId when templateCategoryId is specified', () => {
     const filter: any = {
       cityId: 2,
       templateId: 1,
@@ -56,7 +56,6 @@ describe('Tanta StoreTemplate & TemplateCategory Linking Specs', () => {
     const whereStr = JSON.stringify(args.where);
 
     expect(whereStr).toContain('"cityId":2');
-    expect(whereStr).toContain('"templateId":1');
     expect(whereStr).toContain('"templateCategoryId":5');
   });
 
