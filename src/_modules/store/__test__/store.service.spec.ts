@@ -727,15 +727,20 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
     });
   });
 
-  it('scenario 13: setGlobalAnnouncement upserts setting in database', async () => {
+  it('scenario 13: setGlobalAnnouncement upserts setting and resets store announcements in database', async () => {
     const prisma = {
+      $transaction: jest.fn().mockImplementation((actions) => Promise.all(actions)),
       settings: {
         upsert: jest.fn().mockResolvedValue({}),
+      },
+      store: {
+        updateMany: jest.fn().mockResolvedValue({ count: 10 }),
       },
     };
     const service = buildService(prisma as any);
     const res = await service.setGlobalAnnouncement('عروض الجمعة البيضاء شغالة');
     expect(res).toEqual({ announcement: 'عروض الجمعة البيضاء شغالة' });
+    expect(prisma.$transaction).toHaveBeenCalled();
     expect(prisma.settings.upsert).toHaveBeenCalledWith({
       where: { setting: 'globalStoreAnnouncement' },
       update: { value: 'عروض الجمعة البيضاء شغالة' },
@@ -745,6 +750,9 @@ describe('StoreService - Zone Pricing & Announcements Management Scenarios', () 
         dataType: 'STRING',
         domain: 'BUSINESS',
       },
+    });
+    expect(prisma.store.updateMany).toHaveBeenCalledWith({
+      data: { announcement: null },
     });
   });
 

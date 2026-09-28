@@ -5,11 +5,13 @@ import { IsString } from 'class-validator';
 export function ValidateString() {
   return applyDecorators(
     Transform(({ value }) => {
+      if (value === null || value === undefined) return value;
       if (Array.isArray(value)) {
         value = value.map(String);
         return value.length > 0 ? value[0] : undefined;
       } else {
         if (typeof value === 'string') return value;
+        return value;
       }
     }),
     // IsString({ message: 'Must be a non-empty string' }),

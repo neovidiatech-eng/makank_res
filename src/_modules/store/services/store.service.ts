@@ -143,6 +143,18 @@ export class StoreService {
       );
     }
 
+    if (storeData.announcement !== undefined) {
+      if (
+        storeData.announcement === null ||
+        (typeof storeData.announcement === 'string' &&
+          storeData.announcement.trim() === '')
+      ) {
+        storeData.announcement = null;
+      } else if (typeof storeData.announcement === 'string') {
+        storeData.announcement = storeData.announcement.trim();
+      }
+    }
+
     const branchFieldsProvided =
       lat !== undefined ||
       lng !== undefined ||
@@ -1527,18 +1539,26 @@ export class StoreService {
   }
 
   async setGlobalAnnouncement(announcement: string | null) {
-    const value = announcement ? announcement.trim() : null;
+    const value =
+      announcement && announcement.trim().length > 0
+        ? announcement.trim()
+        : null;
 
-    await this.prisma.settings.upsert({
-      where: { setting: 'globalStoreAnnouncement' },
-      update: { value: value || '' },
-      create: {
-        setting: 'globalStoreAnnouncement',
-        value: value || '',
-        dataType: DataType.STRING,
-        domain: SettingDomain.BUSINESS,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.settings.upsert({
+        where: { setting: 'globalStoreAnnouncement' },
+        update: { value: value || '' },
+        create: {
+          setting: 'globalStoreAnnouncement',
+          value: value || '',
+          dataType: DataType.STRING,
+          domain: SettingDomain.BUSINESS,
+        },
+      }),
+      this.prisma.store.updateMany({
+        data: { announcement: null },
+      }),
+    ]);
     return { announcement: value };
   }
 
