@@ -46,12 +46,23 @@ export class StoreNearestService {
       )`);
       params.push(filter.templateCategoryId);
       params.push(filter.templateCategoryId);
-    } else if (filter?.templateId) {
-      whereParts.push(`EXISTS (
-      SELECT 1 FROM store_template_applications sta
-      WHERE sta.store_id = s.id
-        AND sta.template_id = ?
-    )`);
+    }
+    if (filter?.templateId) {
+      whereParts.push(`(
+        EXISTS (
+          SELECT 1 FROM store_template_applications sta
+          WHERE sta.store_id = s.id
+            AND sta.template_id = ?
+        )
+        OR EXISTS (
+          SELECT 1 FROM template_category_stores tcs
+          JOIN template_categories tc ON tcs.template_category_id = tc.id
+          WHERE tcs.store_id = s.id
+            AND tc.template_id = ?
+            AND tc.deleted_at IS NULL
+        )
+      )`);
+      params.push(filter.templateId);
       params.push(filter.templateId);
     }
     if (filter?.closed) {

@@ -217,22 +217,32 @@ export const getStoreArgs = (
         },
       },
     },
-    !filter?.templateCategoryId &&
-      filter?.templateId && {
-        TemplateApplications: {
-          some: {
-            templateId: filter.templateId,
+    filter?.templateId && {
+      OR: [
+        {
+          TemplateApplications: {
+            some: {
+              templateId: filter.templateId,
+            },
           },
         },
-      },
+        {
+          TemplateCategoryStores: {
+            some: {
+              templateCategory: {
+                templateId: filter.templateId,
+              },
+            },
+          },
+        },
+      ],
+    },
     enforceVisible && {
       isStoreAccepted: true,
       isBlocked: false,
       branches: {
         some: {
           isActive: true,
-          closed: false,
-          temporarilyClosed: false,
         },
       },
     },

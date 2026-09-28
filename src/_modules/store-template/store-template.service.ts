@@ -409,23 +409,44 @@ export class StoreTemplateService {
     });
     if (!category) throw new NotFoundException('Template category not found');
 
-    await this.prisma.$transaction(
-      dto.storeIds.map((storeId) =>
-        this.prisma.templateCategoryStore.upsert({
-          where: {
-            templateCategoryId_storeId: {
-              templateCategoryId: categoryId,
-              storeId,
-            },
-          },
-          create: {
+    const operations: any[] = dto.storeIds.map((storeId) =>
+      this.prisma.templateCategoryStore.upsert({
+        where: {
+          templateCategoryId_storeId: {
             templateCategoryId: categoryId,
             storeId,
           },
-          update: {},
-        }),
-      ),
+        },
+        create: {
+          templateCategoryId: categoryId,
+          storeId,
+        },
+        update: {},
+      }),
     );
+
+    if (category.templateId) {
+      operations.push(
+        ...dto.storeIds.map((storeId) =>
+          this.prisma.storeTemplateApplication.upsert({
+            where: {
+              storeId_templateId: {
+                storeId,
+                templateId: category.templateId,
+              },
+            },
+            create: {
+              storeId,
+              templateId: category.templateId,
+              order: 0,
+            },
+            update: {},
+          }),
+        ),
+      );
+    }
+
+    await this.prisma.$transaction(operations);
   }
 
   async removeStoreFromTemplateCategory(categoryId: Id, storeId: Id) {
