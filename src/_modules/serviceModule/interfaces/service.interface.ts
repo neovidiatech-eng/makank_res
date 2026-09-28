@@ -36,6 +36,9 @@ export class StoreDTO {
   rating: number;
   review: number;
   address?: string;
+  announcement?: string | null;
+  effectiveAnnouncement?: string | null;
+  fixedAnnouncement?: string | null;
 }
 
 export class ServiceDTO {

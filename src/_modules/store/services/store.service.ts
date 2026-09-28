@@ -753,6 +753,9 @@ export class StoreService {
         const response = {
           ...storeRest,
           announcement: store.announcement || globalStoreAnnouncement || null,
+          effectiveAnnouncement: store.announcement || globalStoreAnnouncement || null,
+          fixedAnnouncement: store.announcement || globalStoreAnnouncement || null,
+          globalAnnouncement: globalStoreAnnouncement || null,
           templateOrder,
           order: templateOrder,
           branchId: branchData.branchId || branchData.id,

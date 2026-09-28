@@ -145,6 +145,7 @@ export class ServiceModuleHelper {
     };
 
     const mainBranch = service.Store?.branches?.[0] || {};
+    const storeAnn = service.Store?.announcement ?? null;
     const storeDTO: StoreDTO = {
       id: service.Store?.id ?? 0,
       name: service.Store?.name ?? '',
@@ -153,6 +154,9 @@ export class ServiceModuleHelper {
       rating: mainBranch.rating ?? 0,
       review: mainBranch.review ?? 0,
       address: mainBranch.address ?? '',
+      announcement: storeAnn,
+      effectiveAnnouncement: storeAnn,
+      fixedAnnouncement: storeAnn,
     };
 
     const sizesDTO: ServiceSizeDTO[] = Array.isArray(service.Sizes)
