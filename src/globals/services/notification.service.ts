@@ -228,7 +228,7 @@ export class NotificationService {
           sound: 'notification_sound',
           channelId: 'makank_orders_v2',
           priority: 'high' as const,
-          ...(imageUrl ? { imageUrl } : {}),
+          ...(imageUrl ? { imageUrl, image: imageUrl } : {}),
         },
       },
       apns: {

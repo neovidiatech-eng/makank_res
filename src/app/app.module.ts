@@ -76,7 +76,7 @@ const I18N_DIR = path.join(process.cwd(), './i18n');
         }),
       ],
       useFactory: (configService: ConfigService) => ({
-        fallbackLanguage: configService.getOrThrow('FALLBACK_LANGUAGE'),
+        fallbackLanguage: configService.get('FALLBACK_LANGUAGE') || 'ar',
         loaderOptions: {
           path: I18N_DIR,
           watch: true,
