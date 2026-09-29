@@ -18,7 +18,7 @@ describe('Tanta StoreTemplate & TemplateCategory Linking Specs', () => {
     expect(whereStr).toContain('"templateId":1');
   });
 
-  it('2. Generates correct SubCategories filter when templateCategoryId is passed', () => {
+  it('2. Generates correct TemplateCategoryStores filter when templateCategoryId is passed', () => {
     const filter: any = {
       templateCategoryId: 4,
     };
@@ -26,7 +26,7 @@ describe('Tanta StoreTemplate & TemplateCategory Linking Specs', () => {
     const args = getStoreArgs(filter, mockLanguages as any, [], false, true, false, null);
     const whereStr = JSON.stringify(args.where);
 
-    expect(whereStr).toContain('"SubCategories"');
+    expect(whereStr).toContain('"TemplateCategoryStores"');
     expect(whereStr).toContain('"templateCategoryId":4');
   });
 
