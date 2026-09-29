@@ -3,7 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { OTPType, SessionType, User } from '@prisma/client';
+import { Prisma, OTPType, SessionType, User } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { RolesKeys } from 'src/_modules/authorization/providers/roles';
 import { CouponService } from 'src/_modules/coupon/coupon.service';
@@ -150,20 +150,49 @@ export class BaseAuthenticationService {
         // the column is NOT NULL. The user can set a real one later via the
         // normal forget-password flow if they ever want email/password login too.
         const randomPassword = hashPassword(randomBytes(24).toString('hex'));
-        user = await this.prisma.user.create({
-          data: {
-            name: profile.name,
-            email: profile.email,
-            password: randomPassword,
-            googleId: profile.googleId,
-            verified: true,
-            roleId: role.id,
-            roleKey: RolesKeys.CUSTOMER,
-            Details: {
-              create: { points: 0, wallet: 0.0 },
+        try {
+          user = await this.prisma.user.create({
+            data: {
+              name: profile.name,
+              email: profile.email,
+              password: randomPassword,
+              googleId: profile.googleId,
+              verified: true,
+              roleId: role.id,
+              roleKey: RolesKeys.CUSTOMER,
+              Details: {
+                create: { points: 0, wallet: 0.0 },
+              },
             },
-          },
-        });
+          });
+        } catch (createErr) {
+          // Race condition: two concurrent requests (or a previous partial
+          // attempt) already created this user before we got here.
+          // P2002 = unique constraint violation. Recover gracefully by
+          // re-fetching the existing user instead of surfacing a 500.
+          if (
+            createErr instanceof Prisma.PrismaClientKnownRequestError &&
+            createErr.code === 'P2002'
+          ) {
+            user = await this.prisma.user.findFirst({
+              where: {
+                email: profile.email,
+                roleKey: RolesKeys.CUSTOMER,
+              },
+            });
+            if (!user) throw createErr; // truly unexpected — rethrow
+            // Link the googleId if it isn't set yet (race winner may have
+            // created the account via a different path without googleId)
+            if (!user.googleId) {
+              user = await this.prisma.user.update({
+                where: { id: user.id },
+                data: { googleId: profile.googleId, verified: true },
+              });
+            }
+          } else {
+            throw createErr;
+          }
+        }
       }
     }
 
