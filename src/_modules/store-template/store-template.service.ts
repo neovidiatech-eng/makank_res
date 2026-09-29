@@ -15,6 +15,7 @@ import {
   CreateTemplateCategoryDTO,
   FilterStoreTemplateDTO,
   FilterTemplateCategoryDTO,
+  ReorderTemplateCategoriesDTO,
   ReorderTemplateCategoryStoresDTO,
   ReorderTemplateStoresDTO,
   TemplateCategoryDTO,
@@ -339,6 +340,30 @@ export class StoreTemplateService {
     );
   }
 
+  async reorderTemplateCategories(
+    templateId: Id,
+    dto: ReorderTemplateCategoriesDTO,
+  ) {
+    const template = await this.prisma.storeTemplate.findUnique({
+      where: { id: templateId },
+    });
+    if (!template) throw new NotFoundException('Template not found');
+
+    await this.prisma.$transaction(
+      dto.orders.map((item) =>
+        this.prisma.templateCategory.updateMany({
+          where: {
+            id: item.categoryId,
+            templateId,
+          },
+          data: {
+            order: item.order,
+          },
+        }),
+      ),
+    );
+  }
+
   async getTemplateCategoryStores(categoryId: Id) {
     const category = await this.prisma.templateCategory.findUnique({
       where: { id: categoryId },
@@ -590,12 +615,14 @@ export class StoreTemplateService {
       })),
     ];
 
-    // Order the merged list
+    // Order the merged list: order > 0 comes first ascending (1, 2, 3...), order === 0 at end
     mergedData.sort((a, b) => {
       const orderA = a.order ?? 0;
       const orderB = b.order ?? 0;
-      if (orderA !== orderB) {
-        return orderA - orderB;
+      const rankA = orderA > 0 ? orderA : Number.MAX_SAFE_INTEGER;
+      const rankB = orderB > 0 ? orderB : Number.MAX_SAFE_INTEGER;
+      if (rankA !== rankB) {
+        return rankA - rankB;
       }
       return a.id - b.id;
     });

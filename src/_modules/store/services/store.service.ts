@@ -446,7 +446,8 @@ export class StoreService {
       this.getNearestStoresIfNeeded(filters, isVisitor),
     ]);
 
-    const shouldDeferPagination = shouldUseNearest || !!filters?.templateId;
+    const shouldDeferPagination =
+      shouldUseNearest || !!filters?.templateId || !!filters?.templateCategoryId;
     const args = getStoreArgs(
       filters,
       languages,
@@ -762,6 +763,14 @@ export class StoreService {
           : null;
         const templateOrder = templateApp?.order ?? 0;
 
+        const templateCategoryStore = filters?.templateCategoryId
+          ? store.TemplateCategoryStores?.find(
+              (tcs: any) =>
+                tcs.templateCategoryId === Number(filters.templateCategoryId),
+            )
+          : null;
+        const categoryOrder = templateCategoryStore?.order ?? 0;
+
         const response = {
           ...storeRest,
           announcement: store.announcement || globalStoreAnnouncement || null,
@@ -769,7 +778,8 @@ export class StoreService {
           fixedAnnouncement: store.announcement || globalStoreAnnouncement || null,
           globalAnnouncement: globalStoreAnnouncement || null,
           templateOrder,
-          order: templateOrder,
+          categoryOrder,
+          order: categoryOrder || templateOrder,
           branchId: branchData.branchId || branchData.id,
           address: branchData.address,
           lat: branchData.lat,
@@ -805,11 +815,11 @@ export class StoreService {
 
     // Customer/visitor browse listing or template listing:
     // 1. Push busy/closed stores below open ones.
-    // 2. Sort by template section order (if templateId provided) or storeOrder.
+    // 2. Sort by category order, template section order, or storeOrder.
     //    Stores with explicit order (> 0) come first ascending (1, 2, 3...),
     //    and unranked stores (order = 0) come after.
     // 3. Pagination is applied after sorting.
-    if (shouldUseNearest || filters?.templateId) {
+    if (shouldUseNearest || filters?.templateId || filters?.templateCategoryId) {
       const openTier = (store: any) =>
         store.status === 'BUSY' || store.closed ? 1 : 0;
 
@@ -819,7 +829,15 @@ export class StoreService {
           if (tierDiff !== 0) return tierDiff;
         }
 
-        if (filters?.templateId) {
+        if (filters?.templateCategoryId) {
+          const orderA = a.categoryOrder ?? 0;
+          const orderB = b.categoryOrder ?? 0;
+          const rankA = orderA > 0 ? orderA : Number.MAX_SAFE_INTEGER;
+          const rankB = orderB > 0 ? orderB : Number.MAX_SAFE_INTEGER;
+          if (rankA !== rankB) {
+            return rankA - rankB;
+          }
+        } else if (filters?.templateId) {
           const orderA = a.templateOrder ?? 0;
           const orderB = b.templateOrder ?? 0;
           const rankA = orderA > 0 ? orderA : Number.MAX_SAFE_INTEGER;

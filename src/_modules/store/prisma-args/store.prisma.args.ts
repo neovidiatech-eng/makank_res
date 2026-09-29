@@ -311,6 +311,12 @@ export const selectStoreOBJ = (includeBundles = false) => {
         order: true,
       },
     },
+    TemplateCategoryStores: {
+      select: {
+        templateCategoryId: true,
+        order: true,
+      },
+    },
     prepTimeMinutes: true,
     deliveryTimeMinMinutes: true,
     deliveryTimeMaxMinutes: true,

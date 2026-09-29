@@ -195,6 +195,22 @@ export class ReorderTemplateCategoryStoresDTO {
   orders: UpdateTemplateStoreOrderItemDTO[];
 }
 
+export class UpdateCategoryOrderItemDTO {
+  @Required()
+  @ValidateNumber()
+  categoryId: number;
+
+  @Required()
+  @ValidateNumber()
+  order: number;
+}
+
+export class ReorderTemplateCategoriesDTO {
+  @Required({ type: UpdateCategoryOrderItemDTO, isArray: true })
+  @ValidateObject(UpdateCategoryOrderItemDTO, true)
+  orders: UpdateCategoryOrderItemDTO[];
+}
+
 export class SortStoreTemplateDTO {
   @SortProp()
   @ApiProperty({ example: 'asc' })

@@ -27,6 +27,7 @@ import {
   CreateTemplateCategoryDTO,
   FilterStoreTemplateDTO,
   FilterTemplateCategoryDTO,
+  ReorderTemplateCategoriesDTO,
   ReorderTemplateCategoryStoresDTO,
   ReorderTemplateStoresDTO,
   UpdateStoreTemplateDTO,
@@ -241,6 +242,21 @@ export class StoreTemplateController {
     return this.response.success(
       res,
       'Template stores reordered successfully',
+    );
+  }
+
+  @Patch('/:id/categories/order')
+  @Auth({ prefix })
+  @ApiRequiredIdParam()
+  async reorderTemplateCategories(
+    @Res() res: Response,
+    @Param() { id }: RequiredIdParam,
+    @Body() body: ReorderTemplateCategoriesDTO,
+  ) {
+    await this.service.reorderTemplateCategories(id, body);
+    return this.response.success(
+      res,
+      'Template categories reordered successfully',
     );
   }
 
