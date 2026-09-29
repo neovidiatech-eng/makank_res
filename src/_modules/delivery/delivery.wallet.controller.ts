@@ -50,6 +50,28 @@ export class DeliveryWalletController {
     return this.response.success(res, 'Daily orders fetched successfully', data);
   }
 
+  @Get('/wallet/earnings')
+  async getEarningsHistory(
+    @Res() res: Response,
+    @CurrentUser('id') userId: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    const data = await this.walletService.getDriverEarningsHistory(userId, {
+      page: page ? +page : 1,
+      limit: limit ? +limit : 20,
+      fromDate,
+      toDate,
+    });
+    return this.response.success(
+      res,
+      'Driver earnings history fetched successfully',
+      data,
+    );
+  }
+
   @Get('/orders/:id/financial-breakdown')
   async getOrderFinancialBreakdown(
     @Res() res: Response,

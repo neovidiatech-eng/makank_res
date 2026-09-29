@@ -216,6 +216,18 @@ export class WalletService {
               : 0,
         },
       });
+
+      await tx.transaction.create({
+        data: {
+          credit: driverEarnings,
+          debit: 0,
+          balance: 0,
+          type: TransactionType.ORDER_COMPLETED,
+          userType: UserType.DELIVERY,
+          referenceId: order.id,
+          deliveryId: order.deliveryId,
+        },
+      });
     }
   }
 
@@ -1181,5 +1193,213 @@ export class WalletService {
       where: { userId: order.userId },
       data: { wallet: { decrement: order.totalPriceAfterDiscount } },
     });
+  }
+
+  // Driver Earnings History & Itemized Order Settlements
+  // Breaks down every delivered order into:
+  // - Original Delivery Fee (contractual earnings)
+  // - Shipping paid by customer
+  // - Cash collected in hand
+  // - Due from Admin (difference for promos or 100% for online)
+  // - Delivery discount covered by admin
+  // - Total cash collected from customer & admin debt
+  async getDriverEarningsHistory(
+    userId: number,
+    options?: {
+      page?: number;
+      limit?: number;
+      fromDate?: string;
+      toDate?: string;
+    },
+  ) {
+    const page = Math.max(1, Number(options?.page) || 1);
+    const limit = Math.max(1, Math.min(50, Number(options?.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const dateFilter: Prisma.OrderWhereInput = {};
+    if (options?.fromDate || options?.toDate) {
+      dateFilter.createdAt = {
+        ...(options?.fromDate ? { gte: new Date(options.fromDate) } : {}),
+        ...(options?.toDate ? { lte: new Date(options.toDate) } : {}),
+      };
+    }
+
+    const whereClause: Prisma.OrderWhereInput = {
+      deliveryId: userId,
+      status: OrderStatus.DELIVERED,
+      ...dateFilter,
+    };
+
+    const [totalOrders, orders, allMatchingOrders] = await Promise.all([
+      this.prisma.order.count({ where: whereClause }),
+      this.prisma.order.findMany({
+        where: whereClause,
+        include: {
+          Branch: {
+            select: {
+              id: true,
+              name: true,
+              address: true,
+              Store: {
+                select: {
+                  id: true,
+                  name: true,
+                  logo: true,
+                  isPartner: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.order.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          shipping: true,
+          originalShipping: true,
+          deliveryDiscount: true,
+          totalPriceAfterDiscount: true,
+          adminCommission: true,
+          tax: true,
+          packagingFee: true,
+          paymentMethod: true,
+          paidWithWallet: true,
+          isPartnerStore: true,
+          type: true,
+          invoice: true,
+          Branch: { select: { Store: { select: { isPartner: true } } } },
+        },
+      }),
+    ]);
+
+    let totalDriverEarnings = 0;
+    let totalCashCollectedInHand = 0;
+    let totalDueFromAdmin = 0;
+    let totalDeliveryDiscount = 0;
+    let totalCashFromCustomer = 0;
+    let totalAdminDebt = 0;
+
+    const calculateOrderEarnings = (o: any) => {
+      const isPartner = Boolean(o.isPartnerStore || o.Branch?.Store?.isPartner);
+      const isOffline = o.paymentMethod === 'CASH' && !o.paidWithWallet;
+      const invoiceSummary = (o.invoice as any)?.summary || {};
+      const promoSubsidy = Number(
+        o.deliveryDiscount ?? invoiceSummary.deliveryDiscount ?? 0,
+      );
+      const isFreeDeliveryFortune = Boolean(
+        invoiceSummary.isFreeDeliveryFortune ||
+          invoiceSummary.freeDelivery ||
+          (o.type === 'DELIVERY' &&
+            (o.shipping || 0) === 0 &&
+            (promoSubsidy > 0 ||
+              (invoiceSummary.originalShippingFee ?? 0) > 0)),
+      );
+
+      const originalShippingFee = Number(
+        o.originalShipping && o.originalShipping > 0
+          ? o.originalShipping
+          : invoiceSummary.originalShippingFee ??
+              (o.shipping || 0) + promoSubsidy,
+      );
+
+      const shippingPaidByCustomer = o.shipping || 0;
+
+      // Full delivery contractual fee:
+      const driverEarnings =
+        isFreeDeliveryFortune && originalShippingFee > 0
+          ? originalShippingFee
+          : originalShippingFee > 0
+            ? originalShippingFee
+            : shippingPaidByCustomer;
+
+      // Cash in hand from customer for delivery:
+      const deliveryCashInHand = isOffline ? shippingPaidByCustomer : 0;
+
+      // Due from Admin (المستحق لك من الإدارة):
+      // If online: full fee (driver got 0 cash in hand).
+      // If cash: only the subsidy difference (originalShipping - shippingPaidByCustomer).
+      // If cash with no promo: 0.
+      const dueFromAdmin = Math.max(
+        0,
+        Math.round((driverEarnings - deliveryCashInHand) * 100) / 100,
+      );
+
+      // Discount on delivery:
+      const deliveryDiscount = Math.max(
+        0,
+        Math.round((driverEarnings - shippingPaidByCustomer) * 100) / 100,
+      );
+
+      const orderTotal = o.totalPriceAfterDiscount || 0;
+      const cashCollected = isOffline ? orderTotal : 0;
+
+      const adminDebtForOrder = isOffline
+        ? isPartner
+          ? Math.max(0, orderTotal - shippingPaidByCustomer)
+          : (o.adminCommission || 0) + (o.tax || 0)
+        : 0;
+
+      return {
+        orderId: o.id,
+        createdAt: o.createdAt,
+        paymentMethod: o.paymentMethod,
+        isPaidOnline: !isOffline,
+        isPartnerStore: isPartner,
+        isFreeDelivery: isFreeDeliveryFortune,
+        hasDeliveryDiscount: deliveryDiscount > 0,
+
+        // Financial breakdown:
+        originalShippingFee: Math.round(driverEarnings * 100) / 100,
+        shippingPaidByCustomer: Math.round(shippingPaidByCustomer * 100) / 100,
+        deliveryDiscount: deliveryDiscount,
+        driverTotalEarnings: Math.round(driverEarnings * 100) / 100,
+        deliveryCashInHand: Math.round(deliveryCashInHand * 100) / 100,
+        dueFromAdmin: dueFromAdmin,
+        totalCashCollected: Math.round(cashCollected * 100) / 100,
+        adminDebtForOrder: Math.round(adminDebtForOrder * 100) / 100,
+
+        store: {
+          id: o.Branch?.Store?.id,
+          name: o.Branch?.Store?.name || o.Branch?.name || 'Store',
+          logo: o.Branch?.Store?.logo,
+          branchAddress: o.Branch?.address,
+        },
+      };
+    };
+
+    allMatchingOrders.forEach((o) => {
+      const calc = calculateOrderEarnings(o);
+      totalDriverEarnings += calc.driverTotalEarnings;
+      totalCashCollectedInHand += calc.deliveryCashInHand;
+      totalDueFromAdmin += calc.dueFromAdmin;
+      totalDeliveryDiscount += calc.deliveryDiscount;
+      totalCashFromCustomer += calc.totalCashCollected;
+      totalAdminDebt += calc.adminDebtForOrder;
+    });
+
+    const formattedOrders = orders.map((o) => calculateOrderEarnings(o));
+
+    return {
+      summary: {
+        totalOrdersCount: totalOrders,
+        totalDriverEarnings: Math.round(totalDriverEarnings * 100) / 100,
+        totalCashDeliveryInHand: Math.round(totalCashCollectedInHand * 100) / 100,
+        totalDueFromAdmin: Math.round(totalDueFromAdmin * 100) / 100,
+        totalDeliveryDiscount: Math.round(totalDeliveryDiscount * 100) / 100,
+        totalCashFromCustomer: Math.round(totalCashFromCustomer * 100) / 100,
+        totalAdminDebt: Math.round(totalAdminDebt * 100) / 100,
+      },
+      orders: formattedOrders,
+      pagination: {
+        page,
+        limit,
+        total: totalOrders,
+        totalPages: Math.ceil(totalOrders / limit) || 1,
+      },
+    };
   }
 }
