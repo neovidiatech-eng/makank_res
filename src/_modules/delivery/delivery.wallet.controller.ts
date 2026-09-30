@@ -58,12 +58,14 @@ export class DeliveryWalletController {
     @Query('limit') limit?: string,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('cycle') cycle?: string,
   ) {
     const data = await this.walletService.getDriverEarningsHistory(userId, {
       page: page ? +page : 1,
       limit: limit ? +limit : 20,
       fromDate,
       toDate,
+      cycle,
     });
     return this.response.success(
       res,

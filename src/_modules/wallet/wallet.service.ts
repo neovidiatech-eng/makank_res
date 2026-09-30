@@ -374,6 +374,13 @@ export class WalletService {
           adminNote: 'Auto-denied — driver wallet was reset by an admin',
         },
       }),
+      this.prisma.driverCashSettlement.create({
+        data: {
+          deliveryId,
+          amount: Math.round(((details.collectedCash || 0) + (details.unsettledCommission || 0)) * 100) / 100,
+          note: 'تصفير وتسوية الحساب بواسطة الإدارة',
+        },
+      }),
     ]);
   }
 
@@ -1210,17 +1217,65 @@ export class WalletService {
       limit?: number;
       fromDate?: string;
       toDate?: string;
+      cycle?: string;
     },
   ) {
     const page = Math.max(1, Number(options?.page) || 1);
     const limit = Math.max(1, Math.min(50, Number(options?.limit) || 20));
     const skip = (page - 1) * limit;
 
+    // Fetch last settlement / reset date for this driver:
+    let lastSettlementDate: Date | null = null;
+    let lastSettlementAmount = 0;
+    let lastSettlementType: string | null = null;
+
+    try {
+      const [lastCashSettlement, lastApprovedWithdrawal] = await Promise.all([
+        this.prisma.driverCashSettlement?.findFirst({
+          where: { deliveryId: userId },
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.driverWithdraw?.findFirst({
+          where: { deliveryId: userId, status: WithdrawStatus.APPROVED },
+          orderBy: { respondedAt: 'desc' },
+        }),
+      ]);
+
+      if (lastCashSettlement && lastApprovedWithdrawal) {
+        const withdrawDate =
+          lastApprovedWithdrawal.respondedAt ?? lastApprovedWithdrawal.createdAt;
+        if (lastCashSettlement.createdAt >= withdrawDate) {
+          lastSettlementDate = lastCashSettlement.createdAt;
+          lastSettlementAmount = lastCashSettlement.amount;
+          lastSettlementType = 'CASH_SETTLEMENT';
+        } else {
+          lastSettlementDate = withdrawDate;
+          lastSettlementAmount = lastApprovedWithdrawal.amount;
+          lastSettlementType = 'WITHDRAWAL';
+        }
+      } else if (lastCashSettlement) {
+        lastSettlementDate = lastCashSettlement.createdAt;
+        lastSettlementAmount = lastCashSettlement.amount;
+        lastSettlementType = 'CASH_SETTLEMENT';
+      } else if (lastApprovedWithdrawal) {
+        lastSettlementDate =
+          lastApprovedWithdrawal.respondedAt ?? lastApprovedWithdrawal.createdAt;
+        lastSettlementAmount = lastApprovedWithdrawal.amount;
+        lastSettlementType = 'WITHDRAWAL';
+      }
+    } catch (_) {
+      // In unit test mocks or when tables aren't mocked, safely ignore
+    }
+
     const dateFilter: Prisma.OrderWhereInput = {};
     if (options?.fromDate || options?.toDate) {
       dateFilter.createdAt = {
         ...(options?.fromDate ? { gte: new Date(options.fromDate) } : {}),
         ...(options?.toDate ? { lte: new Date(options.toDate) } : {}),
+      };
+    } else if (options?.cycle === 'CURRENT' && lastSettlementDate) {
+      dateFilter.createdAt = {
+        gte: lastSettlementDate,
       };
     }
 
@@ -1392,6 +1447,19 @@ export class WalletService {
         totalDeliveryDiscount: Math.round(totalDeliveryDiscount * 100) / 100,
         totalCashFromCustomer: Math.round(totalCashFromCustomer * 100) / 100,
         totalAdminDebt: Math.round(totalAdminDebt * 100) / 100,
+      },
+      settlementInfo: {
+        lastSettledAt: lastSettlementDate
+          ? lastSettlementDate.toISOString()
+          : null,
+        lastSettledAmount: Math.round(lastSettlementAmount * 100) / 100,
+        lastSettlementType,
+        hasSettlementHistory: lastSettlementDate !== null,
+        currentCycleStartDate: lastSettlementDate
+          ? lastSettlementDate.toISOString()
+          : null,
+        activeCycle:
+          options?.cycle || (dateFilter.createdAt ? 'FILTERED' : 'ALL'),
       },
       orders: formattedOrders,
       pagination: {

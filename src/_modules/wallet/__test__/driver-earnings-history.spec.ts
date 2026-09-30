@@ -20,6 +20,13 @@ describe('WalletService - getDriverEarningsHistory', () => {
       update: jest.fn(),
       findUnique: jest.fn(),
     },
+    driverCashSettlement: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+    },
+    driverWithdraw: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
   };
 
   const mockUserService = {};
@@ -279,5 +286,57 @@ describe('WalletService - getDriverEarningsHistory', () => {
     expect(result.pagination.limit).toBe(10);
     expect(result.pagination.total).toBe(45);
     expect(result.pagination.totalPages).toBe(5);
+  });
+
+  it('Case 9: Returns settlementInfo with last settlement date and details', async () => {
+    const settleDate = new Date('2026-02-01T10:00:00Z');
+    mockPrisma.driverCashSettlement.findFirst.mockResolvedValueOnce({
+      id: 5,
+      deliveryId: 10,
+      amount: 1500,
+      createdAt: settleDate,
+    });
+    mockPrisma.order.count.mockResolvedValue(0);
+    mockPrisma.order.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.getDriverEarningsHistory(10);
+
+    expect(result.settlementInfo).toBeDefined();
+    expect(result.settlementInfo.hasSettlementHistory).toBe(true);
+    expect(result.settlementInfo.lastSettledAt).toBe(settleDate.toISOString());
+    expect(result.settlementInfo.lastSettledAmount).toBe(1500);
+    expect(result.settlementInfo.lastSettlementType).toBe('CASH_SETTLEMENT');
+    expect(result.settlementInfo.currentCycleStartDate).toBe(settleDate.toISOString());
+  });
+
+  it('Case 10: cycle: CURRENT filters orders from last settlement date onwards', async () => {
+    const settleDate = new Date('2026-02-10T08:00:00Z');
+    mockPrisma.driverCashSettlement.findFirst.mockResolvedValueOnce({
+      id: 9,
+      deliveryId: 10,
+      amount: 800,
+      createdAt: settleDate,
+    });
+    mockPrisma.order.count.mockResolvedValue(5);
+    mockPrisma.order.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.getDriverEarningsHistory(10, { cycle: 'CURRENT' });
+
+    expect(mockPrisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          deliveryId: 10,
+          status: OrderStatus.DELIVERED,
+          createdAt: {
+            gte: settleDate,
+          },
+        }),
+      }),
+    );
+    expect(result.settlementInfo.activeCycle).toBe('CURRENT');
   });
 });
