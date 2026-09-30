@@ -191,7 +191,7 @@ export class WalletService {
       if (order.paymentMethod === 'CASH' && !order.paidWithWallet) {
         driverUpdateData.collectedCash = { increment: totalPrice };
         const commissionDeducted = isPartnerStore
-          ? Math.max(0, totalPrice - shipping)
+          ? totalPrice
           : adminCommission + tax;
         driverUpdateData.unsettledCommission = {
           increment: commissionDeducted,
@@ -329,7 +329,7 @@ export class WalletService {
       if (order.paymentMethod === 'CASH' && !order.paidWithWallet) {
         driverUpdateData.collectedCash = { decrement: totalPrice };
         const commissionDeducted = isPartnerStore
-          ? Math.max(0, totalPrice - shipping)
+          ? totalPrice
           : adminCommission + tax;
         driverUpdateData.unsettledCommission = {
           decrement: commissionDeducted,
@@ -1364,12 +1364,18 @@ export class WalletService {
       const shippingPaidByCustomer = o.shipping || 0;
 
       // Full delivery contractual fee:
-      const driverEarnings =
+      let driverEarnings =
         isFreeDeliveryFortune && originalShippingFee > 0
           ? originalShippingFee
           : originalShippingFee > 0
             ? originalShippingFee
             : shippingPaidByCustomer;
+
+      // If non-partner store with discount and driver paid full price cash (FULL_PRICE),
+      // the platform reimburses the driver for the discount amount.
+      if (!isPartner && Number(o.discountAmount || 0) > 0 && o.nonPartnerPaymentOption === 'FULL_PRICE') {
+        driverEarnings += Number(o.discountAmount);
+      }
 
       // Cash in hand from customer for delivery:
       const deliveryCashInHand = isOffline ? shippingPaidByCustomer : 0;
@@ -1390,7 +1396,7 @@ export class WalletService {
 
       const adminDebtForOrder = isOffline
         ? isPartner
-          ? Math.max(0, orderTotal - shippingPaidByCustomer)
+          ? orderTotal
           : (o.adminCommission || 0) + (o.tax || 0)
         : 0;
 

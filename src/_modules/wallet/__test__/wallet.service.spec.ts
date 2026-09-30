@@ -8,6 +8,7 @@ const buildTx = (overrides: Partial<any> = {}) => ({
   },
   wallet: { update: jest.fn() },
   details: { update: jest.fn(), upsert: jest.fn() },
+  transaction: { create: jest.fn() },
   ...overrides,
 });
 
@@ -56,7 +57,7 @@ describe('WalletService.reverseEarnings — exact inverse of distributeEarnings'
       data: {
         wallet: { decrement: 20 },
         collectedCash: { decrement: 200 },
-        unsettledCommission: { decrement: 180 }, // totalPrice - shipping for partner store
+        unsettledCommission: { decrement: 200 }, // totalPrice for partner store
       },
     });
   });
@@ -119,6 +120,7 @@ describe('WalletService.resetDriverWallet', () => {
   it('zeroes every wallet field and denies pending withdrawals in one transaction', async () => {
     const detailsUpdate = { id: 'details-update' };
     const withdrawUpdateMany = { id: 'withdraw-update' };
+    const settlementCreate = { id: 'settlement-create' };
     const prisma = {
       details: {
         findUnique: jest.fn().mockResolvedValue({ userId: 42, wallet: 500 }),
@@ -126,6 +128,9 @@ describe('WalletService.resetDriverWallet', () => {
       },
       driverWithdraw: {
         updateMany: jest.fn().mockReturnValue(withdrawUpdateMany),
+      },
+      driverCashSettlement: {
+        create: jest.fn().mockReturnValue(settlementCreate),
       },
       $transaction: jest.fn().mockResolvedValue(undefined),
     };
@@ -149,9 +154,18 @@ describe('WalletService.resetDriverWallet', () => {
         data: expect.objectContaining({ status: 'DENIED' }),
       }),
     );
+    expect(prisma.driverCashSettlement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryId: 42,
+          note: 'تصفير وتسوية الحساب بواسطة الإدارة',
+        }),
+      }),
+    );
     expect(prisma.$transaction).toHaveBeenCalledWith([
       detailsUpdate,
       withdrawUpdateMany,
+      settlementCreate,
     ]);
   });
 

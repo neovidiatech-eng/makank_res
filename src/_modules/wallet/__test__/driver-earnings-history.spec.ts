@@ -91,7 +91,7 @@ describe('WalletService - getDriverEarningsHistory', () => {
     expect(o.hasDeliveryDiscount).toBe(false);
     expect(o.isPaidOnline).toBe(false);
     expect(o.totalCashCollected).toBe(200);
-    expect(o.adminDebtForOrder).toBe(150); // partner store: 200 - 50 = 150
+    expect(o.adminDebtForOrder).toBe(200); // partner store: driver hands over full 200 collected cash
   });
 
   it('Case 2: Cash order WITH delivery discount -> dueFromAdmin = full earnings (50)', async () => {
@@ -120,7 +120,7 @@ describe('WalletService - getDriverEarningsHistory', () => {
     expect(o.hasDeliveryDiscount).toBe(true);
     expect(o.isPaidOnline).toBe(false);
     expect(o.totalCashCollected).toBe(180);
-    expect(o.adminDebtForOrder).toBe(150); // 180 - 30 = 150
+    expect(o.adminDebtForOrder).toBe(180); // 180 collected cash handed over to platform
   });
 
   it('Case 3: Online order without discount -> dueFromAdmin = full 50', async () => {
@@ -338,5 +338,61 @@ describe('WalletService - getDriverEarningsHistory', () => {
       }),
     );
     expect(result.settlementInfo.activeCycle).toBe('CURRENT');
+  });
+
+  it('Case 11: Cash order with product coupon discount -> customer pays discounted cash, driver hands over discounted cash, driver gets full delivery fee', async () => {
+    // Normal food: 150, Coupon discount: 50 -> Food after discount: 100
+    // Shipping: 40 (no delivery discount) -> Total customer cash payable: 140
+    const orderWithCoupon = {
+      ...baseOrder,
+      id: 111,
+      totalPriceAfterDiscount: 140,
+      discountAmount: 50,
+      shipping: 40,
+      originalShipping: 40,
+      deliveryDiscount: 0,
+    };
+    mockPrisma.order.count.mockResolvedValue(1);
+    mockPrisma.order.findMany
+      .mockResolvedValueOnce([orderWithCoupon])
+      .mockResolvedValueOnce([orderWithCoupon]);
+
+    const result = await service.getDriverEarningsHistory(10);
+    const o = result.orders[0];
+
+    expect(o.totalCashCollected).toBe(140); // Customer paid 140 cash
+    expect(o.adminDebtForOrder).toBe(140); // Driver turns in 140 to platform
+    expect(o.driverTotalEarnings).toBe(40); // Driver gets full 40 contractual delivery fee
+    expect(o.dueFromAdmin).toBe(40); // Recorded as platform liability to driver
+  });
+
+  it('Case 12: Non-partner store with FULL_PRICE reimbursement -> reimbursement added to driver dues', async () => {
+    // Non-partner order: shipping: 30, discount: 25, driver paid full price cash at counter
+    const nonPartnerReimburseOrder = {
+      ...baseOrder,
+      id: 112,
+      isPartnerStore: false,
+      Branch: {
+        ...baseOrder.Branch,
+        Store: { ...baseOrder.Branch.Store, isPartner: false },
+      },
+      shipping: 30,
+      originalShipping: 30,
+      discountAmount: 25,
+      nonPartnerPaymentOption: 'FULL_PRICE',
+      adminCommission: 10,
+      tax: 2,
+    };
+    mockPrisma.order.count.mockResolvedValue(1);
+    mockPrisma.order.findMany
+      .mockResolvedValueOnce([nonPartnerReimburseOrder])
+      .mockResolvedValueOnce([nonPartnerReimburseOrder]);
+
+    const result = await service.getDriverEarningsHistory(10);
+    const o = result.orders[0];
+
+    expect(o.driverTotalEarnings).toBe(55); // 30 shipping + 25 reimbursement
+    expect(o.dueFromAdmin).toBe(55);
+    expect(o.adminDebtForOrder).toBe(12); // 10 commission + 2 tax
   });
 });

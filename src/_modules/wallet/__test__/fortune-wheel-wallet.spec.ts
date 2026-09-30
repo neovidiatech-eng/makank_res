@@ -16,6 +16,7 @@ const buildTx = (overrides: Partial<any> = {}) => ({
   wallet: { update: jest.fn() },
   details: { update: jest.fn(), upsert: jest.fn() },
   storeDiscountSettlement: { create: jest.fn() },
+  transaction: { create: jest.fn() },
   ...overrides,
 });
 
