@@ -1374,14 +1374,10 @@ export class WalletService {
       // Cash in hand from customer for delivery:
       const deliveryCashInHand = isOffline ? shippingPaidByCustomer : 0;
 
-      // Due from Admin (المستحق لك من الإدارة):
-      // If online: full fee (driver got 0 cash in hand).
-      // If cash: only the subsidy difference (originalShipping - shippingPaidByCustomer).
-      // If cash with no promo: 0.
-      const dueFromAdmin = Math.max(
-        0,
-        Math.round((driverEarnings - deliveryCashInHand) * 100) / 100,
-      );
+      // Due from Admin / Platform (مستحقات المندوب على المنصة):
+      // Every delivered order's delivery earnings are accumulated as a platform liability (owed to the driver).
+      // When the platform settles/resets with the driver, this accumulated balance is zeroed out.
+      const dueFromAdmin = Math.round(driverEarnings * 100) / 100;
 
       // Discount on delivery:
       const deliveryDiscount = Math.max(

@@ -72,7 +72,7 @@ describe('WalletService - getDriverEarningsHistory', () => {
     },
   };
 
-  it('Case 1: Cash order without delivery discount -> dueFromAdmin = 0', async () => {
+  it('Case 1: Cash order without delivery discount -> dueFromAdmin = full earnings (50)', async () => {
     const order1 = { ...baseOrder, id: 101, shipping: 50, originalShipping: 50, deliveryDiscount: 0 };
     mockPrisma.order.count.mockResolvedValue(1);
     mockPrisma.order.findMany
@@ -86,7 +86,7 @@ describe('WalletService - getDriverEarningsHistory', () => {
     expect(o.driverTotalEarnings).toBe(50);
     expect(o.shippingPaidByCustomer).toBe(50);
     expect(o.deliveryCashInHand).toBe(50);
-    expect(o.dueFromAdmin).toBe(0);
+    expect(o.dueFromAdmin).toBe(50); // Full earnings owed by platform
     expect(o.deliveryDiscount).toBe(0);
     expect(o.hasDeliveryDiscount).toBe(false);
     expect(o.isPaidOnline).toBe(false);
@@ -94,7 +94,7 @@ describe('WalletService - getDriverEarningsHistory', () => {
     expect(o.adminDebtForOrder).toBe(150); // partner store: 200 - 50 = 150
   });
 
-  it('Case 2: Cash order WITH delivery discount -> dueFromAdmin = discount portion (20)', async () => {
+  it('Case 2: Cash order WITH delivery discount -> dueFromAdmin = full earnings (50)', async () => {
     // Delivery fee is 50, client pays 30, discount is 20
     const order2 = {
       ...baseOrder,
@@ -115,7 +115,7 @@ describe('WalletService - getDriverEarningsHistory', () => {
     expect(o.driverTotalEarnings).toBe(50);
     expect(o.shippingPaidByCustomer).toBe(30);
     expect(o.deliveryCashInHand).toBe(30);
-    expect(o.dueFromAdmin).toBe(20); // 50 - 30 = 20 due from admin
+    expect(o.dueFromAdmin).toBe(50); // Full earnings owed by platform
     expect(o.deliveryDiscount).toBe(20);
     expect(o.hasDeliveryDiscount).toBe(true);
     expect(o.isPaidOnline).toBe(false);
@@ -250,7 +250,7 @@ describe('WalletService - getDriverEarningsHistory', () => {
     expect(result.summary.totalOrdersCount).toBe(3);
     expect(result.summary.totalDriverEarnings).toBe(150); // 50 + 50 + 50
     expect(result.summary.totalCashDeliveryInHand).toBe(80); // 50 + 30 + 0
-    expect(result.summary.totalDueFromAdmin).toBe(70); // 0 + 20 + 50
+    expect(result.summary.totalDueFromAdmin).toBe(150); // 50 + 50 + 50 full platform liability
     expect(result.summary.totalDeliveryDiscount).toBe(20);
     expect(result.pagination.totalPages).toBe(1);
   });
