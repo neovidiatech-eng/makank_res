@@ -40,7 +40,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     }
 
     // Try to extract user identifier from auth header to avoid sharing NAT IP limits
-    const authHeader = req.headers['authorization'] || '';
+    const authHeader = req.headers?.['authorization'] || '';
     const clientIdentifier = authHeader.startsWith('Bearer ')
       ? `token:${authHeader.slice(7, 30)}`
       : `ip:${req.ip || req.socket.remoteAddress || 'unknown'}`;

@@ -885,6 +885,7 @@ export class OrderService {
             Service: {
               include: {
                 Store: true,
+                Category: true,
               },
             },
             Size: true,
@@ -935,6 +936,7 @@ export class OrderService {
         },
         items: orderItems.map((item) => ({
           service: item.Service.name,
+          category: (item.Service as any)?.Category?.name,
           size: item?.Size?.name,
           quantity: item.quantity,
           price: item.price,
