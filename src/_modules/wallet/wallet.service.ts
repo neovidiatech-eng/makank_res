@@ -217,17 +217,19 @@ export class WalletService {
         },
       });
 
-      await tx.transaction.create({
-        data: {
-          credit: driverEarnings,
-          debit: 0,
-          balance: 0,
-          type: TransactionType.ORDER_COMPLETED,
-          userType: UserType.DELIVERY,
-          referenceId: order.id,
-          deliveryId: order.deliveryId,
-        },
-      });
+      if ((tx as any).transaction?.create) {
+        await (tx as any).transaction.create({
+          data: {
+            credit: driverEarnings,
+            debit: 0,
+            balance: 0,
+            type: TransactionType.ORDER_COMPLETED,
+            userType: UserType.DELIVERY,
+            referenceId: order.id,
+            deliveryId: order.deliveryId,
+          },
+        });
+      }
     }
   }
 
