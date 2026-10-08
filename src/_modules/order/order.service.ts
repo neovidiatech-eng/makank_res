@@ -3939,7 +3939,7 @@ export class OrderService {
       order.CustomerSelectedZone = null;
       order.deliveryLat = null;
       order.deliveryLng = null;
-      order.note = null;
+      // Note is intentionally kept visible to driver before pickup so special food/prep instructions are known
     }
 
     return order;

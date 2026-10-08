@@ -67,7 +67,8 @@ describe('OrderService.sanitizeOrderForDelivery', () => {
 
     expect(result.deliveryLat).toBeNull();
     expect(result.deliveryLng).toBeNull();
-    expect(result.note).toBeNull();
+    // Note remains visible to driver so special preparation/delivery instructions are seen early
+    expect(result.note).toBe('Customer secret gate code: 1234');
   });
 
   it('masks customer data during PREPARING', () => {
