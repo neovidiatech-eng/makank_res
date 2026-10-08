@@ -167,7 +167,7 @@ export class AssignmentService {
     if (notify) {
       const orderData = await this.prisma.order.findUnique({
         where: { id: orderId },
-        select: { totalPriceAfterDiscount: true },
+        select: { totalPriceAfterDiscount: true, note: true },
       });
       const orderTotal = orderData?.totalPriceAfterDiscount ?? 0;
 
@@ -183,6 +183,7 @@ export class AssignmentService {
           orderId: `${orderId}`,
           totalPriceAfterDiscount: `${orderTotal}`,
           total: `${orderTotal}`,
+          note: orderData?.note ?? '',
           type: 'NEW_ORDER_ASSIGNMENT',
         },
       );
