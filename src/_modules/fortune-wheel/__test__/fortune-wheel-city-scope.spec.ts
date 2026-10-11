@@ -42,7 +42,7 @@ describe('FortuneWheelService - City Scoping', () => {
     expect(prisma.fortuneWheelItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          cityId: 1,
+          OR: [{ cityId: 1 }, { cityId: null }],
           isActive: true,
           deletedAt: null,
         }),
@@ -72,7 +72,7 @@ describe('FortuneWheelService - City Scoping', () => {
     expect(prisma.fortuneWheelItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          cityId: 2,
+          OR: [{ cityId: 2 }, { cityId: null }],
         }),
       }),
     );
@@ -158,7 +158,7 @@ describe('FortuneWheelService - City Scoping', () => {
     expect(tx.fortuneWheelItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          cityId: 1,
+          OR: [{ cityId: 1 }, { cityId: null }],
         }),
       }),
     );
@@ -239,7 +239,7 @@ describe('FortuneWheelService - City Scoping', () => {
     expect(prisma.fortuneWheelItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          cityId: 2,
+          OR: [{ cityId: 2 }, { cityId: null }],
         }),
       }),
     );

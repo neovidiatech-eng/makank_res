@@ -179,7 +179,14 @@ export class FortuneWheelService {
     const itemWhere: Prisma.FortuneWheelItemWhereInput = {
       isActive: true,
       deletedAt: null,
-      ...(resolvedCityId ? { cityId: resolvedCityId } : {}),
+      ...(resolvedCityId
+        ? {
+            OR: [
+              { cityId: resolvedCityId },
+              { cityId: null },
+            ],
+          }
+        : {}),
     };
 
     const items = await this.prisma.fortuneWheelItem.findMany({
@@ -290,7 +297,14 @@ export class FortuneWheelService {
       const itemWhere: Prisma.FortuneWheelItemWhereInput = {
         isActive: true,
         deletedAt: null,
-        ...(resolvedCityId ? { cityId: resolvedCityId } : {}),
+        ...(resolvedCityId
+          ? {
+              OR: [
+                { cityId: resolvedCityId },
+                { cityId: null },
+              ],
+            }
+          : {}),
       };
 
       const items = await tx.fortuneWheelItem.findMany({
