@@ -1583,9 +1583,10 @@ export class StoreService {
   async getEffectiveZonePrices(id: any, user?: CurrentUser) {
     const storeId = await this.resolveStoreId(id, user);
 
-    const { globalZonePricingEnabled, deliveryCommission } =
+    const { globalZonePricingEnabled, deliveryPricingMode, deliveryCommission } =
       await this.settingService.getSettings([
         'globalZonePricingEnabled',
+        'deliveryPricingMode',
         'deliveryCommission',
       ]);
 
@@ -1594,6 +1595,8 @@ export class StoreService {
       globalZonePricingEnabled !== 'false' &&
       globalZonePricingEnabled !== 0 &&
       globalZonePricingEnabled !== '0';
+
+    const isBulkZones = deliveryPricingMode === 'bulk_zones';
 
     const zones = await this.prisma.zone.findMany({
       where: { active: true },
@@ -1623,7 +1626,7 @@ export class StoreService {
 
     return Promise.all(
       zones.map(async (zone) => {
-        const storeEntry = storeZonePricingEnabled && typeof this.zoneService.getStoreZonePriceEntry === 'function'
+        const storeEntry = !isBulkZones && storeZonePricingEnabled && typeof this.zoneService.getStoreZonePriceEntry === 'function'
           ? await this.zoneService.getStoreZonePriceEntry(storeId, zone.id)
           : null;
         const zoneEntry =

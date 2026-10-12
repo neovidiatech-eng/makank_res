@@ -404,6 +404,16 @@ export const settingTypes = [
     value: '',
     type: DataType.STRING,
   },
+  // Delivery pricing mode:
+  // - 'custom': per-store zone prices with fallback to base km formula
+  // - 'bulk_zones': uniform zone price applied to all stores
+  // - 'unified': fixed fee + km formula across all stores (no zones)
+  {
+    setting: 'deliveryPricingMode',
+    domain: SettingDomain.ORDER,
+    value: 'custom',
+    type: DataType.STRING,
+  },
 ] as const satisfies readonly Setting[];
 
 export const SettingKeys = settingTypes.map((s) => s.setting);

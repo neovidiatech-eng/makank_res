@@ -142,47 +142,71 @@ export class SettingsService {
   }
 
   async getZonePricingStatus() {
-    let setting = await this.prisma.settings.findUnique({
-      where: { setting: 'globalZonePricingEnabled' },
-    });
+    const [setting, modeSetting] = await Promise.all([
+      this.prisma.settings.findUnique({
+        where: { setting: 'globalZonePricingEnabled' },
+      }),
+      this.prisma.settings.findUnique({
+        where: { setting: 'deliveryPricingMode' },
+      }),
+    ]);
 
-    if (!setting) {
-      setting = await this.prisma.settings.create({
-        data: {
+    const isEnabled = setting ? setting.value !== 'false' : true;
+    let mode = modeSetting?.value;
+    if (!mode || (mode !== 'custom' && mode !== 'bulk_zones' && mode !== 'unified')) {
+      mode = isEnabled ? 'custom' : 'unified';
+    }
+
+    return {
+      enabled: isEnabled,
+      mode,
+    };
+  }
+
+  async updateZonePricingStatus(body: { enabled?: boolean; mode?: string }) {
+    let targetMode = body.mode;
+    if (!targetMode) {
+      targetMode = body.enabled !== false ? 'custom' : 'unified';
+    }
+
+    const isEnabled = targetMode !== 'unified';
+
+    await Promise.all([
+      this.prisma.settings.upsert({
+        where: { setting: 'globalZonePricingEnabled' },
+        update: { value: isEnabled ? 'true' : 'false', dataType: 'BOOLEAN' },
+        create: {
           setting: 'globalZonePricingEnabled',
-          value: 'true',
+          value: isEnabled ? 'true' : 'false',
           domain: 'ORDER',
           dataType: 'BOOLEAN',
         },
+      }),
+      this.prisma.settings.upsert({
+        where: { setting: 'deliveryPricingMode' },
+        update: { value: targetMode, dataType: 'STRING' },
+        create: {
+          setting: 'deliveryPricingMode',
+          value: targetMode,
+          domain: 'ORDER',
+          dataType: 'STRING',
+        },
+      }),
+    ]);
+
+    if (targetMode === 'custom') {
+      await this.prisma.store.updateMany({
+        data: { zonePricingEnabled: true },
+      });
+    } else if (targetMode === 'unified') {
+      await this.prisma.store.updateMany({
+        data: { zonePricingEnabled: false },
       });
     }
 
     return {
-      enabled: setting.value !== 'false',
-    };
-  }
-
-  async updateZonePricingStatus(body: { enabled?: boolean }) {
-    const isEnabled = body.enabled !== false;
-    await this.prisma.settings.upsert({
-      where: { setting: 'globalZonePricingEnabled' },
-      update: { value: isEnabled ? 'true' : 'false', dataType: 'BOOLEAN' },
-      create: {
-        setting: 'globalZonePricingEnabled',
-        value: isEnabled ? 'true' : 'false',
-        domain: 'ORDER',
-        dataType: 'BOOLEAN',
-      },
-    });
-
-    // Synchronize all stores: toggling the master switch directly sets
-    // zonePricingEnabled for every store in the system
-    await this.prisma.store.updateMany({
-      data: { zonePricingEnabled: isEnabled },
-    });
-
-    return {
       enabled: isEnabled,
+      mode: targetMode,
     };
   }
 }

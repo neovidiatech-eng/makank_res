@@ -546,5 +546,52 @@ describe('Global Zone Pricing Toggle (Unified 15 EGP Delivery Fee)', () => {
       expect(result.discountAmount).toBe(20);
       expect(result.isPromotional).toBe(true);
     });
+
+    it('bypasses store-specific price and applies uniform zone price when deliveryPricingMode is bulk_zones', async () => {
+      const mockPrisma = {
+        address: { findUnique: jest.fn().mockResolvedValue({ id: 1, lat: 30.0444, lng: 31.2357 }) },
+        branch: { findUnique: jest.fn().mockResolvedValue({ id: 10, storeId: 100 }) },
+        settings: { findUnique: jest.fn().mockResolvedValue(null) },
+      };
+
+      const mockZoneService = {
+        getStoreZonePriceEntry: jest.fn().mockResolvedValue({
+          price: 50,
+          priceAfterDiscount: null,
+        }),
+        getZoneDeliveryPriceEntry: jest.fn().mockResolvedValue({
+          price: 35,
+          priceAfterDiscount: 20,
+        }),
+        resolveZoneId: jest.fn().mockResolvedValue(5),
+      };
+
+      const mockSettingsService = {
+        getSettings: jest.fn().mockResolvedValue({
+          globalZonePricingEnabled: true,
+          deliveryPricingMode: 'bulk_zones',
+          shippingKMCharge: 10,
+          deliveryCommission: 5,
+        }),
+      };
+
+      const helpers = new HelpersService(
+        mockPrisma as any,
+        null as any,
+        null as any,
+        mockSettingsService as any,
+        null as any,
+        mockZoneService as any,
+        mockDeliveryPromotionService as any,
+      );
+
+      const result = await helpers.getDeliveryPrice(1, 10, 100, 5);
+      // In bulk_zones mode, store price of 50 is ignored, and uniform zone price (35 before, 20 promo) is used!
+      expect(mockZoneService.getStoreZonePriceEntry).not.toHaveBeenCalled();
+      expect(result.finalShipping).toBe(20);
+      expect(result.originalShipping).toBe(35);
+      expect(result.discountAmount).toBe(15);
+      expect(result.isPromotional).toBe(true);
+    });
   });
 });

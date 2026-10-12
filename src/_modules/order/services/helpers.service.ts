@@ -598,6 +598,7 @@ export class HelpersService {
 
     const settings = await this.settingService.getSettings([
       'globalZonePricingEnabled',
+      'deliveryPricingMode',
       'shippingKMCharge',
       'deliveryCommission',
     ]);
@@ -610,6 +611,8 @@ export class HelpersService {
       settings.globalZonePricingEnabled !== 'false' &&
       settings.globalZonePricingEnabled !== 0 &&
       settings.globalZonePricingEnabled !== '0';
+
+    const isBulkZonesMode = settings.deliveryPricingMode === 'bulk_zones';
 
     let basePrice: number | null = null;
     let explicitDiscountPrice: number | null = null;
@@ -624,6 +627,7 @@ export class HelpersService {
       if (customerSelectedZoneId != null) {
         resolvedZoneId = customerSelectedZoneId as number;
         const selectedStoreZoneEntry =
+          !isBulkZonesMode &&
           typeof this.zoneService.getStoreZonePriceEntry === 'function'
             ? await this.zoneService.getStoreZonePriceEntry(
                 branch.storeId,
@@ -653,11 +657,12 @@ export class HelpersService {
             }
           }
         } else {
-          const selectedStoreZonePrice =
-            await this.zoneService.getStoreZoneDeliveryPrice(
-              branch.storeId,
-              customerSelectedZoneId,
-            );
+          const selectedStoreZonePrice = !isBulkZonesMode
+            ? await this.zoneService.getStoreZoneDeliveryPrice(
+                branch.storeId,
+                customerSelectedZoneId,
+              )
+            : null;
           if (selectedStoreZonePrice != null) {
             basePrice = selectedStoreZonePrice;
           } else {
@@ -699,6 +704,7 @@ export class HelpersService {
         // store set its own price for this zone. Takes priority over the
         // app-wide zone price below. Custom-delivery pricing never looks at this.
         const storeZoneEntry =
+          !isBulkZonesMode &&
           typeof this.zoneService.getStoreZonePriceEntry === 'function'
             ? await this.zoneService.getStoreZonePriceEntry(
                 branch.storeId,
@@ -726,10 +732,12 @@ export class HelpersService {
             }
           }
         } else {
-          const storeZonePrice = await this.zoneService.getStoreZoneDeliveryPrice(
-            branch.storeId,
-            zoneId,
-          );
+          const storeZonePrice = !isBulkZonesMode
+            ? await this.zoneService.getStoreZoneDeliveryPrice(
+                branch.storeId,
+                zoneId,
+              )
+            : null;
           if (storeZonePrice != null) {
             basePrice = storeZonePrice;
           } else {
