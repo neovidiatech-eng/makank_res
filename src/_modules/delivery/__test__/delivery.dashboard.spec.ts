@@ -470,4 +470,146 @@ describe('DeliveryService — Driver details dashboard', () => {
     );
     expect(res.date).toBeInstanceOf(Date);
   });
+
+  describe('Automated Date Validation & Query Coercion Suite (All Cases)', () => {
+    let pipe: any;
+    let GetDriverDashboardDTO: any;
+    let GetDeliveryStatisticsDTO: any;
+
+    beforeAll(async () => {
+      const { ValidationPipe } = await import('@nestjs/common');
+      const { globalValidationPipeOptions } = await import(
+        'src/configs/pipes.config'
+      );
+      const dtos = await import('../dto/delivery.dto');
+      pipe = new ValidationPipe(globalValidationPipeOptions);
+      GetDriverDashboardDTO = dtos.GetDriverDashboardDTO;
+      GetDeliveryStatisticsDTO = dtos.GetDeliveryStatisticsDTO;
+    });
+
+    it('Case 1: Today filter (?date=YYYY-MM-DD)', async () => {
+      const res = await pipe.transform(
+        { date: '2026-10-17' },
+        { type: 'query', metatype: GetDriverDashboardDTO },
+      );
+      expect(res.date).toBeInstanceOf(Date);
+      expect(isNaN(res.date.getTime())).toBe(false);
+      expect(res.fromDate).toBeUndefined();
+      expect(res.toDate).toBeUndefined();
+    });
+
+    it('Case 2: Yesterday filter (?date=YYYY-MM-DD)', async () => {
+      const res = await pipe.transform(
+        { date: '2026-10-16' },
+        { type: 'query', metatype: GetDriverDashboardDTO },
+      );
+      expect(res.date).toBeInstanceOf(Date);
+      expect(isNaN(res.date.getTime())).toBe(false);
+      expect(res.date.getFullYear()).toBe(2026);
+      expect(res.date.getMonth()).toBe(9); // 0-indexed: 9 = October
+      expect(res.date.getDate()).toBe(16);
+    });
+
+    it('Case 3: Custom range / This week / This month (?fromDate=...&toDate=...)', async () => {
+      const res = await pipe.transform(
+        { fromDate: '2026-10-10', toDate: '2026-10-17' },
+        { type: 'query', metatype: GetDriverDashboardDTO },
+      );
+      expect(res.fromDate).toBeInstanceOf(Date);
+      expect(res.toDate).toBeInstanceOf(Date);
+      expect(isNaN(res.fromDate.getTime())).toBe(false);
+      expect(isNaN(res.toDate.getTime())).toBe(false);
+      expect(res.date).toBeUndefined();
+    });
+
+    it('Case 4: Single-day custom filter (?fromDate=2026-10-15&toDate=2026-10-15)', async () => {
+      const res = await pipe.transform(
+        { fromDate: '2026-10-15', toDate: '2026-10-15' },
+        { type: 'query', metatype: GetDriverDashboardDTO },
+      );
+      expect(res.fromDate).toBeInstanceOf(Date);
+      expect(res.toDate).toBeInstanceOf(Date);
+      expect(res.fromDate.getTime()).toBe(res.toDate.getTime());
+    });
+
+    it('Case 5: ISO 8601 timestamps with milliseconds (?date=... or ?fromDate=...&toDate=...)', async () => {
+      const res = await pipe.transform(
+        {
+          fromDate: '2026-10-10T14:06:08.518Z',
+          toDate: '2026-10-17T14:06:08.518Z',
+        },
+        { type: 'query', metatype: GetDriverDashboardDTO },
+      );
+      expect(res.fromDate).toBeInstanceOf(Date);
+      expect(res.toDate).toBeInstanceOf(Date);
+      expect(isNaN(res.fromDate.getTime())).toBe(false);
+    });
+
+    it('Case 6: Empty strings should safely coerce to undefined without throwing validation error', async () => {
+      const res = await pipe.transform(
+        { date: '', fromDate: '', toDate: '' },
+        { type: 'query', metatype: GetDriverDashboardDTO },
+      );
+      expect(res.date).toBeUndefined();
+      expect(res.fromDate).toBeUndefined();
+      expect(res.toDate).toBeUndefined();
+    });
+
+    it('Case 7: Empty query object {} should leave all dates undefined', async () => {
+      const res = await pipe.transform(
+        {},
+        { type: 'query', metatype: GetDriverDashboardDTO },
+      );
+      expect(res.date).toBeUndefined();
+      expect(res.fromDate).toBeUndefined();
+      expect(res.toDate).toBeUndefined();
+    });
+
+    it('Case 8: GetDeliveryStatisticsDTO query parameters with ISO timestamps', async () => {
+      const res = await pipe.transform(
+        {
+          fromDate: '2026-10-10T14:06:08.518Z',
+          toDate: '2026-10-17T14:06:08.518Z',
+        },
+        { type: 'query', metatype: GetDeliveryStatisticsDTO },
+      );
+      expect(res.fromDate).toBeInstanceOf(Date);
+      expect(res.toDate).toBeInstanceOf(Date);
+    });
+
+    it('Case 9: DeliveryService applies correct start and end boundaries for single date', async () => {
+      const prisma = buildPrisma();
+      (prisma.user.findFirst as AnyFn).mockResolvedValue({
+        id: 12,
+        name: 'Tester',
+        roleKey: RolesKeys.DELIVERY,
+        DeliveryDetails: { forceAvailable: true, availableNow: true },
+        Details: { wallet: 0, collectedCash: 0, unsettledCommission: 0 },
+      });
+      (prisma.orderDeliveryAssignment.count as AnyFn).mockResolvedValue(0);
+      (prisma.order.count as AnyFn).mockResolvedValue(0);
+      (prisma.order.aggregate as AnyFn).mockResolvedValue({ _sum: {} });
+      (prisma.order.findMany as AnyFn).mockResolvedValue([]);
+
+      const targetDate = new Date('2026-10-17T00:00:00.000Z');
+      await buildService(prisma).getDriverDashboard(12, { date: targetDate });
+
+      // Verify that the count query received a date filter with gte at 00:00:00 and lte at 23:59:59
+      const countCall = (prisma.order.count as AnyFn).mock.calls[0][0];
+      const orFilter = countCall.where.OR;
+      expect(orFilter).toBeDefined();
+      const dateClause = orFilter.find((c: any) => c.date);
+      expect(dateClause.date.gte.getHours()).toBe(0);
+      expect(dateClause.date.lte.getHours()).toBe(23);
+    });
+
+    it('Case 10: Invalid date strings properly fail validation with BadRequestException', async () => {
+      await expect(
+        pipe.transform(
+          { date: 'this-is-not-a-date' },
+          { type: 'query', metatype: GetDriverDashboardDTO },
+        ),
+      ).rejects.toThrow();
+    });
+  });
 });

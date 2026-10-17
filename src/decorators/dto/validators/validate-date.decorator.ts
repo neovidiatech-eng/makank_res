@@ -6,11 +6,8 @@ import { IsDate } from 'class-validator';
 export function ValidateDate(apiPropertyOptions?: ApiPropertyOptions) {
   return applyDecorators(
     ApiProperty({ type: Date, example: new Date(), ...apiPropertyOptions }),
-    Type(() => Date),
     Transform(({ value }) => {
-      // Absent / empty multipart input => leave undefined so `@IsOptional()`
-      // skips it. `new Date('')`/`new Date(undefined)` is an Invalid Date,
-      // which would otherwise fail `@IsDate()` even when the field is optional.
+      // Absent / empty query parameter => leave undefined so `@Optional()` skips it.
       if (
         value === undefined ||
         value === null ||
@@ -18,7 +15,12 @@ export function ValidateDate(apiPropertyOptions?: ApiPropertyOptions) {
       ) {
         return undefined;
       }
-      return value instanceof Date ? value : new Date(value);
+      if (value instanceof Date) {
+        return isNaN(value.getTime()) ? undefined : value;
+      }
+      const parsed = new Date(value);
+      // If parsing failed, return original value so `@IsDate()` will report a validation error.
+      return isNaN(parsed.getTime()) ? value : parsed;
     }),
     IsDate(),
   );
