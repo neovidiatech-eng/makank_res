@@ -455,4 +455,19 @@ describe('DeliveryService — Driver details dashboard', () => {
     expect(res.financialSummary.driverEarnings).toBe(120);
     expect(res.financialSummary.collectedCash).toBe(500);
   });
+
+  it('validates and transforms string date query parameter into a Date instance', async () => {
+    const { ValidationPipe } = await import('@nestjs/common');
+    const { globalValidationPipeOptions } = await import(
+      'src/configs/pipes.config'
+    );
+    const { GetDriverDashboardDTO } = await import('../dto/delivery.dto');
+
+    const pipe = new ValidationPipe(globalValidationPipeOptions);
+    const res = await pipe.transform(
+      { date: '2026-10-17' },
+      { type: 'query', metatype: GetDriverDashboardDTO },
+    );
+    expect(res.date).toBeInstanceOf(Date);
+  });
 });
